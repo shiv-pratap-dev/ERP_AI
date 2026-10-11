@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+psycopg[binary]
+python-dotenv
+bcrypt
+pwdlib[argon2]
+PyJWT
+pydantic[email]

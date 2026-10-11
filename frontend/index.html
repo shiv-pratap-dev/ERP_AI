@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JECRC ERP | Sign In</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .captcha-text {
+      font-family: Georgia, serif;
+      font-weight: bold;
+      font-size: 30px;
+      letter-spacing: 9px;
+      color: #d92323;
+      user-select: none;
+    }
+
+    .campus-image {
+      object-fit: cover;
+      object-position: center;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #d92323;
+      box-shadow: 0 0 0 2px rgba(217, 35, 35, 0.12);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-white">
+
+  <main class="min-h-screen flex flex-col lg:flex-row p-3 lg:p-[14px] gap-6 lg:gap-0">
+
+    <!-- LEFT: CAMPUS IMAGE -->
+    <section class="hidden lg:block lg:w-[71%] relative overflow-hidden rounded-2xl min-h-[650px]">
+
+      <!-- Place your campus photo at frontend/assets/campus-login.jpg -->
+      <img
+        src="assests/campus-login.jpg"
+        alt="JECRC University Campus"
+        class="campus-image absolute inset-0 w-full h-full"
+        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+      />
+
+      <!-- Fallback if the image hasn't been added yet -->
+      <div class="absolute inset-0 bg-gray-200 items-center justify-center text-gray-500"
+           style="display:none;">
+        Campus image placeholder
+      </div>
+
+      <!-- University logo overlay -->
+      <div class="absolute bottom-[12%] left-0 bg-red-600 p-4 flex items-center gap-4">
+        <!-- Place logo at frontend/assets/jecrc-logo.png -->
+        <img
+          src="assests/jecrc-logo2.png"
+          alt="JECRC Logo"
+          class="w-80 h-30 object-contain"
+          onerror="this.style.display='none'"
+        />
+      </div>
+    </section>
+
+
+    <!-- RIGHT: LOGIN PANEL -->
+    <section class="w-full lg:w-[29%] flex flex-col justify-center px-5 sm:px-10 lg:px-7 py-6">
+
+      <!-- Logo -->
+      <div class="flex justify-center mb-6">
+        <img
+          src="assests/jecrc-logo.jpeg"
+          alt="JECRC University and Hospital"
+          class="h-25 max-w-full object-contain"
+          onerror="this.style.display='none'"
+        />
+      </div>
+
+      <!-- Address -->
+      <p class="text-center text-sm text-slate-700 leading-snug mb-7">
+        Plot No. IS-2036 to IS-2039 Ramchandrapura Industrial<br class="hidden xl:block">
+        Area, Sitapura, Vidhani, Jaipur, Rajasthan 303905
+      </p>
+
+      <h1 class="text-xl font-bold text-gray-900 mb-7">
+        Sign In
+      </h1>
+
+      <form id="loginForm" novalidate>
+
+        <!-- USERNAME -->
+        <div class="mb-5">
+          <div class="relative">
+            <input
+              id="username"
+              type="text"
+              placeholder="User Name"
+              autocomplete="username"
+              class="w-full border border-gray-300 rounded px-3 py-3 pr-10 text-sm"
+            />
+
+            <svg class="absolute right-4 top-3.5 text-gray-400"
+                 width="20" height="20" fill="none"
+                 stroke="currentColor" stroke-width="1.8"
+                 viewBox="0 0 24 24">
+              <circle cx="12" cy="8" r="4"/>
+              <path d="M4 21v-2a8 8 0 0116 0v2"/>
+            </svg>
+          </div>
+
+          <p id="usernameError" class="hidden text-red-600 text-xs mt-1">
+            Please enter your username.
+          </p>
+        </div>
+
+
+        <!-- PASSWORD -->
+        <div class="mb-5">
+          <div class="relative">
+            <input
+              id="password"
+              type="password"
+              placeholder="Password"
+              autocomplete="current-password"
+              class="w-full border border-gray-300 rounded px-3 py-3 pr-11 text-sm"
+            />
+
+            <button
+              type="button"
+              id="togglePassword"
+              class="absolute right-3 top-3 text-gray-400"
+              aria-label="Show password"
+            >
+              <svg id="eyeIcon" width="22" height="22"
+                   fill="none" stroke="currentColor"
+                   stroke-width="1.7" viewBox="0 0 24 24">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+
+          <p id="passwordError" class="hidden text-red-600 text-xs mt-1">
+            Please enter your password.
+          </p>
+        </div>
+
+
+        <!-- CAPTCHA -->
+        <div class="flex items-center gap-3 mb-2">
+
+          <button
+            type="button"
+            id="refreshCaptcha"
+            class="text-gray-700 hover:text-red-600"
+            title="Refresh CAPTCHA"
+            aria-label="Refresh CAPTCHA"
+          >
+            <svg width="24" height="24" fill="none"
+                 stroke="currentColor" stroke-width="2"
+                 viewBox="0 0 24 24">
+              <path d="M20 7v5h-5"/>
+              <path d="M4 17v-5h5"/>
+              <path d="M5.5 9A7 7 0 0118 6l2 6"/>
+              <path d="M18.5 15A7 7 0 016 18l-2-6"/>
+            </svg>
+          </button>
+
+          <span id="captchaDisplay" class="captcha-text">
+            1234
+          </span>
+
+          <input
+            id="captchaInput"
+            type="text"
+            inputmode="numeric"
+            maxlength="4"
+            placeholder="Captcha"
+            class="min-w-0 flex-1 w-24 border border-gray-300 rounded px-3 py-3 text-sm"
+          />
+        </div>
+
+        <p id="captchaError" class="hidden text-red-600 text-xs mb-3">
+          Enter the correct CAPTCHA.
+        </p>
+
+
+        <!-- REMEMBER ME -->
+        <label class="flex items-center gap-2 text-sm text-gray-800 mb-5 mt-5">
+          <input
+            id="rememberMe"
+            type="checkbox"
+            class="accent-red-600"
+          />
+          Remember Me
+        </label>
+
+
+        <!-- SIGN IN -->
+        <button
+          type="submit"
+          class="w-full bg-[#d92323] hover:bg-red-700 text-white font-semibold py-3 rounded transition"
+        >
+          Sign In
+        </button>
+
+        <div id="loginMessage"
+             class="hidden mt-4 p-3 rounded text-sm text-center">
+        </div>
+
+      </form>
+
+
+      <!-- FORGOT PASSWORD -->
+      <a href="#" id="forgotPassword"
+         class="text-center text-blue-700 hover:underline text-sm mt-3">
+        Forgot Password / UserName
+      </a>
+
+
+      <!-- GOOGLE PLAY + QR PLACEHOLDERS -->
+      <div class="flex justify-between items-center mt-6 gap-4">
+
+        <!-- Replace with actual Google Play badge -->
+        <div class="text-white px-3 py-2 text-xs">
+          <img
+            src="assests/Google_Play_Store_badge_EN.svg.webp"
+            width="150"
+            />
+        </div>
+
+        <!-- Replace with your actual QR image -->
+        <div class="w-14 h-14 border border-gray-300 bg-gray-100 flex items-center justify-center text-[10px] text-gray-500">
+          QR CODE
+        </div>
+
+      </div>
+
+    </section>
+  </main>
+
+
+ <script>
+    const form = document.getElementById("loginForm");
+    const username = document.getElementById("username");
+    const password = document.getElementById("password");
+    const captchaInput = document.getElementById("captchaInput");
+    const captchaDisplay = document.getElementById("captchaDisplay");
+    const loginMessage = document.getElementById("loginMessage");
+
+    let currentCaptcha = "";
+
+    function generateCaptcha() {
+        currentCaptcha = String(Math.floor(1000 + Math.random() * 9000));
+        captchaDisplay.textContent = currentCaptcha;
+        captchaInput.value = "";
+    }
+
+    document.getElementById("refreshCaptcha")
+        .addEventListener("click", generateCaptcha);
+
+    document.getElementById("togglePassword")
+        .addEventListener("click", function () {
+            const showing = password.type === "password";
+            password.type = showing ? "text" : "password";
+            this.setAttribute("aria-label", showing ? "Hide password" : "Show password");
+        });
+
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const usernameError = document.getElementById("usernameError");
+        const passwordError = document.getElementById("passwordError");
+        const captchaError = document.getElementById("captchaError");
+
+        usernameError.classList.add("hidden");
+        passwordError.classList.add("hidden");
+        captchaError.classList.add("hidden");
+        loginMessage.classList.add("hidden");
+
+        if (!username.value.trim() || !password.value) {
+            if (!username.value.trim()) usernameError.classList.remove("hidden");
+            if (!password.value) passwordError.classList.remove("hidden");
+            return;
+        }
+
+        if (captchaInput.value.trim() !== currentCaptcha) {
+            captchaError.classList.remove("hidden");
+            generateCaptcha();
+            return;
+        }
+
+        try {
+            const response = await fetch("http://127.0.0.1:8000/login", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: username.value.trim(),
+                    password: password.value
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                loginMessage.textContent = data.detail || "Invalid credentials.";
+                loginMessage.className =
+                    "mt-4 p-3 rounded text-sm text-center bg-red-100 text-red-800";
+                generateCaptcha();
+                return;
+            }
+
+            sessionStorage.setItem("user", JSON.stringify(data.user));
+            sessionStorage.setItem("lastActivity", Date.now().toString());
+            window.location.href = "http://127.0.0.1:8000/home";
+
+        } catch (error) {
+            loginMessage.textContent =
+                "Cannot connect to server. Ensure the backend is running.";
+            loginMessage.className =
+                "mt-4 p-3 rounded text-sm text-center bg-red-100 text-red-800";
+        }
+    });
+
+    document.getElementById("forgotPassword")
+        ?.addEventListener("click", function (event) {
+            event.preventDefault();
+            alert("Password recovery will be implemented later.");
+        });
+
+    generateCaptcha();
+</script>
+</body>
+</html>

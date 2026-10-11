@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Home</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
+    .card { background: white; border: 1px solid #e5e7eb; border-radius: 13px; overflow: hidden; }
+    .card-title { padding: 15px; border-bottom: 1px solid #e5e7eb; font-size: 15px; font-weight: 500; }
+    .nav-dropdown { display: none; position: absolute; top: 100%; left: 0; min-width: 210px; background: white; box-shadow: 0 4px 12px #0002; border: 1px solid #eee; border-radius: 4px; z-index: 50; }
+    .nav-item:hover .nav-dropdown, .nav-item:focus-within .nav-dropdown { display: block; }
+    .nav-dropdown a { display: block; padding: 10px 14px; color: #555; font-size: 14px; }
+    .nav-dropdown a:hover { background: #f3f4f6; color: #2563eb; }
+    .profile-menu { display: none; position: absolute; right: 0; top: 48px; width: 270px; background: white; box-shadow: 0 5px 18px #0002; z-index: 100; }
+    .profile-menu.open { display: block; }
+    .stat-card { border: 1px solid #dedfe3; border-radius: 10px; padding: 17px; min-height: 145px; }
+    .stat-card:hover { box-shadow: 0 3px 12px #0000000d; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 4px; font-size: 12px; font-weight: bold; }
+    .utility-btn { background: #6575e9; color: white; width: 43px; height: 43px; border-radius: 9px; display: grid; place-items: center; }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP NAVIGATION -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+    <div class="h-[58px] px-3 flex items-center gap-4">
+
+      <!-- Logo placeholder -->
+      <a href="home.html" class="flex items-center gap-1 shrink-0">
+        <img src="assests/jecrc-logo.jpeg" alt="JECRC" class="h-9 w-auto"
+             onerror="this.style.display='none'">
+      </a>
+
+      <nav class="flex items-center gap-1 sm:gap-4 text-sm text-gray-600 flex-1">
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" aria-expanded="false">
+            Academic <span>⌄</span>
+          </button>
+          <div class="nav-dropdown">
+            <a href="#" data-page="Student Details">Student Details</a>
+            <a href="#" data-page="Student Feedback">Student Feedback</a>
+            <a href="#" data-page="Academic Calendar">Academic Calendar</a>
+          </div>
+        </div>
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" aria-expanded="false">
+            Examination <span>⌄</span>
+          </button>
+          <div class="nav-dropdown">
+            <a href="#" data-page="Exam Schedule">Exam Schedule</a>
+            <a href="#" data-page="Results">Results</a>
+            <a href="#" data-page="Admit Card">Admit Card</a>
+          </div>
+        </div>
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" aria-expanded="false">
+            LMS <span>⌄</span>
+          </button>
+          <div class="nav-dropdown">
+            <a href="assignments.html">Transactions</a>
+            <a href="#" data-page="LMS View">View</a>
+            <a href="#" data-page="Virtual Notice Board">Virtual Notice Board</a>
+          </div>
+        </div>
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" aria-expanded="false">
+            Pay Online <span>⌄</span>
+          </button>
+          <div class="nav-dropdown">
+            <a href="#" data-page="Pay Online">Pay Online</a>
+            <a href="#" data-page="Payment History">Payment History</a>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Right-side controls -->
+      <div class="flex items-center gap-3 shrink-0">
+        <button title="Search" class="text-gray-500 text-xl">⌕</button>
+        <button class="border border-red-200 text-red-500 px-2 py-1 text-xs rounded">
+          FAQs
+        </button>
+        <button title="Applications" class="text-blue-600 text-xl">▦</button>
+
+        <div class="relative">
+          <button id="profileButton" class="w-9 h-9 rounded-full overflow-hidden border border-gray-200"
+                  aria-label="Open profile menu" aria-expanded="false">
+            <!-- Replace with a mock student profile image if desired -->
+            <img src="assests/student-profile.jpg" alt="Student profile"
+                 class="w-full h-full object-cover"
+                 onerror="this.style.display='none'; this.parentElement.textContent='S'; this.parentElement.classList.add('bg-yellow-400','text-white','font-bold')">
+          </button>
+
+          <div id="profileMenu" class="profile-menu rounded-b-lg">
+            <div class="p-5 text-center border-b">
+              <div class="w-20 h-20 rounded-full bg-yellow-400 mx-auto mb-3 flex items-center justify-center text-white text-3xl font-bold">
+                S
+              </div>
+              <p id="welcomeMessage" class="font-medium text-gray-800">Welcome!</p>
+            </div>
+
+            <a href="#" data-page="User Profile" class="block px-4 py-3 hover:bg-gray-100 text-sm">
+              👤 &nbsp; User Profile
+            </a>
+            <a href="home.html" class="block px-4 py-3 hover:bg-gray-100 text-sm">
+              🏠 &nbsp; Home
+            </a>
+
+            <div class="flex justify-around border-t p-4">
+              <button title="Change Password" onclick="showNotice('Change Password')" class="utility-btn">🔑</button>
+              <button title="Logout" onclick="logout()" class="bg-red-600 text-white rounded-lg w-11 h-11">⏻</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+
+  <!-- DASHBOARD CONTENT -->
+  <main class="p-4 sm:p-6 flex-1">
+
+    <!-- TOP ROW -->
+    <section class="grid grid-cols-1 xl:grid-cols-[1.1fr_1.55fr_0.9fr] gap-4 mb-5">
+
+      <!-- Institute Details -->
+      <div class="card">
+        <div class="card-title">Institute Details</div>
+
+        <div class="grid grid-cols-2 gap-4 p-4">
+
+          <div class="stat-card">
+            <div class="text-3xl text-blue-800 mb-3">☑</div>
+            <p class="text-gray-500 text-sm">Attendance</p>
+            <p class="text-2xl text-gray-700 mt-1" id="attendanceValue">100.00 %</p>
+          </div>
+
+          <button onclick="showNotice('Assignments')" class="stat-card text-left">
+            <div class="text-3xl text-rose-600 mb-3">☷</div>
+            <p class="text-gray-500 text-sm">Assignments</p>
+            <p class="text-2xl text-gray-700 mt-1" id="assignmentCount">0</p>
+          </button>
+
+          <div class="stat-card">
+            <div class="text-3xl text-green-600 mb-3">⚑</div>
+            <p class="text-gray-500 text-sm">Announcement</p>
+            <p class="text-2xl text-gray-700 mt-1">0.00</p>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Notifications -->
+      <div class="card">
+        <div class="card-title flex justify-between items-center">
+          <span>Notifications</span>
+          <button onclick="showNotice('Notifications refreshed')" class="border rounded p-2 text-indigo-500">⟳</button>
+        </div>
+        <div class="p-4">
+          <div class="bg-sky-100 border border-sky-200 text-center p-4 text-sm text-gray-700">
+            No records to display..
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Holiday List -->
+      <div class="card">
+        <div class="card-title">Holiday List</div>
+        <div class="p-4 overflow-x-auto">
+          <table class="w-full text-xs text-gray-700">
+            <thead>
+              <tr class="text-left">
+                <th class="table-head">Date</th>
+                <th class="table-head">Type</th>
+                <th class="table-head">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="bg-gray-50 border-b">
+                <td class="p-3">25/12/2026</td>
+                <td class="p-3">Holiday</td>
+                <td class="p-3">Christmas</td>
+              </tr>
+              <tr class="border-b">
+                <td class="p-3">19/12/2026</td>
+                <td class="p-3">Holiday</td>
+                <td class="p-3">Weekend</td>
+              </tr>
+              <tr class="bg-gray-50 border-b">
+                <td class="p-3">24/11/2026</td>
+                <td class="p-3">Holiday</td>
+                <td class="p-3">Holiday/Event</td>
+              </tr>
+              <tr class="border-b">
+                <td class="p-3">21/11/2026</td>
+                <td class="p-3">Holiday</td>
+                <td class="p-3">Third Saturday</td>
+              </tr>
+              <tr class="bg-gray-50">
+                <td class="p-3">11/11/2026</td>
+                <td class="p-3">Holiday</td>
+                <td class="p-3">Bhai Dooj</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- BOTTOM ROW -->
+    <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1fr_2fr_1fr_1.3fr] gap-4">
+
+      <!-- Today's Time Table -->
+      <div class="card">
+        <div class="card-title flex justify-between items-center">
+          <span>Today's Time Table</span>
+          <button onclick="showNotice('Timetable refreshed')" class="border rounded p-2 text-indigo-500">⟳</button>
+        </div>
+        <div class="p-4">
+          <table class="w-full">
+            <thead>
+              <tr>
+                <th class="table-head text-left">Slot</th>
+                <th class="table-head text-left">Code</th>
+              </tr>
+            </thead>
+            <tbody id="todayTimetable"></tbody>
+          </table>
+        </div>
+      </div>
+
+
+      <!-- Class Time Table -->
+      <div class="card">
+        <div class="card-title flex justify-between items-center">
+          <span>Class Time Table</span>
+          <button onclick="showNotice('Class timetable refreshed')" class="border rounded p-2 text-indigo-500">⟳</button>
+        </div>
+        <div class="p-4 overflow-x-auto">
+          <table class="w-full min-w-[420px]">
+            <thead>
+              <tr>
+                <th class="table-head">Time/Day</th>
+                <th class="table-head">Monday</th>
+                <th class="table-head">Tuesday</th>
+                <th class="table-head">Wednesday</th>
+                <th class="table-head">Thursday</th>
+                <th class="table-head">Friday</th>
+                <th class="table-head">Saturday</th>
+              </tr>
+            </thead>
+            <tbody id="classTimetable"></tbody>
+          </table>
+        </div>
+      </div>
+
+
+      <!-- Attendance -->
+      <div class="card">
+        <div class="card-title flex justify-between items-center">
+          <span>Attendance</span>
+          <button onclick="showNotice('Attendance refreshed')" class="border rounded p-2 text-indigo-500">⟳</button>
+        </div>
+        <div class="p-4">
+          <table class="w-full">
+            <thead>
+              <tr>
+                <th class="table-head text-left">Subject</th>
+                <th class="table-head">Lectures</th>
+                <th class="table-head">%</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceTable"></tbody>
+          </table>
+          <div class="mt-3 h-3 rounded-full bg-gray-100 overflow-hidden">
+            <div class="h-full bg-blue-500" style="width:100%"></div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Notice / News -->
+      <div class="card">
+        <div class="card-title flex justify-between items-center">
+          <span>Notice/News</span>
+          <div class="flex gap-2">
+            <button onclick="showNotice('Announcements')" class="border rounded p-2 text-green-600">⚑</button>
+            <button onclick="showNotice('Recent notices')" class="border rounded p-2 text-gray-500">◷</button>
+          </div>
+        </div>
+
+        <div class="p-4 space-y-4">
+          <article class="flex gap-3">
+            <div class="bg-teal-500 text-white rounded-xl p-3 text-center shrink-0">
+              <span class="block text-xs">Oct</span>
+              <strong class="text-xl">10</strong>
+            </div>
+            <a href="#" onclick="showNotice('UGC Letter'); return false;"
+               class="text-sky-700 text-sm leading-5">
+              UGC Letter regarding Promotion of "Innovation for Bharat" 2027 - Design for Bharat. Hack for Social Cause and Youth Entrepreneur
+            </a>
+          </article>
+
+          <article class="flex gap-3 border-t pt-4">
+            <div class="bg-teal-500 text-white rounded-xl p-3 text-center shrink-0">
+              <span class="block text-xs">Oct</span>
+              <strong class="text-xl">09</strong>
+            </div>
+            <a href="#" onclick="showNotice('Warning Letter'); return false;"
+               class="text-sky-700 text-sm leading-5">
+              Warning Letter - Responsible Use of Campus Facilities
+            </a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+
+  <footer class="bg-white border-t text-center py-3 text-sm text-gray-500">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+
+  <!-- Floating utility buttons -->
+  <div class="fixed right-0 top-[48%] z-30 flex flex-col gap-2">
+    <button onclick="showNotice('Information')" title="Information" class="utility-btn rounded-r-none">ⓘ</button>
+    <button onclick="showNotice('Quick links')" title="Quick links" class="utility-btn rounded-r-none">↗</button>
+  </div>
+
+
+  <!-- Notice modal -->
+  <div id="noticeModal" class="hidden fixed inset-0 bg-black/40 z-[200] items-center justify-center p-4">
+    <div class="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
+      <h2 id="modalTitle" class="font-bold text-lg mb-3">Notice</h2>
+      <p id="modalText" class="text-gray-600 text-sm mb-5">
+        This module will be implemented later.
+      </p>
+      <button onclick="closeNotice()" class="bg-blue-600 text-white px-5 py-2 rounded">
+        Close
+      </button>
+    </div>
+  </div>
+
+
+  <script>
+    // Mock dashboard data: replace with backend responses later.
+
+    // Check logged-in user
+
+    fetch("http://127.0.0.1:8000/session-user", {
+        credentials: "include"
+    })
+    .then(response => {
+        if (!response.ok) {
+            window.location.href = "http://127.0.0.1:5500/frontend/index.html";
+            return null;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data) {
+            document.getElementById("welcomeMessage").textContent =
+                `Welcome ${data.user.email}`;
+        }
+    });
+    const mockDashboard = {
+      attendance: "100.00 %",
+      assignmentCount: 0,
+      todayTimetable: [],
+      classTimetable: [],
+      attendanceSubjects: []
+    };
+
+    document.getElementById("attendanceValue").textContent = mockDashboard.attendance;
+    document.getElementById("assignmentCount").textContent = mockDashboard.assignmentCount;
+
+    // Profile dropdown
+    const profileButton = document.getElementById("profileButton");
+    const profileMenu = document.getElementById("profileMenu");
+
+    profileButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const open = profileMenu.classList.toggle("open");
+      profileButton.setAttribute("aria-expanded", String(open));
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!profileMenu.contains(event.target) && !profileButton.contains(event.target)) {
+        profileMenu.classList.remove("open");
+        profileButton.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    // Navigation dropdowns: click-friendly for touchscreens.
+    document.querySelectorAll(".nav-trigger").forEach(button => {
+      button.addEventListener("click", () => {
+        const menu = button.nextElementSibling;
+        const wasOpen = menu.style.display === "block";
+
+        document.querySelectorAll(".nav-dropdown").forEach(other => {
+          other.style.display = "";
+        });
+
+        menu.style.display = wasOpen ? "" : "block";
+      });
+    });
+
+    // Placeholder navigation for modules not implemented yet.
+    document.querySelectorAll("[data-page]").forEach(link => {
+      link.addEventListener("click", event => {
+        event.preventDefault();
+        showNotice(link.dataset.page);
+      });
+    });
+
+    function showNotice(title) {
+      document.getElementById("modalTitle").textContent = title;
+      document.getElementById("modalText").textContent =
+        title === "Assignments"
+          ? "The assignments module is next. Use LMS → Transactions to open it."
+          : "This section is a UI placeholder and will be implemented later.";
+
+      const modal = document.getElementById("noticeModal");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+
+    function closeNotice() {
+      const modal = document.getElementById("noticeModal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    function logout() {
+    sessionStorage.clear();
+    window.location.href = "index.html";
+
+  }
+
+  // Automatic logout after 15 minutes of inactivity
+    const INACTIVITY_LIMIT = 15 * 60 * 1000;
+    let inactivityTimer;
+
+    function resetInactivityTimer() {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(logout, INACTIVITY_LIMIT);
+    }
+
+    ["mousemove", "keydown", "click", "scroll", "touchstart"].forEach(event => {
+      document.addEventListener(event, resetInactivityTimer);
+    });
+
+    resetInactivityTimer();
+
+    // Close modal by clicking backdrop.
+    document.getElementById("noticeModal").addEventListener("click", event => {
+      if (event.target.id === "noticeModal") closeNotice();
+    });
+  </script>
+
+</body>
+</html>
