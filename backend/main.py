@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from assignment_upload import router as assignment_upload_router
 
 from auth import authenticate_user
 
@@ -31,6 +32,7 @@ HOME_PAGE = FRONTEND_DIR / "home.html"
 LOGIN_URL = "http://127.0.0.1:5500/frontend/index.html"
 
 app = FastAPI(title="ERP AI API")
+app.include_router(assignment_upload_router)
 
 # Serve existing image/assets folder using both spellings
 ASSETS_DIR = FRONTEND_DIR / "assests"
@@ -45,6 +47,16 @@ if ASSETS_DIR.exists():
         "/assets",
         StaticFiles(directory=ASSETS_DIR),
         name="assests",
+    )
+
+    app.mount(
+
+        "/LMS",
+
+        StaticFiles(directory=FRONTEND_DIR / "LMS", html=True),
+
+        name="LMS",
+
     )
 
 app.add_middleware(
@@ -183,6 +195,178 @@ def get_session_user(access_token: str | None = Cookie(default=None)):
 
     user = verify_token(access_token)
     return {"user": user}
+
+@app.get("/api/courses")
+def get_student_courses(
+    semester: int | None = None,
+    access_token: str | None = Cookie(default=None),
+):
+    # 1. Verify login session
+    if not access_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Not logged in",
+        )
+
+    user = verify_token(access_token)
+
+    # 2. Allow students only
+    if user["role"] != "student":
+        raise HTTPException(
+            status_code=403,
+            detail="Only students can access enrolled courses",
+        )
+
+    # 3. Validate semester if provided
+    if semester is not None and not 1 <= semester <= 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Semester must be between 1 and 8",
+        )
+
+    # 4. Fetch this student's enrolled courses
+    with psycopg.connect("dbname=erp_ai") as conn:
+        student = conn.execute(
+            """
+            SELECT id, semester
+            FROM students
+            WHERE user_id = %s
+            """,
+            (user["id"],),
+        ).fetchone()
+
+        if not student:
+            raise HTTPException(
+                status_code=404,
+                detail="Student profile not found",
+            )
+
+        selected_semester = semester if semester is not None else student[1]
+
+        courses = conn.execute(
+            """
+            SELECT
+                c.id,
+                c.course_code,
+                c.course_name,
+                c.semester,
+                c.description,
+                t.full_name AS teacher_name
+            FROM enrollments e
+            JOIN courses c ON c.id = e.course_id
+            LEFT JOIN teachers t ON t.id = c.teacher_id
+            WHERE e.student_id = %s
+              AND c.semester = %s
+            ORDER BY c.course_code
+            """,
+            (student[0], selected_semester),
+        ).fetchall()
+
+    # 5. Return JSON data
+    return {
+        "semester": selected_semester,
+        "courses": [
+            {
+                "id": str(course[0]),
+                "code": course[1],
+                "name": course[2],
+                "semester": course[3],
+                "description": course[4],
+                "teacher": course[5],
+            }
+            for course in courses
+        ],
+    }
+
+
+@app.get("/api/courses/{course_id}/assignments")
+def get_course_assignments(
+    course_id: str,
+    access_token: str | None = Cookie(default=None),
+):
+    # 1. Authenticate the user
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    user = verify_token(access_token)
+
+    if user["role"] != "student":
+        raise HTTPException(
+            status_code=403,
+            detail="Only students can access assignments",
+        )
+
+    # 2. Fetch assignments only for a course the student is enrolled in
+    with psycopg.connect("dbname=erp_ai") as conn:
+        student = conn.execute(
+            """
+            SELECT id
+            FROM students
+            WHERE user_id = %s
+            """,
+            (user["id"],),
+        ).fetchone()
+
+        if not student:
+            raise HTTPException(
+                status_code=404,
+                detail="Student profile not found",
+            )
+
+        rows = conn.execute(
+            """
+            SELECT
+                a.id,
+                a.title,
+                a.created_at,
+                a.due_date,
+                s.submitted_at,
+                s.status,
+                s.marks_obtained,
+                a.max_marks
+            FROM enrollments e
+            JOIN assignments a ON a.course_id = e.course_id
+            LEFT JOIN submissions s
+                ON s.assignment_id = a.id
+                AND s.student_id = e.student_id
+            WHERE e.student_id = %s
+              AND e.course_id = %s
+            ORDER BY a.due_date DESC
+            """,
+            (student[0], course_id),
+        ).fetchall()
+
+    now = datetime.now(timezone.utc)
+
+    assignments = []
+
+    for row in rows:
+        assignment_id, title, created_at, due_date, submitted_at, submission_status, marks, max_marks = row
+
+        if submitted_at:
+            status = submission_status.title()
+        elif due_date < now:
+            status = "Expired"
+        else:
+            status = "Pending"
+
+        assignments.append({
+            "id": str(assignment_id),
+            "subject": title,
+            "submission_date": (
+                submitted_at.strftime("%d-%b-%Y")
+                if submitted_at else (
+                    created_at.strftime("%d-%b-%Y")
+                    if created_at else None
+                )
+            ),
+            "due_date": due_date.strftime("%d/%m/%Y %H:%M:%S"),
+            "status": status,
+            "marks_obtained": float(marks) if marks is not None else None,
+            "max_marks": float(max_marks),
+        })
+
+    return {"assignments": assignments}
 
 @app.post("/logout")
 def logout(response: Response):

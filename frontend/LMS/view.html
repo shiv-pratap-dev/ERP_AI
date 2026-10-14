@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | View Student Assignment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+    }
+
+    .nav-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 210px;
+      background: white;
+      box-shadow: 0 4px 12px #0002;
+      border: 1px solid #eee;
+      border-radius: 4px;
+      z-index: 50;
+    }
+
+    .nav-item:hover .nav-dropdown,
+    .nav-item:focus-within .nav-dropdown {
+      display: block;
+    }
+
+    .nav-dropdown a {
+      display: block;
+      padding: 10px 14px;
+      color: #555;
+      font-size: 14px;
+    }
+
+    .nav-dropdown a:hover {
+      background: #f3f4f6;
+      color: #2563eb;
+    }
+
+    .profile-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 48px;
+      width: 270px;
+      background: white;
+      box-shadow: 0 5px 18px #0002;
+      z-index: 100;
+    }
+
+    .profile-menu.open {
+      display: block;
+    }
+
+    .view-sidebar {
+      width: 262px;
+      flex-shrink: 0;
+      transition: width .2s;
+    }
+
+    .view-sidebar.collapsed {
+      width: 0;
+      overflow: hidden;
+      border: 0;
+    }
+
+    .view-menu-link {
+      display: block;
+      padding: 11px 14px;
+      border-left: 2px solid transparent;
+      color: #555;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .view-menu-link:hover {
+      background: #f9fafb;
+      color: #4f46e5;
+    }
+
+    .view-menu-link.active {
+      color: #6875e8;
+      border-left-color: #6875e8;
+      font-weight: 600;
+    }
+
+    .table-scroll {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    #assignmentTable {
+      width: 100%;
+      min-width: 900px;
+      border-collapse: separate;
+      border-spacing: 0 4px;
+      font-size: 13px;
+    }
+
+    #assignmentTable thead th {
+      background: #fff;
+      color: #303030;
+      text-align: left;
+      padding: 12px 9px;
+      font-weight: 600;
+      border-bottom: 2px solid #d1d5db;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    #assignmentTable thead th:nth-child(1) {
+      border-bottom-color: #4385ee;
+    }
+
+    #assignmentTable thead th:nth-child(2) {
+      border-bottom-color: #ef4444;
+    }
+
+    #assignmentTable thead th:nth-child(3) {
+      border-bottom-color: #f97316;
+    }
+
+    #assignmentTable thead th:nth-child(4) {
+      border-bottom-color: #8b5cf6;
+    }
+
+    #assignmentTable thead th:nth-child(5) {
+      border-bottom-color: #4385ee;
+    }
+
+    #assignmentTable thead th:nth-child(6) {
+      border-bottom-color: #ef4444;
+    }
+
+    #assignmentTable tbody td {
+      padding: 10px 9px;
+      color: #444;
+      vertical-align: middle;
+      border-right: 2px solid white;
+    }
+
+    #assignmentTable tbody tr:nth-child(odd) {
+      background: #f0f0f0;
+    }
+
+    #assignmentTable tbody tr:nth-child(even) {
+      background: #fff;
+    }
+
+    #assignmentTable tbody tr:hover {
+      background: #e9edf5;
+    }
+
+    .eye-button {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      color: #2879ed;
+      font-size: 21px;
+      cursor: pointer;
+      border: 0;
+      background: transparent;
+      padding: 2px 12px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      border: 1px solid #dc5964;
+      color: #dc5964;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .status-badge.pending {
+      color: #b7791f;
+      border-color: #d69e2e;
+    }
+
+    .status-badge.submitted {
+      color: #16834a;
+      border-color: #22a05a;
+    }
+
+    .status-badge.late {
+      color: #c2410c;
+      border-color: #ea580c;
+    }
+
+    .table-control {
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 8px 11px;
+      background: white;
+      font-size: 12px;
+    }
+
+    .column-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      min-width: 180px;
+      background: white;
+      border: 1px solid #ddd;
+      box-shadow: 0 4px 10px #0002;
+      border-radius: 5px;
+      padding: 8px;
+      z-index: 30;
+    }
+
+    .column-menu.open {
+      display: block;
+    }
+
+    .column-menu label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .column-menu label:hover {
+      background: #f3f4f6;
+    }
+
+    .sort-indicator {
+      color: #aaa;
+      margin-left: 4px;
+    }
+
+    @media (max-width: 760px) {
+      .view-sidebar {
+        width: 210px;
+      }
+
+      .course-info-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      .content-card {
+        padding: 16px !important;
+      }
+
+      .header-nav {
+        gap: 8px;
+      }
+
+      .header-nav .nav-trigger {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP NAVIGATION -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+    <div class="h-[58px] px-3 flex items-center gap-4">
+
+      <a href="/home" class="flex items-center shrink-0">
+        <img src="/assests/jecrc-logo.jpeg"
+             alt="JECRC"
+             class="h-9 w-auto"
+             onerror="this.style.display='none'">
+      </a>
+
+      <nav class="header-nav flex items-center gap-1 sm:gap-4 text-sm text-gray-600 flex-1">
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600">
+            Academic ⌄
+          </button>
+          <div class="nav-dropdown">
+            <a href="#" data-page="Student Details">Student Details</a>
+            <a href="#" data-page="Student Feedback">Student Feedback</a>
+            <a href="#" data-page="Academic Calendar">Academic Calendar</a>
+          </div>
+        </div>
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600">
+            Examination ⌄
+          </button>
+          <div class="nav-dropdown">
+            <a href="#" data-page="Exam Schedule">Exam Schedule</a>
+            <a href="#" data-page="Results">Results</a>
+            <a href="#" data-page="Admit Card">Admit Card</a>
+          </div>
+        </div>
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600">
+            LMS ⌄
+          </button>
+          <div class="nav-dropdown">
+            <a href="/LMS/transaction.html">Transactions</a>
+            <a href="/LMS/view.html">View</a>
+            <a href="#" data-page="Virtual Notice Board">Virtual Notice Board</a>
+          </div>
+        </div>
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600">
+            Pay Online ⌄
+          </button>
+          <div class="nav-dropdown">
+            <a href="#" data-page="Pay Online">Pay Online</a>
+            <a href="#" data-page="Payment History">Payment History</a>
+          </div>
+        </div>
+      </nav>
+
+      <div class="flex items-center gap-3 shrink-0">
+        <button title="Search" class="text-gray-500 text-xl">⌕</button>
+
+        <button class="border border-red-200 text-red-500 px-2 py-1 text-xs rounded">
+          FAQs
+        </button>
+
+        <button title="Applications" class="text-blue-600 text-xl">▦</button>
+
+        <div class="relative">
+          <button id="profileButton"
+                  class="w-9 h-9 rounded-full overflow-hidden border border-gray-200"
+                  aria-label="Open profile menu"
+                  aria-expanded="false">
+            <img src="/assests/student-profile.jpg"
+                 alt="Student profile"
+                 class="w-full h-full object-cover"
+                 onerror="this.style.display='none'; this.parentElement.textContent='S'; this.parentElement.classList.add('bg-yellow-400','text-white','font-bold')">
+          </button>
+
+          <div id="profileMenu" class="profile-menu rounded-b-lg">
+            <div class="p-5 text-center border-b">
+              <div class="w-20 h-20 rounded-full bg-yellow-400 mx-auto mb-3 flex items-center justify-center text-white text-3xl font-bold">
+                S
+              </div>
+              <p id="welcomeMessage" class="font-medium text-gray-800">
+                Welcome!
+              </p>
+            </div>
+
+            <a href="#" data-page="User Profile"
+               class="block px-4 py-3 hover:bg-gray-100 text-sm">
+              👤 &nbsp; User Profile
+            </a>
+
+            <a href="/home"
+               class="block px-4 py-3 hover:bg-gray-100 text-sm">
+              🏠 &nbsp; Home
+            </a>
+
+            <div class="flex justify-around border-t p-4">
+              <button title="Change Password"
+                      onclick="alert('Change Password will be implemented later')">
+                🔑
+              </button>
+
+              <button title="Logout"
+                      onclick="logout()"
+                      class="bg-red-600 text-white rounded-lg w-11 h-11">
+                ⏻
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE BODY -->
+  <div class="flex flex-1 min-h-0">
+
+    <!-- LEFT SIDEBAR -->
+    <aside id="sidebar"
+           class="view-sidebar bg-white border-r border-gray-200 relative">
+
+      <div class="p-4 flex items-center justify-between">
+        <h2 class="text-gray-800 text-base">View</h2>
+
+        <button id="closeSidebar"
+                class="text-gray-500 hover:text-black text-2xl"
+                aria-label="Close sidebar">
+          ×
+        </button>
+      </div>
+
+      <a href="#" class="view-menu-link active" data-page="View Student Assignment">
+        View Student Assignment
+      </a>
+
+      <a href="#" class="view-menu-link" data-page="View Teaching Plan">
+        View Teaching Plan
+      </a>
+
+      <a href="#" class="view-menu-link" data-page="View Student Test">
+        View Student Test
+      </a>
+
+      <a href="#" class="view-menu-link" data-page="View Lecture Notes">
+        View Lecture Notes
+      </a>
+
+      <a href="#" class="view-menu-link" data-page="View Student Announcement">
+        View Student Announcement
+      </a>
+
+      <a href="#" class="view-menu-link" data-page="Access e-Library">
+        Access e-Library
+      </a>
+
+      <a href="#" class="view-menu-link" data-page="View Syllabus">
+        View Syllabus
+      </a>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 min-w-0 p-3 sm:p-5">
+
+      <section class="content-card bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-5">
+
+        <h1 class="text-lg font-semibold text-gray-800 border-b pb-2 mb-2">
+          View Student Assignment
+        </h1>
+
+        <!-- COURSE AND SESSION INFORMATION -->
+        <div class="course-info-grid grid grid-cols-2 gap-8 mb-6">
+
+          <div class="border border-gray-200 px-3 py-1 text-sm">
+            <strong class="text-gray-800">Session</strong>
+            <span id="sessionInfo" class="text-green-700 font-semibold">
+              Loading...
+            </span>
+          </div>
+
+          <div class="border border-gray-200 px-3 py-1 text-sm">
+            <strong class="text-gray-800">Course Name</strong>
+            <span id="courseInfo" class="text-green-700 font-semibold">
+              Loading...
+            </span>
+          </div>
+
+        </div>
+
+        <!-- ASSIGNMENT LIST -->
+        <div class="mb-3">
+          <h2 class="border-l-[3px] border-sky-500 pl-2 text-base text-gray-800">
+            Assignment List
+          </h2>
+        </div>
+
+        <!-- TABLE CONTROLS -->
+        <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
+
+          <div class="flex items-center gap-2">
+            <label for="searchInput" class="text-sm text-gray-600">
+              Search:
+            </label>
+
+            <input id="searchInput"
+                   type="search"
+                   class="border border-indigo-200 rounded px-2 py-2 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                   aria-label="Search assignments">
+          </div>
+
+          <div class="flex items-center gap-2">
+
+            <div class="relative">
+              <button id="columnVisibilityButton"
+                      class="table-control">
+                Column Visibility⌄
+              </button>
+
+              <div id="columnMenu" class="column-menu">
+                <label><input type="checkbox" data-column="action" checked> Action</label>
+                <label><input type="checkbox" data-column="subject" checked> Subject</label>
+                <label><input type="checkbox" data-column="submission_date" checked> Submission Date</label>
+                <label><input type="checkbox" data-column="due_date" checked> Due Date Time</label>
+                <label><input type="checkbox" data-column="status" checked> Status</label>
+                <label><input type="checkbox" data-column="result" checked> Display Result</label>
+              </div>
+            </div>
+
+            <button id="exportButton" class="table-control">
+              Export
+            </button>
+
+          </div>
+        </div>
+
+        <!-- ASSIGNMENTS TABLE -->
+        <div class="table-scroll">
+          <table id="assignmentTable">
+            <thead>
+              <tr>
+                <th data-key="action" data-sortable="false">Action</th>
+                <th data-key="subject">Subject <span class="sort-indicator">↕</span></th>
+                <th data-key="submission_date">Submission Date <span class="sort-indicator">↕</span></th>
+                <th data-key="due_date">Due Date Time <span class="sort-indicator">↕</span></th>
+                <th data-key="status">Status <span class="sort-indicator">↕</span></th>
+                <th data-key="result">Display Result <span class="sort-indicator">↕</span></th>
+              </tr>
+            </thead>
+
+            <tbody id="assignmentTableBody">
+              <tr>
+                <td colspan="6" class="text-center py-8">
+                  Loading assignments...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- TABLE FOOTER -->
+        <div class="flex flex-wrap justify-between items-center gap-3 mt-3 text-sm">
+          <p id="tableInfo" class="text-gray-700">
+            Loading assignments...
+          </p>
+          <p id="tableError" class="text-red-600" role="status"></p>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- SIDEBAR TOGGLE -->
+  <button id="openSidebar"
+          class="hidden fixed left-0 top-[42%] z-[70] bg-indigo-500 text-white rounded-r-xl w-10 h-12 items-center justify-center shadow"
+          aria-label="Open sidebar">
+    ▦
+  </button>
+
+  <!-- FOOTER -->
+  <footer class="bg-white border-t text-center py-3 text-sm text-gray-500">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+<script>
+  // =========================================
+  // AUTHENTICATION AND PROFILE
+  // =========================================
+
+  fetch("http://127.0.0.1:8000/session-user", {
+    credentials: "include"
+  })
+  .then(response => {
+    if (!response.ok) {
+      window.location.href = "http://127.0.0.1:5500/frontend/index.html";
+      return null;
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (data) {
+      document.getElementById("welcomeMessage").textContent =
+        `Welcome ${data.user.email}`;
+    }
+  })
+  .catch(() => {
+    window.location.href = "http://127.0.0.1:5500/frontend/index.html";
+  });
+
+  const profileButton = document.getElementById("profileButton");
+  const profileMenu = document.getElementById("profileMenu");
+
+  profileButton.addEventListener("click", event => {
+    event.stopPropagation();
+
+    const isOpen = profileMenu.classList.toggle("open");
+    profileButton.setAttribute("aria-expanded", String(isOpen));
+  });
+
+  document.addEventListener("click", event => {
+    if (
+      !profileMenu.contains(event.target) &&
+      !profileButton.contains(event.target)
+    ) {
+      profileMenu.classList.remove("open");
+      profileButton.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  document.querySelectorAll(".nav-trigger").forEach(button => {
+    button.addEventListener("click", () => {
+      const menu = button.nextElementSibling;
+      const wasOpen = menu.style.display === "block";
+
+      document.querySelectorAll(".nav-dropdown").forEach(other => {
+        other.style.display = "";
+      });
+
+      menu.style.display = wasOpen ? "" : "block";
+    });
+  });
+
+  document.querySelectorAll("[data-page]").forEach(link => {
+
+  link.addEventListener("click", event => {
+    // Only show the placeholder for links that aren't implemented.
+    event.preventDefault();
+    console.log("Placeholder clicked:", link.dataset.page);
+    alert(`${link.dataset.page} will be implemented later.`);
+  });
+});
+
+  let isLoggingOut = false;
+
+  async function logout() {
+    if (isLoggingOut) return;
+    isLoggingOut = true;
+
+    try {
+      await fetch("http://127.0.0.1:8000/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+    } catch (error) {
+      console.error("Logout request failed:", error);
+    } finally {
+      sessionStorage.clear();
+      window.location.href = "http://127.0.0.1:5500/frontend/index.html";
+    }
+  }
+
+  // Automatically log out after 15 minutes of inactivity.
+  const INACTIVITY_LIMIT = 15 * 60 * 1000;
+  let inactivityTimer;
+
+  function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(logout, INACTIVITY_LIMIT);
+  }
+
+  ["mousemove", "keydown", "click", "scroll", "touchstart"].forEach(event => {
+    document.addEventListener(event, resetInactivityTimer);
+  });
+
+  resetInactivityTimer();
+
+
+  // =========================================
+  // SELECTED COURSE
+  // =========================================
+
+  const selectedCourse = JSON.parse(
+    localStorage.getItem("selectedCourse") || "null"
+  );
+
+  // Your requested behavior: no course selected -> Transactions.
+  if (
+    !selectedCourse ||
+    !selectedCourse.id ||
+    !selectedCourse.code ||
+    !selectedCourse.name
+  ) {
+    window.location.replace("/LMS/transaction.html");
+    throw new Error("No course selected. Redirecting to Transactions.");
+  }
+
+  const sessionNames = {
+    1: "Semester I",
+    2: "Jan-June 2023-2024 - School of Engineering and Technology (Sem - II)",
+    3: "July-Dec 2024-2025 - School of Engineering and Technology (Sem - III)",
+    4: "Jan-June 2024-2025 - School of Engineering and Technology (Sem - IV)",
+    5: "July-Dec 2025-2026 - School of Engineering and Technology (Sem - V)",
+    6: "Jan-June 2025-2026 - School of Engineering and Technology (Sem - VI)",
+    7: "July-Dec 2026-2027 - School of Engineering and Technology (Sem - VII)",
+    8: "Semester VIII"
+  };
+
+  document.getElementById("sessionInfo").textContent =
+    sessionNames[selectedCourse.semester] ||
+    `Semester ${selectedCourse.semester}`;
+
+  document.getElementById("courseInfo").textContent =
+    `${selectedCourse.code} - ${selectedCourse.name} - [ SF ]`;
+
+
+  // =========================================
+  // ASSIGNMENTS API AND TABLE
+  // =========================================
+
+  const tableBody = document.getElementById("assignmentTableBody");
+  const tableInfo = document.getElementById("tableInfo");
+  const tableError = document.getElementById("tableError");
+  const searchInput = document.getElementById("searchInput");
+
+  let assignments = [];
+  let filteredAssignments = [];
+  let sortKey = "due_date";
+  let sortDirection = "asc";
+
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[character]);
+  }
+
+  function formatResult(assignment) {
+    if (assignment.marks_obtained === null ||
+        assignment.marks_obtained === undefined) {
+      return "";
+    }
+
+    return `${assignment.marks_obtained} / ${assignment.max_marks}`;
+  }
+
+  function getStatusClass(status) {
+    const normalized = String(status || "").toLowerCase();
+
+    if (normalized === "submitted") return "submitted";
+    if (normalized === "pending") return "pending";
+    if (normalized === "late") return "late";
+
+    return "";
+  }
+
+  function renderTable() {
+    const query = searchInput.value.trim().toLowerCase();
+
+    filteredAssignments = assignments.filter(assignment => {
+      const searchableText = [
+        assignment.subject,
+        assignment.submission_date,
+        assignment.due_date,
+        assignment.status,
+        formatResult(assignment)
+      ].join(" ").toLowerCase();
+
+      return searchableText.includes(query);
+    });
+
+    filteredAssignments.sort((a, b) => {
+      const first = String(a[sortKey] ?? "").toLowerCase();
+      const second = String(b[sortKey] ?? "").toLowerCase();
+
+      const comparison = first.localeCompare(second, undefined, {
+        numeric: true
+      });
+
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+
+    tableBody.innerHTML = "";
+
+    if (filteredAssignments.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center py-8 text-gray-500">
+            ${assignments.length === 0
+              ? "No assignments found for this course."
+              : "No assignments match your search."}
+          </td>
+        </tr>
+      `;
+
+      tableInfo.textContent = "Showing 0 entries";
+      return;
+    }
+
+    filteredAssignments.forEach(assignment => {
+      const row = document.createElement("tr");
+
+      row.innerHTML = `
+        <td data-column="action">
+          <button
+            type="button"
+            class="eye-button"
+            data-assignment-id="${escapeHTML(assignment.id)}"
+            aria-label="View assignment details"
+            title="View assignment">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 width="22" height="22" viewBox="0 0 24 24"
+                 fill="currentColor" aria-hidden="true">
+              <path d="M12 5c-5 0-9.27 3.11-11 7
+                       1.73 3.89 6 7 11 7s9.27-3.11
+                       11-7c-1.73-3.89-6-7-11-7zm0 12
+                       a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8
+                       a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>
+            </svg>
+          </button>
+        </td>
+
+        <td data-column="subject">${escapeHTML(assignment.subject)}</td>
+
+        <td data-column="submission_date">
+          ${escapeHTML(assignment.submission_date || "—")}
+        </td>
+
+        <td data-column="due_date">
+          ${escapeHTML(assignment.due_date || "—")}
+        </td>
+
+        <td data-column="status">
+          <span class="status-badge ${getStatusClass(assignment.status)}">
+            ${escapeHTML(assignment.status || "Pending")}
+          </span>
+        </td>
+
+        <td data-column="result">
+          ${escapeHTML(formatResult(assignment))}
+        </td>
+      `;
+
+      // Open upload page for the selected assignment
+
+      row.querySelector(".eye-button").addEventListener("click", () => {
+          sessionStorage.setItem(
+              "selectedAssignment",
+              JSON.stringify(assignment)
+          );
+          window.location.href = "/LMS/upload.html";
+      });
+
+      tableBody.appendChild(row);
+    });
+
+    tableInfo.textContent =
+      `Showing 1 to ${filteredAssignments.length} of ${filteredAssignments.length} entries`;
+  }
+
+  async function loadAssignments() {
+    tableError.textContent = "";
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center py-8 text-gray-500">
+          Loading assignments...
+        </td>
+      </tr>
+    `;
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/courses/${encodeURIComponent(selectedCourse.id)}/assignments`,
+        { credentials: "include" }
+      );
+
+      if (response.status === 401) {
+        window.location.href = "http://127.0.0.1:5500/frontend/index.html";
+        return;
+      }
+
+      if (response.status === 403) {
+        throw new Error("You are not permitted to access these assignments.");
+      }
+
+      if (response.status === 404) {
+        throw new Error(
+          "Student profile or course enrollment was not found."
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(`API request failed (${response.status}).`);
+      }
+
+      const data = await response.json();
+      assignments = data.assignments || [];
+
+      renderTable();
+
+    } catch (error) {
+      console.error("Unable to load assignments:", error);
+
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center py-8 text-red-600">
+            Unable to load assignments.
+          </td>
+        </tr>
+      `;
+
+      tableInfo.textContent = "Assignments could not be loaded.";
+      tableError.textContent = error.message;
+    }
+  }
+
+  // Search
+  searchInput.addEventListener("input", renderTable);
+
+  // Sorting
+  document.querySelectorAll("#assignmentTable thead th[data-key]").forEach(th => {
+    if (th.dataset.sortable === "false") return;
+
+    th.addEventListener("click", () => {
+      const key = th.dataset.key;
+
+      if (sortKey === key) {
+        sortDirection = sortDirection === "asc" ? "desc" : "asc";
+      } else {
+        sortKey = key;
+        sortDirection = "asc";
+      }
+
+      document.querySelectorAll(".sort-indicator").forEach(indicator => {
+        indicator.textContent = "↕";
+      });
+
+      const indicator = th.querySelector(".sort-indicator");
+      if (indicator) {
+        indicator.textContent = sortDirection === "asc" ? "↑" : "↓";
+      }
+
+      renderTable();
+    });
+  });
+
+  // Column visibility
+  const columnVisibilityButton =
+    document.getElementById("columnVisibilityButton");
+
+  const columnMenu = document.getElementById("columnMenu");
+
+  columnVisibilityButton.addEventListener("click", event => {
+    event.stopPropagation();
+    columnMenu.classList.toggle("open");
+  });
+
+  document.addEventListener("click", event => {
+    if (
+      !columnMenu.contains(event.target) &&
+      !columnVisibilityButton.contains(event.target)
+    ) {
+      columnMenu.classList.remove("open");
+    }
+  });
+
+  columnMenu.querySelectorAll("input[data-column]").forEach(checkbox => {
+    checkbox.addEventListener("change", () => {
+      const column = checkbox.dataset.column;
+
+      document.querySelectorAll(
+        `[data-column="${column}"]`
+      ).forEach(cell => {
+        cell.style.display = checkbox.checked ? "" : "none";
+      });
+    });
+  });
+
+  // Export visible table data to CSV.
+  document.getElementById("exportButton").addEventListener("click", () => {
+    const visibleColumns = Array.from(
+      document.querySelectorAll("#assignmentTable thead th")
+    ).filter(th => {
+      const key = th.dataset.key;
+
+      const checkbox = columnMenu.querySelector(
+        `input[data-column="${key}"]`
+      );
+
+      return !checkbox || checkbox.checked;
+    });
+
+    const headings = visibleColumns.map(th =>
+      th.textContent.replace(/[↕↑↓]/g, "").trim()
+    );
+
+    const rows = filteredAssignments.map(assignment => {
+      const values = {
+        action: "",
+        subject: assignment.subject,
+        submission_date: assignment.submission_date || "",
+        due_date: assignment.due_date || "",
+        status: assignment.status || "Pending",
+        result: formatResult(assignment)
+      };
+
+      return visibleColumns.map(th => values[th.dataset.key] ?? "");
+    });
+
+    const csvValue = value =>
+      `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+    const csv = [headings, ...rows]
+      .map(row => row.map(csvValue).join(","))
+      .join("\r\n");
+
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `assignments-${selectedCourse.code}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+  });
+
+
+  // =========================================
+  // SIDEBAR COLLAPSE / EXPAND
+  // =========================================
+
+  const sidebar = document.getElementById("sidebar");
+  const openSidebar = document.getElementById("openSidebar");
+
+  document.getElementById("closeSidebar").addEventListener("click", () => {
+    sidebar.classList.add("collapsed");
+    openSidebar.classList.remove("hidden");
+    openSidebar.classList.add("flex");
+  });
+
+  openSidebar.addEventListener("click", () => {
+    sidebar.classList.remove("collapsed");
+    openSidebar.classList.add("hidden");
+    openSidebar.classList.remove("flex");
+  });
+
+
+  // =========================================
+  // INITIAL LOAD
+  // =========================================
+
+  loadAssignments();
+</script>
+
+</body>
+</html>

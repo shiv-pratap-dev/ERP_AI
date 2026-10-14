@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Transactions</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f3f4f6;
+    }
+
+    .subject-card {
+      background: #eaf0ff;
+      border-radius: 14px;
+      padding: 22px;
+      min-height: 135px;
+      box-shadow: 0 4px 5px #0002;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+    }
+
+    .subject-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 7px 14px #0002;
+    }
+
+    .subject-card img {
+      width: 70px;
+      height: 70px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .sidebar {
+      width: 265px;
+      transition: width .2s, transform .2s;
+      flex-shrink: 0;
+    }
+
+    .sidebar.collapsed {
+      width: 0;
+      overflow: hidden;
+      border: 0;
+    }
+
+    .floating-menu {
+      display: none;
+    }
+
+    .floating-menu.visible {
+      display: flex;
+    }
+
+    @media (max-width: 700px) {
+      .sidebar {
+        position: fixed;
+        top: 58px;
+        bottom: 0;
+        left: 0;
+        z-index: 60;
+        background: white;
+        box-shadow: 4px 0 12px #0001;
+      }
+
+      .sidebar.collapsed {
+        width: 0;
+      }
+    }
+
+    .nav-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 210px;
+      background: white;
+      box-shadow: 0 4px 12px #0002;
+      border: 1px solid #eee;
+      border-radius: 4px;
+      z-index: 50;
+    }
+
+    .nav-item:hover .nav-dropdown,
+    .nav-item:focus-within .nav-dropdown {
+      display: block;
+    }
+
+    .nav-dropdown a {
+      display: block;
+      padding: 10px 14px;
+      color: #555;
+      font-size: 14px;
+    }
+
+    .nav-dropdown a:hover {
+      background: #f3f4f6;
+      color: #2563eb;
+    }
+
+    .profile-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 48px;
+      width: 270px;
+      background: white;
+      box-shadow: 0 5px 18px #0002;
+      z-index: 100;
+    }
+
+    .profile-menu.open {
+      display: block;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP NAVIGATION -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+    <div class="h-[58px] px-3 flex items-center gap-4">
+
+      <a href="/home" class="flex items-center gap-1 shrink-0">
+        <img src="/assests/jecrc-logo.jpeg" alt="JECRC"
+             class="h-9 w-auto" onerror="this.style.display='none'">
+      </a>
+
+      <nav class="flex items-center gap-1 sm:gap-4 text-sm text-gray-600 flex-1">
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600">
+            Academic <span>⌄</span>
+          </button>
+          <div class="nav-dropdown">
+            <a href="#" data-page="Student Details">Student Details</a>
+            <a href="#" data-page="Student Feedback">Student Feedback</a>
+            <a href="#" data-page="Academic Calendar">Academic Calendar</a>
+          </div>
+        </div>
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600">
+            Examination <span>⌄</span>
+          </button>
+          <div class="nav-dropdown">
+            <a href="#" data-page="Exam Schedule">Exam Schedule</a>
+            <a href="#" data-page="Results">Results</a>
+            <a href="#" data-page="Admit Card">Admit Card</a>
+          </div>
+        </div>
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600">
+            LMS <span>⌄</span>
+          </button>
+          <div class="nav-dropdown">
+            <a href="/LMS/transaction.html">Transactions</a>
+            <a href="/LMS/view.html">View</a>
+            <a href="#" data-page="Virtual Notice Board">Virtual Notice Board</a>
+          </div>
+        </div>
+
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600">
+            Pay Online <span>⌄</span>
+          </button>
+          <div class="nav-dropdown">
+            <a href="#" data-page="Pay Online">Pay Online</a>
+            <a href="#" data-page="Payment History">Payment History</a>
+          </div>
+        </div>
+      </nav>
+
+      <div class="flex items-center gap-3 shrink-0">
+        <button title="Search" class="text-gray-500 text-xl">⌕</button>
+        <button class="border border-red-200 text-red-500 px-2 py-1 text-xs rounded">
+          FAQs
+        </button>
+        <button title="Applications" class="text-blue-600 text-xl">▦</button>
+
+        <div class="relative">
+          <button id="profileButton"
+                  class="w-9 h-9 rounded-full overflow-hidden border border-gray-200"
+                  aria-label="Open profile menu" aria-expanded="false">
+            <img src="/assests/student-profile.jpg" alt="Student profile"
+                 class="w-full h-full object-cover"
+                 onerror="this.style.display='none'; this.parentElement.textContent='S'; this.parentElement.classList.add('bg-yellow-400','text-white','font-bold')">
+          </button>
+
+          <div id="profileMenu" class="profile-menu rounded-b-lg">
+            <div class="p-5 text-center border-b">
+              <div class="w-20 h-20 rounded-full bg-yellow-400 mx-auto mb-3 flex items-center justify-center text-white text-3xl font-bold">
+                S
+              </div>
+              <p id="welcomeMessage" class="font-medium text-gray-800">
+                Welcome!
+              </p>
+            </div>
+
+            <a href="#" data-page="User Profile"
+               class="block px-4 py-3 hover:bg-gray-100 text-sm">
+              👤 &nbsp; User Profile
+            </a>
+
+            <a href="/home"
+               class="block px-4 py-3 hover:bg-gray-100 text-sm">
+              🏠 &nbsp; Home
+            </a>
+
+            <div class="flex justify-around border-t p-4">
+              <button title="Change Password"
+                      onclick="alert('Change Password will be implemented later')"
+                      class="utility-btn">🔑</button>
+
+              <button title="Logout" onclick="logout()"
+                      class="bg-red-600 text-white rounded-lg w-11 h-11">
+                ⏻
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex flex-1 min-h-0">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar"
+           class="sidebar bg-white border-r border-gray-200 relative">
+
+      <div class="p-4 flex items-center justify-between">
+        <h2 class="text-gray-800 text-base">Transactions</h2>
+
+        <button id="closeSidebar"
+                class="text-gray-500 hover:text-black text-2xl"
+                aria-label="Close sidebar">
+          ×
+        </button>
+      </div>
+
+      <div class="px-4">
+        <div class="border-l-2 border-indigo-400 pl-3 py-2 text-sm font-semibold text-indigo-500">
+          Select Course
+        </div>
+      </div>
+    </aside>
+
+    <!-- FLOATING SIDEBAR BUTTON -->
+    <button id="openSidebar"
+            class="floating-menu fixed left-0 top-[42%] z-[70] bg-indigo-500 text-white rounded-r-xl w-10 h-12 items-center justify-center shadow"
+            aria-label="Open sidebar">
+      ▦
+    </button>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 min-w-0 p-3 sm:p-5">
+
+      <section class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5">
+
+        <div class="flex justify-between items-center border-b pb-3 mb-3">
+          <h1 class="text-lg font-semibold text-gray-800">Select Course</h1>
+          <span class="text-3xl text-sky-600">♟</span>
+        </div>
+
+        <!-- INFORMATION BANNER -->
+        <div class="flex items-center border rounded-md mb-6 max-w-4xl overflow-hidden">
+          <div class="bg-indigo-500 text-white px-4 py-3">♧</div>
+          <p class="px-3 py-3 text-sm text-green-700 font-semibold">
+            If the session is not binding, check the Exam Type on the session creation page.
+          </p>
+        </div>
+
+        <!-- SEMESTER SELECTION -->
+        <div class="mb-8 max-w-xl">
+          <label for="semester" class="block text-sm text-gray-600 mb-2">
+            <span class="text-red-600">*</span> Session
+          </label>
+
+          <select id="semester"
+                  class="w-full border border-indigo-200 rounded-md px-3 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200">
+            <option value="7">July-Dec 2026-2027 - School of Engineering and Technology (Sem - VII)</option>
+            <option value="6">Jan-June 2025-2026 - School of Engineering and Technology (Sem - VI)</option>
+            <option value="5">July-Dec 2025-2026 - School of Engineering and Technology (Sem - V)</option>
+            <option value="4">Jan-June 2024-2025 - School of Engineering and Technology (Sem - IV)</option>
+            <option value="3">July-Dec 2024-2025 - School of Engineering and Technology (Sem - III)</option>
+            <option value="2">Jan-June 2023-2024 - School of Engineering and Technology (Sem - II)</option>
+          </select>
+        </div>
+
+        <!-- COURSE CARDS -->
+        <div id="subjectGrid"
+             class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-1">
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- COURSE SELECTION MODAL -->
+  <div id="selectionModal"
+       class="hidden fixed inset-0 bg-black/40 z-[100] items-center justify-center p-4">
+
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg min-h-[420px] p-7 flex flex-col items-center justify-center text-center">
+
+      <div class="text-green-500 text-7xl font-light mb-5">✓</div>
+
+      <img src="../assests/courseselection.jpeg"
+           alt="Course selected"
+           class="w-28 h-28 object-contain mb-6"
+           onerror="this.style.display='none'">
+
+      <p id="confirmationText"
+         class="text-gray-600 text-lg italic leading-8 mb-6">
+      </p>
+
+      <button id="confirmSelection"
+              class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold px-8 py-3 rounded-lg">
+        OK
+      </button>
+    </div>
+  </div>
+
+  <footer class="bg-white border-t text-center py-3 text-sm text-gray-500">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+<script>
+  // =========================
+  // AUTHENTICATION & PROFILE
+  // =========================
+
+  fetch("http://127.0.0.1:8000/session-user", {
+    credentials: "include"
+  })
+  .then(response => {
+    if (!response.ok) {
+      window.location.href = "http://127.0.0.1:5500/frontend/index.html";
+      return null;
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (data) {
+      document.getElementById("welcomeMessage").textContent =
+        `Welcome ${data.user.email}`;
+    }
+  })
+  .catch(() => {
+    window.location.href = "http://127.0.0.1:5500/frontend/index.html";
+  });
+
+  // PROFILE DROPDOWN
+  const profileButton = document.getElementById("profileButton");
+  const profileMenu = document.getElementById("profileMenu");
+
+  profileButton.addEventListener("click", event => {
+    event.stopPropagation();
+
+    const isOpen = profileMenu.classList.toggle("open");
+    profileButton.setAttribute("aria-expanded", String(isOpen));
+  });
+
+  document.addEventListener("click", event => {
+    if (
+      !profileMenu.contains(event.target) &&
+      !profileButton.contains(event.target)
+    ) {
+      profileMenu.classList.remove("open");
+      profileButton.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  // NAVBAR DROPDOWNS
+  document.querySelectorAll(".nav-trigger").forEach(button => {
+    button.addEventListener("click", () => {
+      const menu = button.nextElementSibling;
+      const wasOpen = menu.style.display === "block";
+
+      document.querySelectorAll(".nav-dropdown").forEach(other => {
+        other.style.display = "";
+      });
+
+      menu.style.display = wasOpen ? "" : "block";
+    });
+  });
+
+  // PLACEHOLDER NAVIGATION
+  document.querySelectorAll("[data-page]").forEach(link => {
+    link.addEventListener("click", event => {
+      event.preventDefault();
+      alert(`${link.dataset.page} will be implemented later.`);
+    });
+  });
+
+  // LOGOUT
+  let isLoggingOut = false;
+
+  async function logout() {
+    if (isLoggingOut) return;
+    isLoggingOut = true;
+
+    try {
+      await fetch("http://127.0.0.1:8000/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+    } catch (error) {
+      console.error("Logout request failed:", error);
+    } finally {
+      sessionStorage.clear();
+      window.location.href =
+        "http://127.0.0.1:5500/frontend/index.html";
+    }
+  }
+
+  // AUTOMATIC LOGOUT AFTER 15 MINUTES OF INACTIVITY
+  const INACTIVITY_LIMIT = 15 * 60 * 1000;
+  let inactivityTimer;
+
+  function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(logout, INACTIVITY_LIMIT);
+  }
+
+  ["mousemove", "keydown", "click", "scroll", "touchstart"].forEach(event => {
+    document.addEventListener(event, resetInactivityTimer);
+  });
+
+  resetInactivityTimer();
+
+
+  // =========================
+  // COURSES: FETCH FROM POSTGRESQL API
+  // =========================
+
+  const semesterSelect = document.getElementById("semester");
+  const subjectGrid = document.getElementById("subjectGrid");
+  const selectionModal = document.getElementById("selectionModal");
+  const confirmationText = document.getElementById("confirmationText");
+
+  let pendingSubject = null;
+
+  // Escape database values before placing them into HTML.
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[character]);
+  }
+
+  async function renderSubjects() {
+    const semester = semesterSelect.value;
+
+    subjectGrid.innerHTML = `
+      <p class="text-gray-500 p-4">Loading courses...</p>
+    `;
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/courses?semester=${encodeURIComponent(semester)}`,
+        { credentials: "include" }
+      );
+
+      if (response.status === 401) {
+        window.location.href =
+          "http://127.0.0.1:5500/frontend/index.html";
+        return;
+      }
+
+      if (response.status === 403) {
+        subjectGrid.innerHTML = `
+          <p class="text-red-600 p-4">
+            Your account is not permitted to access student courses.
+          </p>
+        `;
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+      const courses = data.courses || [];
+
+      subjectGrid.innerHTML = "";
+
+      if (courses.length === 0) {
+        subjectGrid.innerHTML = `
+          <p class="text-gray-500 p-4">
+            No enrolled courses found for this semester.
+          </p>
+        `;
+        return;
+      }
+
+      courses.forEach(course => {
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "subject-card text-left w-full";
+
+        card.innerHTML = `
+          <div class="min-w-0">
+            <p class="text-blue-500 text-sm mb-2">
+              ${escapeHTML(course.code)} - ${escapeHTML(course.name)}
+            </p>
+
+            <p class="text-sm mb-1">
+              <strong>Type:</strong> Theory
+            </p>
+
+            <p class="text-sm mb-2">
+              <strong>Year/Semester:</strong>
+              ${escapeHTML(course.semester)}
+            </p>
+
+            <p class="text-sm text-gray-700">
+              ${escapeHTML(course.teacher || "Teacher not assigned")}
+            </p>
+          </div>
+
+          <img src="../assests/degreecap.jpeg"
+               alt=""
+               onerror="this.style.display='none'">
+        `;
+
+        card.addEventListener("click", () => {
+          pendingSubject = course;
+
+          confirmationText.textContent =
+            `You have selected the course ${course.code} - ${course.name}`;
+
+          selectionModal.classList.remove("hidden");
+          selectionModal.classList.add("flex");
+        });
+
+        subjectGrid.appendChild(card);
+      });
+
+    } catch (error) {
+      console.error("Error loading courses:", error);
+
+      subjectGrid.innerHTML = `
+        <p class="text-red-600 p-4">
+          Unable to load courses. Please check your connection and try again.
+        </p>
+
+        <button id="retryCourses"
+                class="text-indigo-600 underline p-4">
+          Try again
+        </button>
+      `;
+
+      document.getElementById("retryCourses")
+        .addEventListener("click", renderSubjects);
+    }
+  }
+
+  // CONFIRM COURSE SELECTION
+  document.getElementById("confirmSelection").addEventListener("click", () => {
+    if (pendingSubject) {
+      localStorage.setItem("selectedCourse", JSON.stringify({
+        ...pendingSubject,
+        selectedSemester: semesterSelect.value,
+        selectedAt: new Date().toISOString()
+      }));
+    }
+
+    selectionModal.classList.add("hidden");
+    selectionModal.classList.remove("flex");
+    pendingSubject = null;
+  });
+
+  // CLOSE MODAL WHEN CLICKING OUTSIDE IT
+  selectionModal.addEventListener("click", event => {
+    if (event.target === selectionModal) {
+      selectionModal.classList.add("hidden");
+      selectionModal.classList.remove("flex");
+      pendingSubject = null;
+    }
+  });
+
+  // REFRESH COURSES WHEN SEMESTER CHANGES
+  semesterSelect.addEventListener("change", renderSubjects);
+
+
+  // =========================
+  // SIDEBAR COLLAPSE / EXPAND
+  // =========================
+
+  const sidebar = document.getElementById("sidebar");
+  const openSidebar = document.getElementById("openSidebar");
+
+  document.getElementById("closeSidebar").addEventListener("click", () => {
+    sidebar.classList.add("collapsed");
+    openSidebar.classList.add("visible");
+  });
+
+  openSidebar.addEventListener("click", () => {
+    sidebar.classList.remove("collapsed");
+    openSidebar.classList.remove("visible");
+  });
+
+  // INITIAL LOAD
+  renderSubjects();
+</script>
+</body>
+</html>
