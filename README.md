@@ -5,9 +5,9 @@ A mock ERP/LMS platform featuring course management, assignment viewing, and fil
 ## Prerequisites
 
 - Python 3.11+
-- PostgreSQL (the setup script attempts installation where supported)
-- VS Code with Live Server extension
 - Git
+- VS Code with Live Server extension
+- PostgreSQL (the setup script attempts installation where supported)
 
 ## Setup & Run
 
@@ -20,7 +20,7 @@ cd ERP_AI
 
 ### 2. Create and activate a virtual environment
 
-**macOS/Linux**
+**macOS / Linux**
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -49,33 +49,23 @@ python setup_database.py
 
 The script attempts to:
 
-- Install PostgreSQL if it is missing and supported by the system.
+- Detect PostgreSQL and install it if missing.
+- Start PostgreSQL and initialize a cluster where supported.
 - Create the `erp_ai` database if it doesn't exist.
-- Initialize the database schema using `database/schema.sql`.
+- Initialize the schema using `database/schema.sql`.
 - Load initial data using `database/seed.sql`.
 - Customize assignments using `database/seed2.py`.
-- Generate a JWT secret if one is not already configured.
+- Generate a JWT secret if one isn't already configured.
 - Create or update the local `.env` file.
-- Verify database tables and report row counts.
+- Verify database tables and display row counts.
 
-Follow any prompts for PostgreSQL credentials or installation permissions.
+Follow any prompts for database credentials or administrator permissions.
 
-**Note:** Existing databases are not automatically reseeded. Some operating systems may require manual PostgreSQL installation or configuration.
+**Note:** Automatic installation depends on the operating system and available package manager. Some systems may require manual installation or configuration.
 
-### 5. Configure environment variables
+### 5. Start the backend
 
-The setup script creates or updates `.env` with the configuration it manages.
-
-If additional database or application settings are required, configure them in `.env`.
-
-**Security:**
-- Each developer should use their own JWT secret.
-- Never commit `.env` or share private credentials.
-- Ensure `.env` is included in `.gitignore`.
-
-### 6. Start the backend
-
-From the project root:
+From the repository root:
 
 ```bash
 python -m uvicorn backend.main:app --reload
@@ -83,13 +73,20 @@ python -m uvicorn backend.main:app --reload
 
 Backend: http://127.0.0.1:8000
 
-Keep the terminal running while using the application.
+Keep the backend running while using the application.
 
-### 7. Start the frontend
+### 6. Start the frontend
 
 Open `frontend/index.html` using the **Live Server** extension in VS Code.
 
 Keep the backend running while using the frontend.
+
+## Environment & Security
+
+- The setup script creates or updates `.env` with the configuration it manages.
+- Each developer should use their own JWT secret.
+- Never commit `.env` or share private credentials.
+- Ensure `.env` is included in `.gitignore`.
 
 ## Dependencies
 
@@ -99,10 +96,11 @@ Ensure `python-multipart` is included for assignment file uploads.
 
 ## Troubleshooting
 
-- **Database connection errors:** Ensure PostgreSQL is running and the configured credentials are correct.
+- **PostgreSQL connection errors:** Verify that PostgreSQL is running and the configured credentials are correct.
 - **Missing dependencies:** Activate the virtual environment and run `pip install -r requirements.txt`.
-- **Authentication errors:** Check that the JWT secret is configured correctly in `.env`.
+- **Authentication errors:** Check the JWT configuration in `.env`.
 - **Import errors:** Run the backend command from the repository root.
+- **Setup errors:** Read the error printed by `setup_database.py` and resolve the reported issue before rerunning.
 
 ## Project Structure
 
