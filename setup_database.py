@@ -2,18 +2,18 @@
 """
 ERP_AI one-command local database setup.
 
-Place this file in the repository root. Expected files:
+Run from the repository root:
+    python setup_database.py
+
+Expected files:
     database/schema.sql
     database/seed.sql
     database/seed2.py
 
-Run:
-    python setup_database.py
+The script never drops an existing database or deletes existing records.
+It initializes an empty database and preserves existing data.
 
-This script never drops an existing database. It initializes and seeds only
-a new/empty ERP database; existing databases are checked and left intact.
-OS package installation may require administrator approval or interactive
-installer steps, especially on Windows.
+Supports PostgreSQL installations on Linux, macOS, and Windows.
 """
 
 from __future__ import annotations
@@ -34,10 +34,17 @@ SCHEMA_FILE = DB_DIR / "schema.sql"
 SEED_FILE = DB_DIR / "seed.sql"
 SEED2_FILE = DB_DIR / "seed2.py"
 ENV_FILE = ROOT / ".env"
+
 DB_NAME = "erp_ai"
+
 EXPECTED_TABLES = {
-    "users", "students", "teachers", "courses",
-    "enrollments", "assignments", "submissions",
+    "users",
+    "students",
+    "teachers",
+    "courses",
+    "enrollments",
+    "assignments",
+    "submissions",
 }
 
 
@@ -45,11 +52,20 @@ def say(message: str = "") -> None:
     print(message, flush=True)
 
 
-def run(command: list[str], *, check: bool = False, capture: bool = False,
-        env: dict[str, str] | None = None) -> subprocess.CompletedProcess | None:
+def run(
+    command: list[str],
+    *,
+    check: bool = False,
+    capture: bool = False,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess | None:
     try:
         return subprocess.run(
-            command, check=check, text=True, capture_output=capture, env=env
+            command,
+            check=check,
+            text=True,
+            capture_output=capture,
+            env=env,
         )
     except FileNotFoundError:
         return None
@@ -59,44 +75,109 @@ def tool(name: str) -> str | None:
     return shutil.which(name)
 
 
+def find_pg_tool(name: str) -> str | None:
+    """Find PostgreSQL utilities, including common Homebrew installations."""
+    found = tool(name)
+    if found:
+        return found
+
+    if platform.system() == "Darwin" and tool("brew"):
+        for formula in (
+            "postgresql@18",
+            "postgresql@17",
+            "postgresql@16",
+            "postgresql",
+        ):
+            result = run(
+                ["brew", "--prefix", formula],
+                capture=True,
+            )
+            if result and result.returncode == 0:
+                candidate = Path(result.stdout.strip()) / "bin" / name
+                if candidate.exists():
+                    return str(candidate)
+
+    if platform.system() == "Windows":
+        roots = [
+            Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+            / "PostgreSQL"
+        ]
+        for root in roots:
+            if root.exists():
+                versions = sorted(
+                    [p for p in root.iterdir() if p.is_dir()],
+                    reverse=True,
+                )
+                for version in versions:
+                    candidate = version / "bin" / f"{name}.exe"
+                    if candidate.exists():
+                        return str(candidate)
+
+    return None
+
+
 def read_env() -> dict[str, str]:
-    result: dict[str, str] = {}
+    """Read simple KEY=VALUE entries from the root .env file."""
+    values: dict[str, str] = {}
+
     if not ENV_FILE.exists():
-        return result
+        return values
+
     for raw in ENV_FILE.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
+
         if not line or line.startswith("#") or "=" not in line:
             continue
+
         key, value = line.split("=", 1)
-        result[key.strip()] = value.strip().strip('"').strip("'")
-    return result
+        values[key.strip()] = value.strip().strip('"').strip("'")
+
+    return values
 
 
 def write_env(values: dict[str, str]) -> None:
-    """Update only keys managed by this script; retain unrelated lines/settings."""
+    """Update managed configuration while preserving unrelated .env entries."""
     managed = {
-        "JWT_SECRET_KEY", "PGHOST", "PGPORT", "PGUSER", "PGPASSWORD",
+        "JWT_SECRET_KEY",
+        "PGHOST",
+        "PGPORT",
+        "PGUSER",
+        "PGPASSWORD",
+        "PGDATABASE",
     }
-    lines = ENV_FILE.read_text(encoding="utf-8").splitlines() if ENV_FILE.exists() else []
+
+    lines = (
+        ENV_FILE.read_text(encoding="utf-8").splitlines()
+        if ENV_FILE.exists()
+        else []
+    )
+
     output: list[str] = []
     written: set[str] = set()
 
     for raw in lines:
         stripped = raw.strip()
+
         if stripped and not stripped.startswith("#") and "=" in stripped:
             key = stripped.split("=", 1)[0].strip()
+
             if key in managed:
                 if key not in written:
                     output.append(f'{key}="{values.get(key, "")}"')
                     written.add(key)
                 continue
+
         output.append(raw)
 
-    for key in managed:
+    for key in sorted(managed):
         if key not in written:
             output.append(f'{key}="{values.get(key, "")}"')
 
-    ENV_FILE.write_text("\n".join(output).rstrip() + "\n", encoding="utf-8")
+    ENV_FILE.write_text(
+        "\n".join(output).rstrip() + "\n",
+        encoding="utf-8",
+    )
+
     try:
         ENV_FILE.chmod(0o600)
     except OSError:
@@ -104,328 +185,556 @@ def write_env(values: dict[str, str]) -> None:
 
 
 def install_postgres() -> bool:
+    """Attempt supported package-manager installation."""
     system = platform.system()
-    say("\n[1/7] PostgreSQL tools were not found. Attempting installation...")
+
+    say("\nPostgreSQL tools are missing. Attempting installation...")
 
     if system == "Linux":
         apt = tool("apt-get")
-        if apt:
-            if not tool("sudo"):
-                say("sudo was not found. Install PostgreSQL with your Linux package manager, then rerun.")
-                return False
-            say("Installing PostgreSQL server and client with apt. Administrator approval may be requested.")
-            for command in (
+
+        if apt and tool("sudo"):
+            commands = [
                 ["sudo", apt, "update"],
-                ["sudo", apt, "install", "-y", "postgresql", "postgresql-client", "postgresql-contrib"],
-            ):
+                [
+                    "sudo",
+                    apt,
+                    "install",
+                    "-y",
+                    "postgresql",
+                    "postgresql-client",
+                    "postgresql-contrib",
+                ],
+            ]
+
+            for command in commands:
                 result = run(command)
+
                 if result is None or result.returncode != 0:
-                    say("Package installation failed. Install PostgreSQL manually, then rerun this script.")
+                    say("Automatic installation failed.")
                     return False
+
             run(["sudo", "systemctl", "enable", "--now", "postgresql"])
-            # Debian/Ubuntu can have the wrapper service without a cluster.
-            if tool("pg_lsclusters") and tool("pg_createcluster"):
-                result = run(["pg_lsclusters"], capture=True)
-                output = result.stdout if result else ""
-                if not any(line.strip() and line.strip()[0].isdigit() for line in output.splitlines()[1:]):
-                    version_dir = Path("/usr/lib/postgresql")
-                    versions = sorted(
-                        [x.name for x in version_dir.iterdir() if x.is_dir() and x.name.isdigit()],
-                        reverse=True,
-                    ) if version_dir.exists() else []
-                    if versions:
-                        say(f"Initializing PostgreSQL {versions[0]} cluster...")
-                        run(["sudo", "pg_createcluster", versions[0], "main", "--start"])
             return True
-        say("Automatic installation is implemented for Debian/Ubuntu (apt) only.")
-        say("Install PostgreSQL using your distribution's package manager, then rerun.")
+
+        say("Automatic installation requires apt-get and sudo.")
+        say("Install PostgreSQL using your distribution's package manager.")
         return False
 
     if system == "Darwin":
         brew = tool("brew")
+
         if not brew:
-            say("Homebrew is not installed. Install Homebrew, then run: brew install postgresql@17")
+            say("Homebrew is required for automatic macOS installation.")
+            say("Install PostgreSQL manually and rerun this script.")
             return False
+
         result = run([brew, "install", "postgresql@17"])
-        if result is None or result.returncode != 0:
-            # It may already be installed or Homebrew may have selected another version.
-            pass
+
+        if result is not None and result.returncode != 0:
+            say("Homebrew could not install PostgreSQL automatically.")
+            say("Check your PostgreSQL installation and rerun.")
+            return False
+
         run([brew, "services", "start", "postgresql@17"])
         return True
 
     if system == "Windows":
         winget = tool("winget")
+
         if not winget:
-            say("winget was not found. Install PostgreSQL using the official Windows installer,")
-            say("then rerun this script. Remember the password created for the postgres account.")
+            say("winget is unavailable. Install PostgreSQL using its Windows installer.")
             return False
-        say("Launching the PostgreSQL installer. Follow its prompts and remember the postgres password.")
-        result = run([
-            winget, "install", "--id", "PostgreSQL.PostgreSQL", "--exact", "--interactive"
-        ])
+
+        result = run(
+            [
+                winget,
+                "install",
+                "--id",
+                "PostgreSQL.PostgreSQL",
+                "--exact",
+                "--interactive",
+            ]
+        )
+
         if result is None or result.returncode != 0:
-            say("The installer did not complete successfully. Install PostgreSQL manually and rerun.")
+            say("PostgreSQL installation did not complete successfully.")
             return False
-        say("Installation finished. Restart this terminal if PostgreSQL tools are not on PATH.")
+
+        say("Restart the terminal if PostgreSQL tools are not on PATH.")
         return True
 
-    say(f"Automatic installation is not configured for {system}. Install PostgreSQL and rerun.")
+    say(f"Automatic installation is not configured for {system}.")
     return False
-
-
-def find_pg_tool(name: str) -> str | None:
-    found = tool(name)
-    if found:
-        return found
-    if platform.system() == "Darwin" and tool("brew"):
-        for formula in ("postgresql@17", "postgresql@16", "postgresql"):
-            result = run(["brew", "--prefix", formula], capture=True)
-            if result and result.returncode == 0:
-                candidate = Path(result.stdout.strip()) / "bin" / name
-                if candidate.exists():
-                    return str(candidate)
-    return None
 
 
 def ensure_linux_cluster() -> None:
+    """Start an existing Debian/Ubuntu cluster when possible."""
     if platform.system() != "Linux" or not tool("pg_lsclusters"):
         return
+
     result = run(["pg_lsclusters"], capture=True)
-    if not result:
-        return
-    rows = [line for line in result.stdout.splitlines()[1:] if line.strip()]
-    if rows:
-        # Start any cluster that is listed but not online.
-        for row in rows:
-            parts = row.split()
-            if len(parts) >= 4 and parts[3] != "online":
-                version, cluster = parts[0], parts[1]
-                say(f"Starting PostgreSQL cluster {version}/{cluster}...")
-                run(["sudo", "pg_ctlcluster", version, cluster, "start"])
+
+    if not result or result.returncode != 0:
         return
 
-    versions_dir = Path("/usr/lib/postgresql")
-    versions = sorted(
-        [x.name for x in versions_dir.iterdir() if x.is_dir() and x.name.isdigit()],
-        reverse=True,
-    ) if versions_dir.exists() else []
-    if versions and tool("pg_createcluster"):
-        say(f"No PostgreSQL cluster exists. Creating {versions[0]}/main...")
-        run(["sudo", "pg_createcluster", versions[0], "main", "--start"])
+    rows = [
+        line
+        for line in result.stdout.splitlines()[1:]
+        if line.strip()
+    ]
+
+    if not rows:
+        return
+
+    for row in rows:
+        parts = row.split()
+
+        if len(parts) >= 4 and parts[3] != "online":
+            version, cluster = parts[0], parts[1]
+            say(f"Starting PostgreSQL cluster {version}/{cluster}...")
+            run(["sudo", "pg_ctlcluster", version, cluster, "start"])
 
 
-def wait_ready(pg_isready: str, host: str, port: str) -> bool:
-    for _ in range(20):
-        args = [pg_isready, "-p", port]
+def wait_ready(
+    pg_isready: str,
+    host: str,
+    port: str,
+) -> bool:
+    for _ in range(15):
+        command = [pg_isready, "-p", port]
+
         if host:
-            args += ["-h", host]
-        result = run(args, capture=True)
+            command.extend(["-h", host])
+
+        result = run(command, capture=True)
+
         if result and result.returncode == 0:
             return True
+
         time.sleep(1)
+
     return False
 
 
-def main() -> int:
-    say("=" * 54)
-    say(" ERP_AI — database setup")
-    say("=" * 54)
-    say("This script will not drop a database or overwrite existing records.")
+def connect_params(
+    database: str,
+    host: str,
+    port: str,
+    user: str,
+    password: str,
+) -> dict:
+    """Build psycopg parameters, omitting optional empty values."""
+    params = {
+        "dbname": database,
+        "connect_timeout": 5,
+    }
 
-    missing = [str(p.relative_to(ROOT)) for p in (SCHEMA_FILE, SEED_FILE, SEED2_FILE) if not p.is_file()]
+    if host:
+        params["host"] = host
+
+    if port:
+        params["port"] = int(port)
+
+    if user:
+        params["user"] = user
+
+    if password:
+        params["password"] = password
+
+    return params
+
+
+def try_connection(psycopg, params: dict) -> bool:
+    try:
+        with psycopg.connect(**params):
+            return True
+    except Exception:
+        return False
+
+
+def detect_connection(psycopg, existing_env: dict[str, str]):
+    """
+    Detect a working local PostgreSQL connection.
+
+    Explicit environment/.env settings take priority. If they fail, try
+    common local defaults without printing credentials.
+    """
+    system = platform.system()
+
+    env_host = (
+        existing_env.get("PGHOST")
+        or os.environ.get("PGHOST", "")
+    )
+    env_port = (
+        existing_env.get("PGPORT")
+        or os.environ.get("PGPORT", "5432")
+    )
+    env_user = (
+        existing_env.get("PGUSER")
+        or os.environ.get("PGUSER", "")
+    )
+    env_password = (
+        existing_env.get("PGPASSWORD")
+        if "PGPASSWORD" in existing_env
+        else os.environ.get("PGPASSWORD", "")
+    )
+
+    os_user = (
+        os.environ.get("USER")
+        or os.environ.get("USERNAME")
+        or getpass.getuser()
+    )
+
+    candidates = []
+
+    # First respect the user's configured PostgreSQL settings.
+    candidates.append(
+        (env_host, env_port, env_user or os_user, env_password)
+    )
+
+    # Linux local peer authentication commonly uses a Unix socket.
+    if system == "Linux":
+        for socket_path in (
+            "",
+            "/var/run/postgresql",
+            "/run/postgresql",
+        ):
+            candidates.append(
+                (socket_path, env_port, env_user or os_user, env_password)
+            )
+
+        # A local TCP connection may use password authentication.
+        candidates.append(
+            ("localhost", env_port, env_user or os_user, env_password)
+        )
+
+    elif system == "Darwin":
+        candidates.extend(
+            [
+                ("localhost", env_port, env_user or os_user, env_password),
+                ("", env_port, env_user or os_user, env_password),
+            ]
+        )
+
+    else:
+        candidates.extend(
+            [
+                ("localhost", env_port, env_user or "postgres", env_password),
+                ("127.0.0.1", env_port, env_user or "postgres", env_password),
+            ]
+        )
+
+    # Remove duplicate candidate combinations.
+    unique_candidates = list(dict.fromkeys(candidates))
+
+    for host, port, user, password in unique_candidates:
+        params = connect_params(
+            "postgres",
+            host,
+            port,
+            user,
+            password,
+        )
+
+        if try_connection(psycopg, params):
+            return host, port, user, password
+
+    # If password authentication appears necessary, prompt interactively.
+    if system == "Windows" or system == "Darwin":
+        user = env_user or ("postgres" if system == "Windows" else os_user)
+        password = getpass.getpass(
+            f"Password for PostgreSQL user '{user}': "
+        )
+
+        for host in ("localhost", "127.0.0.1", ""):
+            params = connect_params(
+                "postgres",
+                host,
+                env_port,
+                user,
+                password,
+            )
+
+            if try_connection(psycopg, params):
+                return host, env_port, user, password
+
+    return None
+
+
+def main() -> int:
+    say("=" * 56)
+    say(" ERP_AI — local database setup")
+    say("=" * 56)
+    say("Existing databases and records will not be deleted.")
+
+    missing = [
+        str(path.relative_to(ROOT))
+        for path in (SCHEMA_FILE, SEED_FILE, SEED2_FILE)
+        if not path.is_file()
+    ]
+
     if missing:
         say("\nERROR: Required files are missing:")
-        for name in missing:
-            say(f"  - {name}")
-        say("Expected: database/schema.sql, database/seed.sql, database/seed2.py")
+
+        for filename in missing:
+            say(f"  - {filename}")
+
         return 1
 
     try:
         import psycopg
     except ImportError:
         say("\nERROR: Python package 'psycopg' is missing.")
-        say("Activate your virtual environment and run: python -m pip install -r requirements.txt")
+        say("Run: python -m pip install -r requirements.txt")
         return 1
 
     pg_isready = find_pg_tool("pg_isready")
     psql = find_pg_tool("psql")
+
     if not pg_isready or not psql:
         if not install_postgres():
             return 1
-        # Refresh PATH and discover versioned Homebrew tools.
+
         pg_isready = find_pg_tool("pg_isready")
         psql = find_pg_tool("psql")
 
     if not pg_isready or not psql:
         say("\nERROR: PostgreSQL client tools are still unavailable.")
-        say("Restart the terminal, ensure PostgreSQL's bin directory is on PATH, and rerun.")
+        say("Restart the terminal and verify PostgreSQL's bin directory is on PATH.")
         return 1
 
     ensure_linux_cluster()
 
     existing_env = read_env()
-    system = platform.system()
-    if system == "Linux":
-        # Debian/Ubuntu's default local auth is commonly peer. Use a Unix socket
-        # and the current OS username, creating a matching local role if needed.
-        host = existing_env.get("PGHOST", "")
-        port = existing_env.get("PGPORT", "5432")
-        user = existing_env.get("PGUSER", "") or os.environ.get("USER", "postgres")
-        password = existing_env.get("PGPASSWORD", "")
-        if not host:
-            say("\nUsing the local PostgreSQL socket (Linux peer-auth default).")
-            say(f"Local database role: {user}")
-            # Create a role matching the OS user if it doesn't already exist.
-            check_role = run(["sudo", "-u", "postgres", "psql", "-tAc",
-                              "SELECT 1 FROM pg_roles WHERE rolname = '" + user.replace("'", "''") + "'"],
-                             capture=True)
-            if check_role and check_role.returncode == 0 and check_role.stdout.strip() != "1":
-                say(f"Creating local PostgreSQL role '{user}'...")
-                created = run(["sudo", "-u", "postgres", "createuser", "--createdb", "--superuser", user])
-                if created is None or created.returncode != 0:
-                    say("Could not create the local PostgreSQL role. Ask an administrator to create it.")
-                    return 1
-            # Use socket-based peer auth; don't test TCP localhost.
-    elif system == "Darwin":
-        host = existing_env.get("PGHOST", "")
-        port = existing_env.get("PGPORT", "5432")
-        user = existing_env.get("PGUSER", "") or os.environ.get("USER", "postgres")
-        password = existing_env.get("PGPASSWORD", "")
-    else:
-        host = existing_env.get("PGHOST", "localhost") or "localhost"
-        port = existing_env.get("PGPORT", "5432")
-        user = existing_env.get("PGUSER", "postgres") or "postgres"
-        password = existing_env.get("PGPASSWORD")
-        if password is None:
-            password = getpass.getpass("PostgreSQL 'postgres' account password: ")
 
-    # Test readiness. Linux socket mode omits -h; other platforms use host.
-    readiness_host = host
-    if not wait_ready(pg_isready, readiness_host, port):
-        say(f"\nERROR: PostgreSQL is not responding on {host or 'the local socket'} (port {port}).")
-        if system == "Linux":
-            say("Try: sudo systemctl status postgresql --no-pager")
-            say("Then: pg_lsclusters")
-        elif system == "Darwin":
-            say("Try: brew services list")
-            say("Then start the installed postgresql service with brew services start <formula>.")
-        else:
-            say("Check that the PostgreSQL Windows service is running and port 5432 is available.")
+    detected = detect_connection(psycopg, existing_env)
+
+    if not detected:
+        say("\nERROR: Could not connect to PostgreSQL using detected settings.")
+        say("Check that PostgreSQL is running and that your user has permission")
+        say("to connect to its maintenance database, 'postgres'.")
+        say("For password authentication, set PGUSER/PGPASSWORD in .env and rerun.")
         return 1
 
-    # Keep libpq settings for psql and seed2.py; no credentials are printed.
+    host, port, user, password = detected
+
+    if not wait_ready(pg_isready, host, port):
+        say("\nERROR: PostgreSQL did not pass its readiness check.")
+        return 1
+
+    say(f"\nDetected PostgreSQL connection for user '{user}'.")
+
+    # Ensure child scripts use precisely the same connection settings.
     child_env = os.environ.copy()
-    child_env.update({"PGPORT": port, "PGUSER": user, "PGPASSWORD": password})
+    child_env.update(
+        {
+            "PGDATABASE": DB_NAME,
+            "PGPORT": port,
+            "PGUSER": user,
+        }
+    )
+
     if host:
         child_env["PGHOST"] = host
     else:
         child_env.pop("PGHOST", None)
 
+    if password:
+        child_env["PGPASSWORD"] = password
+    else:
+        child_env.pop("PGPASSWORD", None)
+
+    admin_params = connect_params(
+        "postgres",
+        host,
+        port,
+        user,
+        password,
+    )
+
     try:
-        # Connect to maintenance database first and create erp_ai if missing.
-        admin_params = {"dbname": "postgres", "port": int(port), "user": user}
-        if host:
-            admin_params["host"] = host
-        if password:
-            admin_params["password"] = password
-        with psycopg.connect(**admin_params, connect_timeout=5, autocommit=True) as conn:
-            exists = conn.execute("SELECT 1 FROM pg_database WHERE datname = %s", (DB_NAME,)).fetchone()
+        # Create the application database only when it doesn't exist.
+        with psycopg.connect(**admin_params, autocommit=True) as conn:
+            exists = conn.execute(
+                "SELECT 1 FROM pg_database WHERE datname = %s",
+                (DB_NAME,),
+            ).fetchone()
+
             if not exists:
                 conn.execute(f'CREATE DATABASE "{DB_NAME}"')
-                say(f"\n[2/7] Created database '{DB_NAME}'.")
+                say(f"\nCreated database '{DB_NAME}'.")
             else:
-                say(f"\n[2/7] Database '{DB_NAME}' already exists.")
+                say(f"\nDatabase '{DB_NAME}' already exists.")
 
-        app_params = dict(admin_params)
-        app_params["dbname"] = DB_NAME
-        with psycopg.connect(**app_params, connect_timeout=5) as conn:
+        app_params = connect_params(
+            DB_NAME,
+            host,
+            port,
+            user,
+            password,
+        )
+
+        with psycopg.connect(**app_params) as conn:
             table_rows = conn.execute(
-                "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+                """
+                SELECT tablename
+                FROM pg_tables
+                WHERE schemaname = 'public'
+                """
             ).fetchall()
+
             table_names = {row[0] for row in table_rows}
 
         if not table_names:
-            say("\n[3/7] Creating database schema...")
-            result = run([psql, "-v", "ON_ERROR_STOP=1", "-d", DB_NAME, "-f", str(SCHEMA_FILE)],
-                         env=child_env)
+            say("\n[1/5] Initializing schema...")
+
+            result = run(
+                [
+                    psql,
+                    "-v",
+                    "ON_ERROR_STOP=1",
+                    "-d",
+                    DB_NAME,
+                    "-f",
+                    str(SCHEMA_FILE),
+                ],
+                env=child_env,
+            )
+
             if result is None or result.returncode != 0:
-                say("ERROR: Schema initialization failed. Fix the reported error before rerunning.")
+                say("ERROR: Schema initialization failed.")
                 return 1
 
-            say("\n[4/7] Loading initial seed data...")
-            result = run([psql, "-v", "ON_ERROR_STOP=1", "-d", DB_NAME, "-f", str(SEED_FILE)],
-                         env=child_env)
+            say("\n[2/5] Loading initial seed data...")
+
+            result = run(
+                [
+                    psql,
+                    "-v",
+                    "ON_ERROR_STOP=1",
+                    "-d",
+                    DB_NAME,
+                    "-f",
+                    str(SEED_FILE),
+                ],
+                env=child_env,
+            )
+
             if result is None or result.returncode != 0:
-                say("ERROR: Seed loading failed. The database may be partially initialized.")
-                say("Inspect it before rerunning; the script deliberately will not delete it.")
+                say("ERROR: Seed loading failed. Inspect the database before retrying.")
                 return 1
+
         elif not EXPECTED_TABLES.issubset(table_names):
             missing_tables = sorted(EXPECTED_TABLES - table_names)
-            say("\nERROR: Database exists but is only partially initialized.")
+
+            say("\nERROR: The database has a partial schema.")
             say("Missing tables: " + ", ".join(missing_tables))
             say("No schema or seed files were run to protect existing data.")
-            say("Repair the schema manually or use a fresh local database.")
             return 1
-        else:
-            say("\n[3/7] Existing schema detected; preserving existing data.")
-            say("[4/7] Seed file skipped to prevent duplicate inserts.")
 
-        # seed2.py reads libpq environment variables via psycopg.connect("dbname=erp_ai").
-        with psycopg.connect(**app_params, connect_timeout=5) as conn:
+        else:
+            say("\nExisting schema detected; preserving current records.")
+            say("Initial seed file skipped.")
+
+        with psycopg.connect(**app_params) as conn:
             course_count = conn.execute(
-                "SELECT COUNT(*) FROM courses WHERE course_code = ANY(%s)",
-                (["CS301", "CS302", "CS303", "CS304", "MA301", "MA302",
-                  "EC301", "EC302", "CS305", "CS306"],),
+                """
+                SELECT COUNT(*)
+                FROM courses
+                WHERE course_code = ANY(%s)
+                """,
+                (
+                    [
+                        "CS301",
+                        "CS302",
+                        "CS303",
+                        "CS304",
+                        "MA301",
+                        "MA302",
+                        "EC301",
+                        "EC302",
+                        "CS305",
+                        "CS306",
+                    ],
+                ),
             ).fetchone()[0]
 
         if course_count == 10:
-            say("\n[5/7] Applying course-specific assignment seed...")
-            result = run([sys.executable, str(SEED2_FILE)], env=child_env)
+            say("\n[3/5] Applying course-specific assignment seed...")
+
+            result = run(
+                [sys.executable, str(SEED2_FILE)],
+                env=child_env,
+            )
+
             if result is None or result.returncode != 0:
-                say("ERROR: seed2.py failed. Review its output; no database was dropped.")
+                say("ERROR: seed2.py failed. Review its output.")
                 return 1
         else:
-            say(f"\n[5/7] Assignment customization skipped ({course_count}/10 expected courses found).")
+            say(
+                f"\n[3/5] Assignment customization skipped "
+                f"({course_count}/10 expected courses found)."
+            )
 
-        jwt_secret = existing_env.get("JWT_SECRET_KEY", "")
-        if not jwt_secret or jwt_secret in {
-            "your_generated_secret_here", "paste_the_generated_key_here",
+        jwt_secret = existing_env.get("JWT_SECRET_KEY", "").strip()
+
+        placeholders = {
+            "",
+            "your_generated_secret_here",
+            "paste_the_generated_key_here",
             "paste-your-generated-secret-here",
-        }:
+        }
+
+        if jwt_secret in placeholders:
             jwt_secret = secrets.token_hex(32)
-            say("\n[6/7] Generated a secure local JWT secret.")
+            say("\nGenerated a new local JWT secret.")
         else:
-            say("\n[6/7] Preserved your existing JWT secret.")
+            say("\nPreserved the existing JWT secret.")
 
         env_values = {
             "JWT_SECRET_KEY": jwt_secret,
+            "PGDATABASE": DB_NAME,
             "PGHOST": host,
             "PGPORT": port,
             "PGUSER": user,
             "PGPASSWORD": password,
         }
-        write_env(env_values)
-        say(f"Saved local configuration to {ENV_FILE}")
 
-        with psycopg.connect(**app_params, connect_timeout=5) as conn:
+        write_env(env_values)
+
+        say(f"\nSaved machine-specific configuration to {ENV_FILE}.")
+
+        with psycopg.connect(**app_params) as conn:
             counts = {
-                table: conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
+                table: conn.execute(
+                    f'SELECT COUNT(*) FROM "{table}"'
+                ).fetchone()[0]
                 for table in sorted(EXPECTED_TABLES)
             }
 
-        say("\n[7/7] Verification complete.")
-        say("SUCCESS — ERP_AI database setup finished.")
+        say("\n[4/5] Database verification complete.")
+        say("SUCCESS — ERP_AI setup finished.")
         say(f"Database: {DB_NAME}")
-        say("Row counts: " + ", ".join(f"{key}={value}" for key, value in counts.items()))
-        say("\nNext: start the backend from the repository root:")
-        say("  python -m uvicorn backend.main:app --reload")
-        say("\nThen open frontend/index.html with VS Code Live Server.")
-        say("If backend startup reports an import/configuration error, that is separate from database setup.")
+        say(
+            "Row counts: "
+            + ", ".join(
+                f"{table}={count}"
+                for table, count in counts.items()
+            )
+        )
+
+        say("\n[5/5] Next steps:")
+        say("1. Start the backend from the backend directory:")
+        say("   cd backend")
+        say("   python -m uvicorn main:app --reload")
+        say("2. Open frontend/index.html with VS Code Live Server.")
+
         return 0
 
     except Exception as exc:
         say(f"\nSETUP FAILED: {type(exc).__name__}: {exc}")
-        say("No database was dropped. Review the error above, correct the configuration, and rerun.")
+        say("No database was dropped. Correct the configuration and rerun.")
         return 1
 
 

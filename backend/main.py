@@ -3,8 +3,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import jwt
-import psycopg
 from dotenv import load_dotenv
+from database import get_connection
 from fastapi import FastAPI, HTTPException, Depends, Response, Cookie
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
@@ -104,7 +104,7 @@ def verify_token(token: str) -> dict:
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        with psycopg.connect("dbname=erp_ai") as conn:
+        with get_connection() as conn:
             user = conn.execute(
                 """
                 SELECT id, email, role
@@ -140,7 +140,7 @@ def get_current_user(
 
 @app.post("/login")
 def login(data: LoginRequest, response: Response):
-    with psycopg.connect("dbname=erp_ai") as conn:
+    with get_connection() as conn:
         user = authenticate_user(
             conn,
             data.email.strip(),
@@ -225,7 +225,7 @@ def get_student_courses(
         )
 
     # 4. Fetch this student's enrolled courses
-    with psycopg.connect("dbname=erp_ai") as conn:
+    with get_connection() as conn:
         student = conn.execute(
             """
             SELECT id, semester
@@ -297,7 +297,7 @@ def get_course_assignments(
         )
 
     # 2. Fetch assignments only for a course the student is enrolled in
-    with psycopg.connect("dbname=erp_ai") as conn:
+    with get_connection() as conn:
         student = conn.execute(
             """
             SELECT id

@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
-import psycopg
+from database import get_connection
 from fastapi import APIRouter, Cookie, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
@@ -33,7 +33,6 @@ PROJECT_ROOT = Path(
 UPLOAD_DIR = PROJECT_ROOT / "database" / "assignments"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-DATABASE = os.getenv("ERP_DATABASE_URL", "dbname=erp_ai")
 MAX_FILE_BYTES = 3 * 1024 * 1024
 ALLOWED_EXTENSIONS = {".pdf", ".docx"}
 ALLOWED_MIME_TYPES = {
@@ -101,7 +100,7 @@ def get_assignment_upload_details(
     access_token: str | None = Cookie(default=None),
 ):
     user = _verify_student(access_token)
-    with psycopg.connect(DATABASE) as conn:
+    with get_connection() as conn:
         student_id = _student_id(conn, user["id"])
         row = _get_assignment_for_enrolled_student(conn, assignment_id, student_id)
 
@@ -160,7 +159,7 @@ async def upload_assignment_file(
     wrote_new_file = False
 
     try:
-        with psycopg.connect(DATABASE) as conn:
+        with get_connection() as conn:
             student_id = _student_id(conn, user["id"])
             row = _get_assignment_for_enrolled_student(conn, assignment_id, student_id)
 
@@ -251,7 +250,7 @@ def download_own_submission(
     access_token: str | None = Cookie(default=None),
 ):
     user = _verify_student(access_token)
-    with psycopg.connect(DATABASE) as conn:
+    with get_connection() as conn:
         student_id = _student_id(conn, user["id"])
         row = conn.execute(
             """
