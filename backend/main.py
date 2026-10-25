@@ -12,6 +12,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from assignment_upload import router as assignment_upload_router
+from assistant import router as assistant_router
 
 from auth import authenticate_user
 
@@ -33,6 +34,7 @@ LOGIN_URL = "http://127.0.0.1:5500/frontend/index.html"
 
 app = FastAPI(title="ERP AI API")
 app.include_router(assignment_upload_router)
+app.include_router(assistant_router)
 
 # Serve existing image/assets folder using both spellings
 ASSETS_DIR = FRONTEND_DIR / "assests"
@@ -50,13 +52,16 @@ if ASSETS_DIR.exists():
     )
 
     app.mount(
-
         "/LMS",
 
         StaticFiles(directory=FRONTEND_DIR / "LMS", html=True),
 
         name="LMS",
-
+    )
+    app.mount(
+        "/frontend",
+        StaticFiles(directory=FRONTEND_DIR),
+        name="frontend",
     )
 
 app.add_middleware(

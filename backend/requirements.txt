@@ -8,3 +8,6 @@ PyJWT
 pydantic[email]
 python-multipart
 auth
+langgraph
+langchain-google-genai
+langchain-core
