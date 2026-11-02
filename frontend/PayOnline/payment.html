@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Online Payment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
+    .nav-dropdown { display: none; position: absolute; top: 100%; left: 0; min-width: 210px; background: white; box-shadow: 0 4px 12px #0002; border: 1px solid #eee; border-radius: 4px; z-index: 50; }
+    .nav-item:hover .nav-dropdown, .nav-item:focus-within .nav-dropdown { display: block; }
+    .nav-dropdown a { display: block; padding: 10px 14px; color: #555; font-size: 14px; }
+    .nav-dropdown a:hover { background: #f3f4f6; color: #2563eb; }
+    .profile-menu { display: none; position: absolute; right: 0; top: 48px; width: 270px; background: white; box-shadow: 0 5px 18px #0002; z-index: 100; }
+    .profile-menu.open { display: block; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 4px; font-size: 12px; font-weight: bold; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+    .sidebar { width: 220px; flex-shrink: 0; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+    <div class="h-[58px] px-3 flex items-center gap-4">
+      <a href="/home" class="flex items-center gap-1 shrink-0">
+        <img src="/assests/jecrc-logo.jpeg" alt="JECRC" class="h-9 w-auto" onerror="this.style.display='none'">
+      </a>
+      <nav class="flex items-center gap-1 sm:gap-4 text-sm text-gray-600 flex-1">
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Academic <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/Academic/student-detail.html">Student Related</a>
+            <a href="#" data-page="Feedback">Feedback</a>
+          </div>
+        </div>
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Examination <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/Examination/examination.html?view=timetable">Exam Time Table</a>
+            <a href="/Examination/examination.html?view=admit">Admit Card for Student</a>
+            <a href="/Examination/examination.html?view=backlog">BackLog Exam Reg</a>
+          </div>
+        </div>
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">LMS <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/LMS/transaction.html">Transactions</a>
+            <a href="/LMS/view.html">View</a>
+            <a href="#" data-page="Virtual Notice Board">Virtual Notice Board</a>
+          </div>
+        </div>
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Pay Online <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/PayOnline/payment.html">Online Payment</a>
+          </div>
+        </div>
+      </nav>
+      <div class="relative">
+        <button id="profileButton" class="w-9 h-9 rounded-full bg-yellow-400 text-white font-bold" type="button">S</button>
+        <div id="profileMenu" class="profile-menu rounded-b-lg">
+          <div class="p-4 text-center border-b"><p id="welcomeMessage" class="font-medium">Welcome!</p></div>
+          <a href="/home" class="block px-4 py-3 hover:bg-gray-100 text-sm">🏠 Home</a>
+          <button onclick="logout()" class="w-full text-left px-4 py-3 hover:bg-gray-100 text-sm text-red-600" type="button">Logout</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex flex-1 min-h-0">
+    <aside class="sidebar bg-white border-r hidden md:block">
+      <div class="p-3 text-sm font-semibold text-gray-700 border-b">Online Payment</div>
+      <a href="/PayOnline/payment.html" class="block px-4 py-3 text-sm text-indigo-700 bg-indigo-50 border-l-4 border-indigo-500">Online Payment</a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <div class="bg-white rounded-xl border p-5 space-y-5">
+        <h1 class="text-lg font-semibold text-gray-800 border-b pb-2">Online Payment</h1>
+
+        <div id="loadingState" class="text-sm text-gray-500">Loading payment details...</div>
+        <div id="errorState" class="hidden text-sm text-red-600"></div>
+
+        <div id="paymentContent" class="hidden space-y-5">
+          <section class="grid md:grid-cols-2 gap-3 text-sm border rounded-xl p-4 bg-gray-50">
+            <p><span class="text-gray-500">Student Name:</span> <strong id="studentName"></strong></p>
+            <p><span class="text-gray-500">RRNO:</span> <strong id="studentRrn"></strong></p>
+            <p><span class="text-gray-500">School/Institute:</span> <span id="studentSchool"></span></p>
+            <p><span class="text-gray-500">E-Mail ID:</span> <span id="studentEmail"></span></p>
+            <p><span class="text-gray-500">Degree Name:</span> <span id="studentDegree"></span></p>
+            <p><span class="text-gray-500">Branch / Program:</span> <span id="studentBranch"></span></p>
+            <p><span class="text-gray-500">Mobile No.:</span> <span id="studentMobile"></span></p>
+          </section>
+
+          <section class="grid md:grid-cols-3 gap-4 items-end">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1" for="receiptType">Receipt Type</label>
+              <select id="receiptType" class="w-full border rounded px-3 py-2 text-sm"></select>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1" for="semesterSelect">Semester</label>
+              <select id="semesterSelect" class="w-full border rounded px-3 py-2 text-sm">
+                <option value="">Please Select</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Total Amount</label>
+              <input id="totalAmount" type="text" readonly class="w-full border rounded px-3 py-2 text-sm bg-gray-50" value="">
+            </div>
+          </section>
+
+          <section>
+            <h2 class="font-medium text-gray-800 mb-2">Applicable Fees</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[520px]">
+                <thead>
+                  <tr>
+                    <th class="table-head text-left">Sr. No.</th>
+                    <th class="table-head text-left">Fee Heads</th>
+                    <th class="table-head text-right">Applicable Amount</th>
+                    <th class="table-head text-right">Paid Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="applicableBody">
+                  <tr><td colspan="4" class="py-3 text-center text-gray-500">Select receipt type and semester</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p id="feeStatus" class="text-sm mt-3"></p>
+          </section>
+
+          <div class="flex flex-wrap gap-3">
+            <button id="payButton" type="button" class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded px-5 py-2 text-sm" disabled>
+              Pay Now
+            </button>
+            <button id="cancelButton" type="button" class="border border-red-400 text-red-500 rounded px-5 py-2 text-sm hover:bg-red-50">
+              Cancel
+            </button>
+          </div>
+          <p id="payMessage" class="text-sm"></p>
+
+          <section>
+            <h2 class="font-medium text-gray-800 mb-2">Fee Summary / Ledger</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[640px]">
+                <thead>
+                  <tr>
+                    <th class="table-head text-left">Receipt Type</th>
+                    <th class="table-head">Semester</th>
+                    <th class="table-head text-right">Payable</th>
+                    <th class="table-head text-right">Paid</th>
+                    <th class="table-head text-right">Balance</th>
+                  </tr>
+                </thead>
+                <tbody id="ledgerBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section>
+            <h2 class="font-medium text-gray-800 mb-2">Previous Receipts Information</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[720px]">
+                <thead>
+                  <tr>
+                    <th class="table-head">Print</th>
+                    <th class="table-head text-left">Receipt Type</th>
+                    <th class="table-head text-left">Receipt No</th>
+                    <th class="table-head">Date</th>
+                    <th class="table-head">Semester</th>
+                    <th class="table-head">Pay Type</th>
+                    <th class="table-head text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="receiptsBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="bg-white border-t text-center py-3 text-sm text-gray-500">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+  <div class="side-rail">
+    <button type="button" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <div id="noticeModal" class="hidden fixed inset-0 bg-black/40 z-[200] items-center justify-center p-4">
+    <div class="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
+      <h2 id="modalTitle" class="font-bold text-lg mb-3">Notice</h2>
+      <p id="modalText" class="text-gray-600 text-sm mb-5">This module will be implemented later.</p>
+      <button onclick="closeNotice()" class="bg-blue-600 text-white px-5 py-2 rounded" type="button">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    let overview = null;
+    let selectedBalance = 0;
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function money(value) {
+      return Number(value || 0).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
+
+    function showNotice(title) {
+      document.getElementById("modalTitle").textContent = title;
+      document.getElementById("modalText").textContent = "This section is a UI placeholder and will be implemented later.";
+      const modal = document.getElementById("noticeModal");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+    function closeNotice() {
+      const modal = document.getElementById("noticeModal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    async function logout() {
+      try { await fetch(`${API}/logout`, { method: "POST", credentials: "include" }); } catch (_) {}
+      window.location.href = LOGIN_URL;
+    }
+
+    function renderLedger() {
+      document.getElementById("ledgerBody").innerHTML = (overview.ledger || []).map((row) => `
+        <tr class="border-b">
+          <td class="py-2">${escapeHTML(row.receipt_type)}</td>
+          <td class="py-2 text-center">${escapeHTML(row.semester)}</td>
+          <td class="py-2 text-right">${money(row.payable)}</td>
+          <td class="py-2 text-right">${money(row.paid)}</td>
+          <td class="py-2 text-right ${row.balance > 0 ? "text-red-600 font-semibold" : "text-green-700"}">${money(row.balance)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderReceipts() {
+      document.getElementById("receiptsBody").innerHTML = (overview.previous_receipts || []).map((row) => `
+        <tr class="border-b">
+          <td class="py-2 text-center">
+            <button type="button" class="text-indigo-600 hover:underline text-xs"
+              onclick="printReceipt('${escapeHTML(row.receipt_no)}','${escapeHTML(row.receipt_type)}','${escapeHTML(row.date)}','${escapeHTML(row.semester)}','${row.amount}')">🖨</button>
+          </td>
+          <td class="py-2">${escapeHTML(row.receipt_type)}</td>
+          <td class="py-2 text-sky-700">${escapeHTML(row.receipt_no)}</td>
+          <td class="py-2 text-center">${escapeHTML(row.date)}</td>
+          <td class="py-2 text-center">${escapeHTML(row.semester)}</td>
+          <td class="py-2 text-center">${escapeHTML(row.pay_type)}</td>
+          <td class="py-2 text-right">${money(row.amount)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function updateSelection() {
+      const type = document.getElementById("receiptType").value;
+      const semester = document.getElementById("semesterSelect").value;
+      const status = document.getElementById("feeStatus");
+      const payButton = document.getElementById("payButton");
+      const totalAmount = document.getElementById("totalAmount");
+      const body = document.getElementById("applicableBody");
+      document.getElementById("payMessage").textContent = "";
+
+      if (!type || !semester) {
+        selectedBalance = 0;
+        totalAmount.value = "";
+        payButton.disabled = true;
+        status.textContent = "";
+        body.innerHTML = `<tr><td colspan="4" class="py-3 text-center text-gray-500">Select receipt type and semester</td></tr>`;
+        return;
+      }
+
+      const match = (overview.ledger || []).find(
+        (row) => row.receipt_type === type && row.semester === semester,
+      );
+
+      if (!match) {
+        selectedBalance = 0;
+        totalAmount.value = "0.00";
+        payButton.disabled = true;
+        status.textContent = "No fee record found for selected semester.";
+        status.className = "text-sm mt-3 text-amber-700";
+        body.innerHTML = `<tr><td colspan="4" class="py-3 text-center text-gray-500">No records to display..</td></tr>`;
+        return;
+      }
+
+      selectedBalance = Number(match.balance || 0);
+      totalAmount.value = money(selectedBalance);
+      body.innerHTML = `
+        <tr class="border-b">
+          <td class="py-2">1</td>
+          <td class="py-2">${escapeHTML(match.receipt_type)}</td>
+          <td class="py-2 text-right">${money(match.payable)}</td>
+          <td class="py-2 text-right">${money(match.paid)}</td>
+        </tr>
+      `;
+
+      if (selectedBalance <= 0) {
+        payButton.disabled = true;
+        status.textContent = "Fees already paid for selected semester.";
+        status.className = "text-sm mt-3 text-green-700";
+      } else {
+        payButton.disabled = false;
+        status.textContent = `Outstanding balance: ₹${money(selectedBalance)}`;
+        status.className = "text-sm mt-3 text-red-600";
+      }
+    }
+
+    function printReceipt(no, type, date, semester, amount) {
+      const student = overview.student;
+      const html = `
+        <html><head><title>Receipt ${no}</title>
+        <style>body{font-family:Arial;padding:24px} h1{font-size:18px} table{width:100%;border-collapse:collapse;margin-top:16px}
+        td,th{border:1px solid #ddd;padding:8px;text-align:left}</style></head><body>
+        <h1>JECRC University - Fee Receipt</h1>
+        <p><strong>OFFICE / STUDENT COPY</strong></p>
+        <p>Name: ${student.name}<br>RRN: ${student.rrn}<br>Branch: ${student.branch}</p>
+        <table>
+          <tr><th>Receipt No</th><td>${no}</td></tr>
+          <tr><th>Receipt Type</th><td>${type}</td></tr>
+          <tr><th>Date</th><td>${date}</td></tr>
+          <tr><th>Semester</th><td>${semester}</td></tr>
+          <tr><th>Amount</th><td>₹${money(amount)}</td></tr>
+          <tr><th>Payment Mode</th><td>ONLINE</td></tr>
+        </table>
+        <p style="margin-top:24px;font-size:12px">Printed from ERP Pay Online module.</p>
+        <script>window.print();<\/script>
+        </body></html>
+      `;
+      const win = window.open("", "_blank", "width=720,height=640");
+      win.document.write(html);
+      win.document.close();
+    }
+
+    async function loadOverview() {
+      try {
+        const response = await fetch(`${API}/api/payments/overview`, { credentials: "include" });
+        if (response.status === 401) { window.location.href = LOGIN_URL; return; }
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Failed to load payments");
+
+        overview = data;
+        const student = data.student;
+        document.getElementById("studentName").textContent = student.name;
+        document.getElementById("studentRrn").textContent = student.rrn;
+        document.getElementById("studentSchool").textContent = student.school;
+        document.getElementById("studentEmail").textContent = student.email;
+        document.getElementById("studentDegree").textContent = student.degree;
+        document.getElementById("studentBranch").textContent = student.branch;
+        document.getElementById("studentMobile").textContent = student.mobile;
+        document.getElementById("welcomeMessage").textContent = `Welcome ${student.email}`;
+
+        const typeSelect = document.getElementById("receiptType");
+        const semSelect = document.getElementById("semesterSelect");
+        typeSelect.innerHTML = (data.receipt_types || [])
+          .map((item) => `<option value="${escapeHTML(item)}">${escapeHTML(item)}</option>`)
+          .join("");
+        semSelect.innerHTML = `<option value="">Please Select</option>` + (data.semesters || [])
+          .map((item) => `<option value="${escapeHTML(item)}">${escapeHTML(item)}</option>`)
+          .join("");
+
+        // Default to a common tour selection
+        typeSelect.value = "Backlog Exam";
+        semSelect.value = "II";
+
+        renderLedger();
+        renderReceipts();
+        updateSelection();
+
+        document.getElementById("loadingState").classList.add("hidden");
+        document.getElementById("paymentContent").classList.remove("hidden");
+      } catch (error) {
+        document.getElementById("loadingState").classList.add("hidden");
+        const err = document.getElementById("errorState");
+        err.textContent = error.message || "Could not load payment page.";
+        err.classList.remove("hidden");
+      }
+    }
+
+    async function payNow() {
+      const message = document.getElementById("payMessage");
+      const type = document.getElementById("receiptType").value;
+      const semester = document.getElementById("semesterSelect").value;
+      if (!type || !semester) return;
+
+      document.getElementById("payButton").disabled = true;
+      message.textContent = "Processing payment...";
+      message.className = "text-sm text-gray-600";
+
+      try {
+        const response = await fetch(`${API}/api/payments/pay`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ receipt_type: type, semester }),
+        });
+        if (response.status === 401) { window.location.href = LOGIN_URL; return; }
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Payment failed");
+
+        message.textContent = data.message;
+        message.className = data.status === "paid"
+          ? "text-sm text-green-700"
+          : "text-sm text-green-700";
+
+        if (data.status === "paid") {
+          // Reflect payment in local ledger/receipts for this session
+          const row = overview.ledger.find(
+            (item) => item.receipt_type === type && item.semester === semester,
+          );
+          if (row) {
+            row.paid = row.payable;
+            row.balance = 0;
+          }
+          overview.previous_receipts.unshift({
+            receipt_type: data.receipt_type,
+            receipt_no: data.receipt_no,
+            date: data.date,
+            semester: data.semester,
+            pay_type: "O",
+            amount: data.amount,
+          });
+          renderLedger();
+          renderReceipts();
+          updateSelection();
+        } else {
+          updateSelection();
+        }
+      } catch (error) {
+        message.textContent = error.message || "Payment failed.";
+        message.className = "text-sm text-red-600";
+        document.getElementById("payButton").disabled = selectedBalance <= 0;
+      }
+    }
+
+    document.getElementById("receiptType").addEventListener("change", updateSelection);
+    document.getElementById("semesterSelect").addEventListener("change", updateSelection);
+    document.getElementById("payButton").addEventListener("click", payNow);
+    document.getElementById("cancelButton").addEventListener("click", () => {
+      document.getElementById("semesterSelect").value = "";
+      updateSelection();
+      document.getElementById("payMessage").textContent = "";
+    });
+
+    const profileButton = document.getElementById("profileButton");
+    const profileMenu = document.getElementById("profileMenu");
+    profileButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      profileMenu.classList.toggle("open");
+    });
+    document.addEventListener("click", (event) => {
+      if (!profileMenu.contains(event.target) && event.target !== profileButton) {
+        profileMenu.classList.remove("open");
+      }
+    });
+    document.querySelectorAll(".nav-trigger").forEach((button) => {
+      button.addEventListener("click", () => {
+        const menu = button.nextElementSibling;
+        const wasOpen = menu.style.display === "block";
+        document.querySelectorAll(".nav-dropdown").forEach((other) => { other.style.display = ""; });
+        menu.style.display = wasOpen ? "" : "block";
+      });
+    });
+    document.querySelectorAll("[data-page]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        showNotice(link.dataset.page);
+      });
+    });
+
+    loadOverview();
+  </script>
+</body>
+</html>

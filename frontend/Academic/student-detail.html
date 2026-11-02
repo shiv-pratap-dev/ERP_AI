@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Student Complete Detail</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
+    .nav-dropdown { display: none; position: absolute; top: 100%; left: 0; min-width: 210px; background: white; box-shadow: 0 4px 12px #0002; border: 1px solid #eee; border-radius: 4px; z-index: 50; }
+    .nav-item:hover .nav-dropdown, .nav-item:focus-within .nav-dropdown { display: block; }
+    .nav-dropdown a { display: block; padding: 10px 14px; color: #555; font-size: 14px; }
+    .nav-dropdown a:hover { background: #f3f4f6; color: #2563eb; }
+    .profile-menu { display: none; position: absolute; right: 0; top: 48px; width: 270px; background: white; box-shadow: 0 5px 18px #0002; z-index: 100; }
+    .profile-menu.open { display: block; }
+    .utility-btn { background: #6575e9; color: white; width: 43px; height: 43px; border-radius: 9px; display: grid; place-items: center; }
+    .sidebar { width: 280px; flex-shrink: 0; transition: width .2s; }
+    .sidebar.collapsed { width: 0; overflow: hidden; border: 0; }
+    .side-link { display: block; padding: 11px 16px; font-size: 14px; color: #4b5563; border-left: 3px solid transparent; }
+    .side-link:hover { background: #f3f4f6; color: #2563eb; }
+    .side-link.active { background: #eef2ff; color: #3730a3; border-left-color: #4f46e5; font-weight: 600; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 4px; font-size: 12px; font-weight: bold; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .info-grid { display: grid; grid-template-columns: 180px 1fr; gap: 8px 16px; font-size: 14px; }
+    .info-grid .label { color: #6b7280; }
+    .info-grid .value { color: #111827; font-weight: 500; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+    <div class="h-[58px] px-3 flex items-center gap-4">
+      <a href="/home" class="flex items-center gap-1 shrink-0">
+        <img src="/assests/jecrc-logo.jpeg" alt="JECRC" class="h-9 w-auto" onerror="this.style.display='none'">
+      </a>
+      <nav class="flex items-center gap-1 sm:gap-4 text-sm text-gray-600 flex-1">
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Academic <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/Academic/student-detail.html">Student Related</a>
+            <a href="#" data-page="Feedback">Feedback</a>
+          </div>
+        </div>
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Examination <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/Examination/examination.html?view=timetable">Exam Time Table</a>
+            <a href="/Examination/examination.html?view=admit">Admit Card for Student</a>
+            <a href="/Examination/examination.html?view=backlog">BackLog Exam Reg</a>
+          </div>
+        </div>
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">LMS <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/LMS/transaction.html">Transactions</a>
+            <a href="/LMS/view.html">View</a>
+            <a href="#" data-page="Virtual Notice Board">Virtual Notice Board</a>
+          </div>
+        </div>
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Pay Online <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/PayOnline/payment.html">Online Payment</a>
+          </div>
+        </div>
+      </nav>
+      <div class="flex items-center gap-3 shrink-0">
+        <button class="border border-red-200 text-red-500 px-2 py-1 text-xs rounded" type="button">FAQs</button>
+        <div class="relative">
+          <button id="profileButton" class="w-9 h-9 rounded-full overflow-hidden border border-gray-200 bg-yellow-400 text-white font-bold" type="button">S</button>
+          <div id="profileMenu" class="profile-menu rounded-b-lg">
+            <div class="p-5 text-center border-b">
+              <p id="welcomeMessage" class="font-medium text-gray-800">Welcome!</p>
+            </div>
+            <a href="/home" class="block px-4 py-3 hover:bg-gray-100 text-sm">🏠 &nbsp; Home</a>
+            <div class="flex justify-around border-t p-4">
+              <button onclick="logout()" class="bg-red-600 text-white rounded-lg w-11 h-11" type="button">⏻</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
+    <h1 class="text-lg font-semibold text-gray-800">Student Complete Detail</h1>
+    <button id="toggleSidebar" class="border rounded px-3 py-1 text-sm text-indigo-600" type="button">Menu</button>
+  </div>
+
+  <div class="flex flex-1 min-h-0">
+    <aside id="sidebar" class="sidebar bg-white border-r border-gray-200 overflow-y-auto">
+      <div class="p-3 text-sm font-semibold text-gray-700 border-b">Student Related</div>
+      <nav id="sideNav">
+        <a href="#" class="side-link active" data-panel="information">Student Information</a>
+        <a href="#" class="side-link" data-panel="personal">Personal Details</a>
+        <a href="#" class="side-link" data-panel="address">Address Details</a>
+        <a href="#" class="side-link" data-panel="qualification">Qualification Details</a>
+        <a href="#" class="side-link" data-panel="fees">Fees Details</a>
+        <a href="#" class="side-link" data-panel="courses">Course Registered</a>
+        <a href="#" class="side-link" data-panel="attendance">Attendance Details</a>
+        <a href="#" class="side-link" data-panel="disciplinary">Student Disciplinary Action Details</a>
+        <a href="#" class="side-link" data-panel="results">Result Details</a>
+        <a href="#" class="side-link" data-panel="revaluation">Revaluation Result Details</a>
+        <a href="#" class="side-link" data-panel="internal">Internal Marks</a>
+        <a href="#" class="side-link" data-panel="mentor">Mentor-Mentee</a>
+      </nav>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <div id="loadingState" class="bg-white rounded-xl border p-8 text-center text-gray-500">Loading student profile...</div>
+      <div id="errorState" class="hidden bg-white rounded-xl border p-8 text-center text-red-600"></div>
+
+      <div id="profileShell" class="hidden space-y-4">
+        <!-- Shared student header -->
+        <section class="bg-white rounded-xl border p-4">
+          <div class="flex flex-col lg:flex-row gap-4 justify-between">
+            <div class="flex-1 space-y-2 text-sm">
+              <div class="flex flex-wrap gap-x-8 gap-y-2">
+                <p><span class="text-gray-500">RRN No.:</span> <strong id="rrnNo"></strong></p>
+                <p><span class="text-gray-500">Student Name:</span> <strong id="studentName"></strong></p>
+              </div>
+              <div class="flex flex-wrap gap-3 items-center">
+                <span>User Login Status <span id="loginStatus" class="badge badge-green">Enabled</span></span>
+                <span>Admission Status <span id="admissionStatus" class="badge badge-green">Admitted</span></span>
+                <span class="text-gray-500">Last Login: <span id="lastLogin" class="text-gray-800"></span></span>
+              </div>
+              <div class="grid md:grid-cols-2 gap-2 pt-2">
+                <p><span class="text-gray-500">Admission Batch:</span> <span id="admissionBatch"></span></p>
+                <p><span class="text-gray-500">School:</span> <span id="schoolName"></span></p>
+                <p class="md:col-span-2"><span class="text-gray-500">Degree/Branch:</span> <span id="degreeBranch"></span></p>
+                <p><span class="text-gray-500">Semester:</span> <span id="semesterValue"></span></p>
+                <p><span class="text-gray-500">Scheme:</span> <span id="schemeValue" class="text-xs"></span></p>
+              </div>
+            </div>
+            <div class="flex gap-3 items-start">
+              <div class="w-24 h-28 bg-gray-100 border rounded grid place-items-center text-gray-400 text-xs">Photo</div>
+              <div class="w-28 h-16 bg-gray-100 border rounded grid place-items-center text-gray-400 text-xs">Signature</div>
+            </div>
+          </div>
+          <div class="mt-4 flex items-center gap-3">
+            <label class="text-sm text-gray-600" for="sessionSelect">Session</label>
+            <select id="sessionSelect" class="border rounded px-3 py-1.5 text-sm"></select>
+          </div>
+        </section>
+
+        <!-- Panels -->
+        <section class="bg-white rounded-xl border p-4">
+          <div id="panel-information" class="panel active">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Student Information</h2>
+            <div class="info-grid" id="informationGrid"></div>
+            <div class="mt-6">
+              <h3 class="font-medium text-gray-700 mb-2">Counselling Details</h3>
+              <div class="bg-sky-50 border border-sky-100 rounded p-3 text-sm text-gray-600" id="counsellingBox">No Record Found.</div>
+            </div>
+          </div>
+
+          <div id="panel-personal" class="panel">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Student Personal Details</h2>
+            <div class="info-grid" id="personalGrid"></div>
+          </div>
+
+          <div id="panel-address" class="panel">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Address Details</h2>
+            <div class="info-grid" id="addressGrid"></div>
+          </div>
+
+          <div id="panel-qualification" class="panel">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Qualification Details</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th class="table-head text-left">Level</th>
+                    <th class="table-head text-left">Board</th>
+                    <th class="table-head text-left">Year</th>
+                    <th class="table-head text-left">Percentage</th>
+                  </tr>
+                </thead>
+                <tbody id="qualificationBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="panel-fees" class="panel">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Fees Details</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[720px]">
+                <thead>
+                  <tr>
+                    <th class="table-head text-left">Year</th>
+                    <th class="table-head text-left">Semester</th>
+                    <th class="table-head text-left">Receipt Type</th>
+                    <th class="table-head text-left">Receipt No.</th>
+                    <th class="table-head text-left">Date</th>
+                    <th class="table-head text-right">Applied</th>
+                    <th class="table-head text-right">Paid</th>
+                    <th class="table-head text-right">Outstanding</th>
+                  </tr>
+                </thead>
+                <tbody id="feesBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="panel-courses" class="panel">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Course Details</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[720px]">
+                <thead>
+                  <tr>
+                    <th class="table-head text-left">CCode</th>
+                    <th class="table-head text-left">Course Name</th>
+                    <th class="table-head text-left">Subject Type</th>
+                    <th class="table-head text-center">Credits</th>
+                    <th class="table-head text-center">Course Reg.</th>
+                    <th class="table-head text-center">Exam Reg.</th>
+                  </tr>
+                </thead>
+                <tbody id="coursesBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="panel-attendance" class="panel">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Attendance Details</h2>
+            <div id="attendanceSummary" class="grid sm:grid-cols-5 gap-3 mb-4 text-sm"></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[640px]">
+                <thead>
+                  <tr>
+                    <th class="table-head text-left">Course</th>
+                    <th class="table-head text-left">Type</th>
+                    <th class="table-head text-center">Total</th>
+                    <th class="table-head text-center">Present</th>
+                    <th class="table-head text-center">Absent</th>
+                    <th class="table-head text-center">%</th>
+                  </tr>
+                </thead>
+                <tbody id="attendanceBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="panel-disciplinary" class="panel">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Student Disciplinary Action Details</h2>
+            <div id="disciplinaryBox" class="bg-sky-50 border border-sky-100 rounded p-4 text-sm text-gray-600">No Record Found.</div>
+          </div>
+
+          <div id="panel-results" class="panel">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Result Details</h2>
+            <div class="flex flex-wrap gap-3 mb-4 text-sm" id="resultSemesters"></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[720px]">
+                <thead>
+                  <tr>
+                    <th class="table-head text-left">Session</th>
+                    <th class="table-head">Section</th>
+                    <th class="table-head">Registered</th>
+                    <th class="table-head">Failed</th>
+                    <th class="table-head">Reg. Credits</th>
+                    <th class="table-head">Earned Credits</th>
+                    <th class="table-head">SGPA</th>
+                    <th class="table-head">Result Date</th>
+                  </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="panel-revaluation" class="panel">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Revaluation Result Details</h2>
+            <div class="bg-sky-50 border border-sky-100 rounded p-4 text-sm text-gray-600">No Result Found.</div>
+          </div>
+
+          <div id="panel-internal" class="panel">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Internal Marks</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th class="table-head text-left">Show</th>
+                    <th class="table-head text-left">Session Name</th>
+                    <th class="table-head text-left">Course Name</th>
+                  </tr>
+                </thead>
+                <tbody id="internalBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="panel-mentor" class="panel">
+            <h2 class="font-semibold text-gray-800 mb-3 border-b pb-2">Mentor-Mentee</h2>
+            <div class="info-grid" id="mentorGrid"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <footer class="bg-white border-t text-center py-3 text-sm text-gray-500">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+  <div class="side-rail">
+    <button type="button" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <div id="noticeModal" class="hidden fixed inset-0 bg-black/40 z-[200] items-center justify-center p-4">
+    <div class="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
+      <h2 id="modalTitle" class="font-bold text-lg mb-3">Notice</h2>
+      <p id="modalText" class="text-gray-600 text-sm mb-5">This module will be implemented later.</p>
+      <button onclick="closeNotice()" class="bg-blue-600 text-white px-5 py-2 rounded" type="button">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    let profile = null;
+    let selectedResultSem = null;
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function money(value) {
+      return Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function showNotice(title) {
+      document.getElementById("modalTitle").textContent = title;
+      document.getElementById("modalText").textContent = "This section is a UI placeholder and will be implemented later.";
+      const modal = document.getElementById("noticeModal");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+    function closeNotice() {
+      const modal = document.getElementById("noticeModal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    async function logout() {
+      try { await fetch(`${API}/logout`, { method: "POST", credentials: "include" }); } catch (_) {}
+      sessionStorage.clear();
+      window.location.href = LOGIN_URL;
+    }
+
+    function switchPanel(name) {
+      document.querySelectorAll(".side-link").forEach((link) => {
+        link.classList.toggle("active", link.dataset.panel === name);
+      });
+      document.querySelectorAll(".panel").forEach((panel) => {
+        panel.classList.toggle("active", panel.id === `panel-${name}`);
+      });
+    }
+
+    function fillHeader(p) {
+      document.getElementById("rrnNo").textContent = p.rrn;
+      document.getElementById("studentName").textContent = p.full_name;
+      document.getElementById("loginStatus").textContent = p.login_status;
+      document.getElementById("admissionStatus").textContent = p.admission_status;
+      document.getElementById("lastLogin").textContent = p.last_login;
+      document.getElementById("admissionBatch").textContent = p.admission_batch;
+      document.getElementById("schoolName").textContent = p.school;
+      document.getElementById("degreeBranch").textContent = p.degree_branch;
+      document.getElementById("semesterValue").textContent = p.semester;
+      document.getElementById("schemeValue").textContent = p.scheme;
+      document.getElementById("welcomeMessage").textContent = `Welcome ${p.email}`;
+
+      const sessionSelect = document.getElementById("sessionSelect");
+      sessionSelect.innerHTML = `
+        <option>${escapeHTML(p.session)}</option>
+        <option>Jan-June 2025-2026</option>
+        <option>July-Dec 2024-2025</option>
+      `;
+    }
+
+    function fillInformation(p) {
+      document.getElementById("informationGrid").innerHTML = `
+        <div class="label">Enrollment No.</div><div class="value">${escapeHTML(p.enrollment_no)}</div>
+        <div class="label">Email</div><div class="value">${escapeHTML(p.email)}</div>
+        <div class="label">Mobile</div><div class="value">${escapeHTML(p.mobile)}</div>
+        <div class="label">Admission Type</div><div class="value">${escapeHTML(p.admission_type)}</div>
+        <div class="label">Father Name</div><div class="value">${escapeHTML(p.personal.father_name)}</div>
+        <div class="label">Mother Name</div><div class="value">${escapeHTML(p.personal.mother_name)}</div>
+      `;
+      document.getElementById("counsellingBox").textContent = p.mentor?.meeting_notes || "No Record Found.";
+    }
+
+    function fillPersonal(p) {
+      const x = p.personal;
+      document.getElementById("personalGrid").innerHTML = `
+        <div class="label">Date of Birth</div><div class="value">${escapeHTML(x.dob)}</div>
+        <div class="label">Gender</div><div class="value">${escapeHTML(x.gender)}</div>
+        <div class="label">Nationality</div><div class="value">${escapeHTML(x.nationality)}</div>
+        <div class="label">Religion</div><div class="value">${escapeHTML(x.religion)}</div>
+        <div class="label">Category</div><div class="value">${escapeHTML(x.category)}</div>
+        <div class="label">Aadhar No.</div><div class="value">${escapeHTML(x.aadhar)}</div>
+        <div class="label">Mobile No.</div><div class="value">${escapeHTML(p.mobile)}</div>
+        <div class="label">Email ID</div><div class="value">${escapeHTML(p.email)}</div>
+        <div class="label">Admission Type</div><div class="value">${escapeHTML(p.admission_type)}</div>
+      `;
+    }
+
+    function fillAddress(p) {
+      const a = p.address;
+      document.getElementById("addressGrid").innerHTML = `
+        <div class="label">Permanent Address</div><div class="value">${escapeHTML(a.permanent)}</div>
+        <div class="label">State</div><div class="value">${escapeHTML(a.state)}</div>
+        <div class="label">Pin Code</div><div class="value">${escapeHTML(a.pin)}</div>
+        <div class="label">Area</div><div class="value">${escapeHTML(a.area)}</div>
+        <div class="label">Local Address</div><div class="value">${a.same_as_permanent ? "Same as Permanent Address" : escapeHTML(a.local || "")}</div>
+      `;
+    }
+
+    function fillQualification(p) {
+      document.getElementById("qualificationBody").innerHTML = (p.qualification || []).map((row) => `
+        <tr class="border-b">
+          <td class="py-2">${escapeHTML(row.level)}</td>
+          <td class="py-2">${escapeHTML(row.board)}</td>
+          <td class="py-2">${escapeHTML(row.year)}</td>
+          <td class="py-2">${escapeHTML(row.percentage)}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="4" class="py-4 text-center text-gray-500">No records to display..</td></tr>`;
+    }
+
+    function fillFees(p) {
+      document.getElementById("feesBody").innerHTML = (p.fees || []).map((row) => `
+        <tr class="border-b">
+          <td class="py-2">${escapeHTML(row.year)}</td>
+          <td class="py-2">${escapeHTML(row.semester)}</td>
+          <td class="py-2">${escapeHTML(row.receipt_type)}</td>
+          <td class="py-2 text-sky-700">${escapeHTML(row.receipt_no)}</td>
+          <td class="py-2">${escapeHTML(row.receipt_date)}</td>
+          <td class="py-2 text-right">${money(row.applied)}</td>
+          <td class="py-2 text-right">${money(row.paid)}</td>
+          <td class="py-2 text-right ${row.outstanding > 0 ? "text-red-600 font-semibold" : ""}">${money(row.outstanding)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function fillCourses(p) {
+      document.getElementById("coursesBody").innerHTML = (p.courses || []).map((row) => `
+        <tr class="border-b">
+          <td class="py-2 font-medium">${escapeHTML(row.code)}</td>
+          <td class="py-2">${escapeHTML(row.name)}</td>
+          <td class="py-2">${escapeHTML(row.subject_type)}</td>
+          <td class="py-2 text-center">${Number(row.credits).toFixed(2)}</td>
+          <td class="py-2 text-center"><span class="badge badge-green">Registered</span></td>
+          <td class="py-2 text-center"><span class="badge badge-green">Registered</span></td>
+        </tr>
+      `).join("") || `<tr><td colspan="6" class="py-4 text-center text-gray-500">No records to display..</td></tr>`;
+    }
+
+    function fillAttendance(p) {
+      const s = p.attendance_summary || {};
+      document.getElementById("attendanceSummary").innerHTML = `
+        <div class="border rounded p-3"><div class="text-gray-500">Total Classes</div><div class="text-lg font-semibold">${s.total_classes ?? 0}</div></div>
+        <div class="border rounded p-3"><div class="text-gray-500">Present</div><div class="text-lg font-semibold">${s.present ?? 0}</div></div>
+        <div class="border rounded p-3"><div class="text-gray-500">Absent</div><div class="text-lg font-semibold">${s.absent ?? 0}</div></div>
+        <div class="border rounded p-3"><div class="text-gray-500">OD</div><div class="text-lg font-semibold">${s.od ?? 0}</div></div>
+        <div class="border rounded p-3"><div class="text-gray-500">Attendance %</div><div class="text-lg font-semibold">${Number(s.percent || 0).toFixed(2)}</div></div>
+      `;
+      document.getElementById("attendanceBody").innerHTML = (s.subjects || []).map((row) => `
+        <tr class="border-b">
+          <td class="py-2">${escapeHTML(row.code)} - ${escapeHTML(row.name)}</td>
+          <td class="py-2">${escapeHTML(row.type)}</td>
+          <td class="py-2 text-center">${row.total}</td>
+          <td class="py-2 text-center">${row.present}</td>
+          <td class="py-2 text-center">${row.absent}</td>
+          <td class="py-2 text-center">${Number(row.percent).toFixed(2)}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="6" class="py-4 text-center text-gray-500">No records to display..</td></tr>`;
+    }
+
+    function fillResults(p) {
+      const results = p.results || [];
+      selectedResultSem = selectedResultSem || (results[0] && results[0].semester);
+      document.getElementById("resultSemesters").innerHTML = results.map((row) => `
+        <label class="inline-flex items-center gap-2 border rounded px-3 py-1.5 cursor-pointer ${selectedResultSem === row.semester ? "border-indigo-500 bg-indigo-50" : ""}">
+          <input type="radio" name="resultSem" value="${escapeHTML(row.semester)}" ${selectedResultSem === row.semester ? "checked" : ""}>
+          Semester ${escapeHTML(row.semester)}
+        </label>
+      `).join("") || `<span class="text-gray-500">No result records.</span>`;
+
+      document.querySelectorAll('input[name="resultSem"]').forEach((input) => {
+        input.addEventListener("change", () => {
+          selectedResultSem = input.value;
+          fillResults(profile);
+        });
+      });
+
+      const selected = results.filter((row) => row.semester === selectedResultSem);
+      document.getElementById("resultsBody").innerHTML = selected.map((row) => `
+        <tr class="border-b">
+          <td class="py-2">${escapeHTML(row.session)}</td>
+          <td class="py-2 text-center">${escapeHTML(row.section)}</td>
+          <td class="py-2 text-center">${row.registered_courses}</td>
+          <td class="py-2 text-center">${row.failed_courses}</td>
+          <td class="py-2 text-center">${Number(row.registered_credits).toFixed(2)}</td>
+          <td class="py-2 text-center">${Number(row.earned_credits).toFixed(2)}</td>
+          <td class="py-2 text-center font-semibold">${Number(row.sgpa).toFixed(2)}</td>
+          <td class="py-2 text-center">${escapeHTML(row.result_date)}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="8" class="py-4 text-center text-gray-500">No records to display..</td></tr>`;
+    }
+
+    function fillInternal(p) {
+      document.getElementById("internalBody").innerHTML = (p.internal_marks || []).map((row) => `
+        <tr class="border-b">
+          <td class="py-2 text-sky-700">${escapeHTML(row.code)}</td>
+          <td class="py-2">${escapeHTML(row.session)}</td>
+          <td class="py-2">${escapeHTML(row.name)}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="3" class="py-4 text-center text-gray-500">No records to display..</td></tr>`;
+    }
+
+    function fillMentor(p) {
+      const m = p.mentor || {};
+      document.getElementById("mentorGrid").innerHTML = `
+        <div class="label">Mentor Name</div><div class="value">${escapeHTML(m.mentor_name || "—")}</div>
+        <div class="label">Department</div><div class="value">${escapeHTML(m.department || "—")}</div>
+        <div class="label">Notes</div><div class="value">${escapeHTML(m.meeting_notes || "No Record Found.")}</div>
+      `;
+    }
+
+    function renderProfile(p) {
+      fillHeader(p);
+      fillInformation(p);
+      fillPersonal(p);
+      fillAddress(p);
+      fillQualification(p);
+      fillFees(p);
+      fillCourses(p);
+      fillAttendance(p);
+      fillResults(p);
+      fillInternal(p);
+      fillMentor(p);
+      if (!(p.disciplinary || []).length) {
+        document.getElementById("disciplinaryBox").textContent = "No Record Found.";
+      }
+    }
+
+    async function loadProfile() {
+      try {
+        const response = await fetch(`${API}/api/student/profile`, { credentials: "include" });
+        if (response.status === 401) {
+          window.location.href = LOGIN_URL;
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Could not load profile");
+        profile = data.profile;
+        document.getElementById("loadingState").classList.add("hidden");
+        document.getElementById("profileShell").classList.remove("hidden");
+        renderProfile(profile);
+      } catch (error) {
+        document.getElementById("loadingState").classList.add("hidden");
+        const err = document.getElementById("errorState");
+        err.textContent = error.message || "Failed to load student profile.";
+        err.classList.remove("hidden");
+      }
+    }
+
+    document.getElementById("sideNav").addEventListener("click", (event) => {
+      const link = event.target.closest("[data-panel]");
+      if (!link) return;
+      event.preventDefault();
+      switchPanel(link.dataset.panel);
+    });
+
+    document.getElementById("toggleSidebar").addEventListener("click", () => {
+      document.getElementById("sidebar").classList.toggle("collapsed");
+    });
+
+    const profileButton = document.getElementById("profileButton");
+    const profileMenu = document.getElementById("profileMenu");
+    profileButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      profileMenu.classList.toggle("open");
+    });
+    document.addEventListener("click", (event) => {
+      if (!profileMenu.contains(event.target) && !profileButton.contains(event.target)) {
+        profileMenu.classList.remove("open");
+      }
+    });
+
+    document.querySelectorAll(".nav-trigger").forEach((button) => {
+      button.addEventListener("click", () => {
+        const menu = button.nextElementSibling;
+        const wasOpen = menu.style.display === "block";
+        document.querySelectorAll(".nav-dropdown").forEach((other) => { other.style.display = ""; });
+        menu.style.display = wasOpen ? "" : "block";
+      });
+    });
+
+    document.querySelectorAll("[data-page]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        showNotice(link.dataset.page);
+      });
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>

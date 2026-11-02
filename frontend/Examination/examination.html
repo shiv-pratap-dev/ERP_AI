@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Examination</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
+    .nav-dropdown { display: none; position: absolute; top: 100%; left: 0; min-width: 210px; background: white; box-shadow: 0 4px 12px #0002; border: 1px solid #eee; border-radius: 4px; z-index: 50; }
+    .nav-item:hover .nav-dropdown, .nav-item:focus-within .nav-dropdown { display: block; }
+    .nav-dropdown a { display: block; padding: 10px 14px; color: #555; font-size: 14px; }
+    .nav-dropdown a:hover { background: #f3f4f6; color: #2563eb; }
+    .profile-menu { display: none; position: absolute; right: 0; top: 48px; width: 270px; background: white; box-shadow: 0 5px 18px #0002; z-index: 100; }
+    .profile-menu.open { display: block; }
+    .sidebar { width: 260px; flex-shrink: 0; }
+    .sidebar.collapsed { width: 0; overflow: hidden; border: 0; }
+    .side-link { display: block; padding: 12px 16px; font-size: 14px; color: #4b5563; border-left: 3px solid transparent; }
+    .side-link:hover { background: #f3f4f6; color: #2563eb; }
+    .side-link.active { background: #eef2ff; color: #3730a3; border-left-color: #4f46e5; font-weight: 600; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 4px; font-size: 12px; font-weight: bold; }
+    .empty-row { background: #e0f2fe; text-align: center; padding: 14px; color: #334155; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+    .required::after { content: " *"; color: #dc2626; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+    <div class="h-[58px] px-3 flex items-center gap-4">
+      <a href="/home" class="flex items-center gap-1 shrink-0">
+        <img src="/assests/jecrc-logo.jpeg" alt="JECRC" class="h-9 w-auto" onerror="this.style.display='none'">
+      </a>
+      <nav class="flex items-center gap-1 sm:gap-4 text-sm text-gray-600 flex-1">
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Academic <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/Academic/student-detail.html">Student Related</a>
+            <a href="#" data-page="Feedback">Feedback</a>
+          </div>
+        </div>
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Examination <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/Examination/examination.html?view=timetable">Exam Time Table</a>
+            <a href="/Examination/examination.html?view=admit">Admit Card for Student</a>
+            <a href="/Examination/examination.html?view=backlog">BackLog Exam Reg</a>
+          </div>
+        </div>
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">LMS <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/LMS/transaction.html">Transactions</a>
+            <a href="/LMS/view.html">View</a>
+            <a href="#" data-page="Virtual Notice Board">Virtual Notice Board</a>
+          </div>
+        </div>
+        <div class="nav-item relative">
+          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Pay Online <span>⌄</span></button>
+          <div class="nav-dropdown">
+            <a href="/PayOnline/payment.html">Online Payment</a>
+          </div>
+        </div>
+      </nav>
+      <div class="relative">
+        <button id="profileButton" class="w-9 h-9 rounded-full bg-yellow-400 text-white font-bold" type="button">S</button>
+        <div id="profileMenu" class="profile-menu rounded-b-lg">
+          <div class="p-4 text-center border-b"><p id="welcomeMessage" class="font-medium">Welcome!</p></div>
+          <a href="/home" class="block px-4 py-3 hover:bg-gray-100 text-sm">🏠 Home</a>
+          <button onclick="logout()" class="w-full text-left px-4 py-3 hover:bg-gray-100 text-sm text-red-600" type="button">Logout</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
+    <h1 id="pageTitle" class="text-lg font-semibold text-gray-800">Exam Time Table</h1>
+    <button id="toggleSidebar" class="border rounded px-3 py-1 text-sm text-indigo-600" type="button">Menu</button>
+  </div>
+
+  <div class="flex flex-1 min-h-0">
+    <aside id="sidebar" class="sidebar bg-white border-r overflow-y-auto">
+      <div class="p-3 text-sm font-semibold text-gray-700 border-b flex justify-between">
+        <span>Student Related</span>
+        <button id="closeSidebar" class="text-gray-400 hover:text-black" type="button">×</button>
+      </div>
+      <a href="#" class="side-link active" data-view="timetable">Exam Time Table</a>
+      <a href="#" class="side-link" data-view="admit">Admit Card for Student</a>
+      <a href="#" class="side-link" data-view="backlog">BackLog Exam Reg</a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <!-- TIMETABLE -->
+      <section id="panel-timetable" class="panel active">
+        <div class="bg-white rounded-xl border p-5 max-w-3xl">
+          <h2 class="font-semibold text-gray-800 mb-4 border-b pb-2">Exam Time Table</h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1 required" for="sessionSelect">Session</label>
+              <select id="sessionSelect" class="w-full border rounded px-3 py-2 text-sm">
+                <option value="">Please Select</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1 required" for="examNameSelect">Exam Name</label>
+              <select id="examNameSelect" class="w-full border rounded px-3 py-2 text-sm">
+                <option value="">Please Select</option>
+              </select>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+              <button id="showTimetableBtn" class="border border-indigo-400 text-indigo-600 rounded px-4 py-2 text-sm hover:bg-indigo-50" type="button">Show Time Table</button>
+              <button id="cancelTimetableBtn" class="border border-red-400 text-red-500 rounded px-4 py-2 text-sm hover:bg-red-50" type="button">Cancel</button>
+            </div>
+          </div>
+          <p id="timetableMessage" class="text-sm mt-4 text-gray-500"></p>
+          <div class="mt-4 overflow-x-auto hidden" id="timetableWrap">
+            <table class="w-full text-sm min-w-[640px]">
+              <thead>
+                <tr>
+                  <th class="table-head text-left">Exam Date</th>
+                  <th class="table-head text-left">Slot</th>
+                  <th class="table-head text-left">CCode</th>
+                  <th class="table-head text-left">Course</th>
+                  <th class="table-head">Semester</th>
+                  <th class="table-head">Regular / Backlog</th>
+                </tr>
+              </thead>
+              <tbody id="timetableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ADMIT CARD -->
+      <section id="panel-admit" class="panel">
+        <div class="bg-white rounded-xl border p-5 max-w-4xl">
+          <div class="flex items-center justify-between border-b pb-3 mb-4">
+            <h2 class="font-semibold text-gray-800">Admit Card for Student</h2>
+            <button onclick="window.print()" class="border rounded px-3 py-1.5 text-sm text-indigo-600" type="button">Print</button>
+          </div>
+          <div id="admitLoading" class="text-gray-500 text-sm">Loading admit card...</div>
+          <div id="admitContent" class="hidden space-y-4">
+            <div class="grid md:grid-cols-2 gap-3 text-sm">
+              <p><span class="text-gray-500">Student Name:</span> <strong id="admitName"></strong></p>
+              <p><span class="text-gray-500">RRN No:</span> <strong id="admitRrn"></strong></p>
+              <p><span class="text-gray-500">Branch:</span> <span id="admitBranch"></span></p>
+              <p><span class="text-gray-500">Semester:</span> <span id="admitSemester"></span></p>
+              <p><span class="text-gray-500">Session:</span> <span id="admitSession"></span></p>
+              <p><span class="text-gray-500">Exam:</span> <span id="admitExam"></span></p>
+              <p class="md:col-span-2"><span class="text-gray-500">Center:</span> <span id="admitCenter"></span></p>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th class="table-head text-left">Code</th>
+                    <th class="table-head text-left">Paper</th>
+                    <th class="table-head text-left">Date</th>
+                    <th class="table-head text-left">Slot</th>
+                  </tr>
+                </thead>
+                <tbody id="admitPapers"></tbody>
+              </table>
+            </div>
+            <div>
+              <h3 class="font-medium text-gray-700 mb-2">Instructions</h3>
+              <ul id="admitInstructions" class="list-disc pl-5 text-sm text-gray-600 space-y-1"></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BACKLOG -->
+      <section id="panel-backlog" class="panel">
+        <div class="bg-white rounded-xl border p-5">
+          <h2 class="font-semibold text-gray-800 mb-4 border-b pb-2">BACKLOG EXAM REG</h2>
+          <div id="backlogLoading" class="text-sm text-gray-500">Loading backlog data...</div>
+          <div id="backlogContent" class="hidden space-y-4">
+            <div class="grid md:grid-cols-2 gap-3 text-sm">
+              <p><span class="text-gray-500">Student Name:</span> <strong id="backlogName"></strong></p>
+              <p><span class="text-gray-500">RRN No:</span> <strong id="backlogRrn"></strong></p>
+              <p><span class="text-gray-500">Semester:</span> <span id="backlogSem"></span></p>
+              <p><span class="text-gray-500">Degree/Branch:</span> <span id="backlogBranch"></span></p>
+              <p><span class="text-gray-500">Scheme:</span> <span id="backlogScheme"></span></p>
+              <p><span class="text-gray-500">Session:</span> <span id="backlogSession"></span></p>
+            </div>
+
+            <div class="grid lg:grid-cols-[1fr_240px] gap-4">
+              <div>
+                <label class="text-sm text-gray-600" for="backlogSemester">Backlog Semester/Trimester</label>
+                <select id="backlogSemester" class="mt-1 border rounded px-3 py-2 text-sm">
+                  <option value="1">I</option>
+                  <option value="2" selected>II</option>
+                  <option value="3">III</option>
+                  <option value="4">IV</option>
+                </select>
+                <div id="backlogWarning" class="mt-3 bg-sky-50 border border-sky-200 text-sky-800 text-sm rounded p-3"></div>
+                <div class="mt-4 overflow-x-auto">
+                  <table class="w-full text-sm min-w-[720px]">
+                    <thead>
+                      <tr>
+                        <th class="table-head">Select</th>
+                        <th class="table-head text-left">Course Code</th>
+                        <th class="table-head text-left">Course Name</th>
+                        <th class="table-head">Credit</th>
+                        <th class="table-head">Sem</th>
+                        <th class="table-head">Type</th>
+                        <th class="table-head">Grade</th>
+                        <th class="table-head text-right">Exam Fees</th>
+                      </tr>
+                    </thead>
+                    <tbody id="backlogBody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="border rounded-xl p-4 bg-gray-50 h-fit text-sm space-y-2">
+                <h3 class="font-semibold text-gray-700 mb-2">Fee Summary</h3>
+                <div class="flex justify-between"><span>Processing Fee</span><span id="feeProcessing">0</span></div>
+                <div class="flex justify-between"><span>Certificate Fee</span><span id="feeCertificate">0</span></div>
+                <div class="flex justify-between"><span>Subjects Fee</span><span id="feeSubjects">0</span></div>
+                <div class="flex justify-between"><span>Late Fee</span><span id="feeLate">0</span></div>
+                <div class="flex justify-between font-semibold border-t pt-2"><span>Total Fee</span><span id="feeTotal">0</span></div>
+                <div class="flex justify-between"><span>Paid Fee</span><span id="feePaid">0</span></div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-3">
+              <p id="backlogMessage" class="text-sm text-gray-600"></p>
+              <button id="submitBacklogBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded px-5 py-2 text-sm" type="button">
+                Submit &amp; Pay Online
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="bg-white border-t text-center py-3 text-sm text-gray-500">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+  <div class="side-rail">
+    <button type="button" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <div id="noticeModal" class="hidden fixed inset-0 bg-black/40 z-[200] items-center justify-center p-4">
+    <div class="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
+      <h2 id="modalTitle" class="font-bold text-lg mb-3">Notice</h2>
+      <p id="modalText" class="text-gray-600 text-sm mb-5">This module will be implemented later.</p>
+      <button onclick="closeNotice()" class="bg-blue-600 text-white px-5 py-2 rounded" type="button">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    const titles = {
+      timetable: "Exam Time Table",
+      admit: "Admit Card for Student",
+      backlog: "BackLog Exam Reg",
+    };
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function money(value) {
+      return Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function showNotice(title) {
+      document.getElementById("modalTitle").textContent = title;
+      document.getElementById("modalText").textContent = "This section is a UI placeholder and will be implemented later.";
+      const modal = document.getElementById("noticeModal");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+    function closeNotice() {
+      const modal = document.getElementById("noticeModal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    async function logout() {
+      try { await fetch(`${API}/logout`, { method: "POST", credentials: "include" }); } catch (_) {}
+      window.location.href = LOGIN_URL;
+    }
+
+    function switchView(view) {
+      const key = titles[view] ? view : "timetable";
+      document.querySelectorAll(".side-link").forEach((link) => {
+        link.classList.toggle("active", link.dataset.view === key);
+      });
+      document.querySelectorAll(".panel").forEach((panel) => {
+        panel.classList.toggle("active", panel.id === `panel-${key}`);
+      });
+      document.getElementById("pageTitle").textContent = titles[key];
+      const url = new URL(window.location.href);
+      url.searchParams.set("view", key);
+      window.history.replaceState({}, "", url);
+
+      if (key === "admit") loadAdmitCard();
+      if (key === "backlog") loadBacklog();
+    }
+
+    async function loadMeta() {
+      const response = await fetch(`${API}/api/exams/meta`, { credentials: "include" });
+      if (response.status === 401) { window.location.href = LOGIN_URL; return; }
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Failed to load exam meta");
+
+      const sessionSelect = document.getElementById("sessionSelect");
+      const examSelect = document.getElementById("examNameSelect");
+      (data.sessions || []).forEach((item) => {
+        sessionSelect.insertAdjacentHTML("beforeend", `<option value="${escapeHTML(item)}">${escapeHTML(item)}</option>`);
+      });
+      (data.exam_names || []).forEach((item) => {
+        examSelect.insertAdjacentHTML("beforeend", `<option value="${escapeHTML(item)}">${escapeHTML(item)}</option>`);
+      });
+    }
+
+    async function showTimetable() {
+      const session = document.getElementById("sessionSelect").value;
+      const examName = document.getElementById("examNameSelect").value;
+      const message = document.getElementById("timetableMessage");
+      const wrap = document.getElementById("timetableWrap");
+      const body = document.getElementById("timetableBody");
+
+      if (!session || !examName) {
+        message.textContent = "Please select Session and Exam Name.";
+        message.className = "text-sm mt-4 text-red-600";
+        wrap.classList.add("hidden");
+        return;
+      }
+
+      message.textContent = "Loading timetable...";
+      message.className = "text-sm mt-4 text-gray-500";
+
+      const response = await fetch(
+        `${API}/api/exams/timetable?session=${encodeURIComponent(session)}&exam_name=${encodeURIComponent(examName)}`,
+        { credentials: "include" },
+      );
+      if (response.status === 401) { window.location.href = LOGIN_URL; return; }
+      const data = await response.json();
+      if (!response.ok) {
+        message.textContent = data.detail || "Could not load timetable.";
+        message.className = "text-sm mt-4 text-red-600";
+        return;
+      }
+
+      const rows = data.rows || [];
+      wrap.classList.remove("hidden");
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="6" class="empty-row">No records to display..</td></tr>`;
+        message.textContent = `No timetable found for ${examName}.`;
+        message.className = "text-sm mt-4 text-gray-600";
+        return;
+      }
+
+      body.innerHTML = rows.map((row) => `
+        <tr class="border-b">
+          <td class="py-2">${escapeHTML(row.exam_date)}</td>
+          <td class="py-2">${escapeHTML(row.slot)}</td>
+          <td class="py-2 font-medium">${escapeHTML(row.code)}</td>
+          <td class="py-2">${escapeHTML(row.course)}</td>
+          <td class="py-2 text-center">${escapeHTML(row.semester)}</td>
+          <td class="py-2 text-center">${escapeHTML(row.type)}</td>
+        </tr>
+      `).join("");
+      message.textContent = `Showing ${rows.length} paper(s) for ${examName}.`;
+      message.className = "text-sm mt-4 text-green-700";
+    }
+
+    async function loadAdmitCard() {
+      document.getElementById("admitLoading").classList.remove("hidden");
+      document.getElementById("admitContent").classList.add("hidden");
+      const response = await fetch(`${API}/api/exams/admit-card`, { credentials: "include" });
+      if (response.status === 401) { window.location.href = LOGIN_URL; return; }
+      const data = await response.json();
+      if (!response.ok) {
+        document.getElementById("admitLoading").textContent = data.detail || "Failed to load admit card.";
+        return;
+      }
+      const card = data.admit_card;
+      document.getElementById("admitName").textContent = card.student_name;
+      document.getElementById("admitRrn").textContent = card.rrn;
+      document.getElementById("admitBranch").textContent = card.branch;
+      document.getElementById("admitSemester").textContent = card.semester;
+      document.getElementById("admitSession").textContent = card.session;
+      document.getElementById("admitExam").textContent = card.exam_name;
+      document.getElementById("admitCenter").textContent = card.center;
+      document.getElementById("admitPapers").innerHTML = (card.papers || []).map((row) => `
+        <tr class="border-b">
+          <td class="py-2">${escapeHTML(row.code)}</td>
+          <td class="py-2">${escapeHTML(row.name)}</td>
+          <td class="py-2">${escapeHTML(row.date)}</td>
+          <td class="py-2">${escapeHTML(row.slot)}</td>
+        </tr>
+      `).join("");
+      document.getElementById("admitInstructions").innerHTML = (card.instructions || [])
+        .map((item) => `<li>${escapeHTML(item)}</li>`).join("");
+      document.getElementById("admitLoading").classList.add("hidden");
+      document.getElementById("admitContent").classList.remove("hidden");
+      document.getElementById("welcomeMessage").textContent = `Welcome ${card.email}`;
+    }
+
+    async function loadBacklog() {
+      const semester = document.getElementById("backlogSemester").value;
+      document.getElementById("backlogLoading").classList.remove("hidden");
+      document.getElementById("backlogContent").classList.add("hidden");
+
+      const response = await fetch(`${API}/api/exams/backlog?semester=${encodeURIComponent(semester)}`, {
+        credentials: "include",
+      });
+      if (response.status === 401) { window.location.href = LOGIN_URL; return; }
+      const data = await response.json();
+      if (!response.ok) {
+        document.getElementById("backlogLoading").textContent = data.detail || "Failed to load backlog courses.";
+        return;
+      }
+
+      const student = data.student;
+      document.getElementById("backlogName").textContent = student.name;
+      document.getElementById("backlogRrn").textContent = student.rrn;
+      document.getElementById("backlogSem").textContent = student.semester;
+      document.getElementById("backlogBranch").textContent = student.branch;
+      document.getElementById("backlogScheme").textContent = student.scheme;
+      document.getElementById("backlogSession").textContent = student.session;
+      document.getElementById("backlogWarning").textContent = data.warning || "";
+      document.getElementById("welcomeMessage").textContent = `Welcome ${student.email}`;
+
+      const fees = data.fee_summary || {};
+      document.getElementById("feeProcessing").textContent = money(fees.processing_fee);
+      document.getElementById("feeCertificate").textContent = money(fees.certificate_fee);
+      document.getElementById("feeSubjects").textContent = money(fees.subjects_fee);
+      document.getElementById("feeLate").textContent = money(fees.late_fee);
+      document.getElementById("feeTotal").textContent = money(fees.total_fee);
+      document.getElementById("feePaid").textContent = money(fees.paid_fee);
+
+      const courses = data.courses || [];
+      document.getElementById("backlogBody").innerHTML = courses.length
+        ? courses.map((row) => `
+            <tr class="border-b">
+              <td class="py-2 text-center"><input type="checkbox" class="backlog-check" value="${escapeHTML(row.code)}" data-fee="${row.exam_fees}"></td>
+              <td class="py-2 font-medium">${escapeHTML(row.code)}</td>
+              <td class="py-2">${escapeHTML(row.name)}</td>
+              <td class="py-2 text-center">${Number(row.credit).toFixed(2)}</td>
+              <td class="py-2 text-center">${row.semester}</td>
+              <td class="py-2 text-center">${escapeHTML(row.course_type)}</td>
+              <td class="py-2 text-center text-red-600 font-semibold">${escapeHTML(row.grade)}</td>
+              <td class="py-2 text-right">${money(row.exam_fees)}</td>
+            </tr>
+          `).join("")
+        : `<tr><td colspan="8" class="empty-row">No backlog courses for selected semester.</td></tr>`;
+
+      document.getElementById("backlogLoading").classList.add("hidden");
+      document.getElementById("backlogContent").classList.remove("hidden");
+      document.getElementById("backlogMessage").textContent = "";
+      updateSelectedFees();
+    }
+
+    function updateSelectedFees() {
+      let total = 0;
+      document.querySelectorAll(".backlog-check:checked").forEach((box) => {
+        total += Number(box.dataset.fee || 0);
+      });
+      document.getElementById("feeSubjects").textContent = money(total);
+      document.getElementById("feeTotal").textContent = money(total);
+    }
+
+    async function submitBacklog() {
+      const codes = [...document.querySelectorAll(".backlog-check:checked")].map((box) => box.value);
+      const message = document.getElementById("backlogMessage");
+      if (!codes.length) {
+        message.textContent = "Select at least one course.";
+        message.className = "text-sm text-red-600";
+        return;
+      }
+
+      const response = await fetch(`${API}/api/exams/backlog/register`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          semester: Number(document.getElementById("backlogSemester").value),
+          course_codes: codes,
+        }),
+      });
+      if (response.status === 401) { window.location.href = LOGIN_URL; return; }
+      const data = await response.json();
+      if (!response.ok) {
+        message.textContent = data.detail || "Registration failed.";
+        message.className = "text-sm text-red-600";
+        return;
+      }
+      message.textContent = data.message || "Registered successfully.";
+      message.className = "text-sm text-green-700";
+    }
+
+    // chrome
+    document.querySelectorAll(".side-link").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        switchView(link.dataset.view);
+      });
+    });
+    document.getElementById("toggleSidebar").addEventListener("click", () => {
+      document.getElementById("sidebar").classList.toggle("collapsed");
+    });
+    document.getElementById("closeSidebar").addEventListener("click", () => {
+      document.getElementById("sidebar").classList.add("collapsed");
+    });
+    document.getElementById("showTimetableBtn").addEventListener("click", showTimetable);
+    document.getElementById("cancelTimetableBtn").addEventListener("click", () => {
+      document.getElementById("sessionSelect").value = "";
+      document.getElementById("examNameSelect").value = "";
+      document.getElementById("timetableWrap").classList.add("hidden");
+      document.getElementById("timetableMessage").textContent = "";
+    });
+    document.getElementById("backlogSemester").addEventListener("change", loadBacklog);
+    document.getElementById("backlogBody").addEventListener("change", (event) => {
+      if (event.target.classList.contains("backlog-check")) updateSelectedFees();
+    });
+    document.getElementById("submitBacklogBtn").addEventListener("click", submitBacklog);
+
+    const profileButton = document.getElementById("profileButton");
+    const profileMenu = document.getElementById("profileMenu");
+    profileButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      profileMenu.classList.toggle("open");
+    });
+    document.addEventListener("click", (event) => {
+      if (!profileMenu.contains(event.target) && event.target !== profileButton) {
+        profileMenu.classList.remove("open");
+      }
+    });
+    document.querySelectorAll(".nav-trigger").forEach((button) => {
+      button.addEventListener("click", () => {
+        const menu = button.nextElementSibling;
+        const wasOpen = menu.style.display === "block";
+        document.querySelectorAll(".nav-dropdown").forEach((other) => { other.style.display = ""; });
+        menu.style.display = wasOpen ? "" : "block";
+      });
+    });
+    document.querySelectorAll("[data-page]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        showNotice(link.dataset.page);
+      });
+    });
+
+    fetch(`${API}/session-user`, { credentials: "include" })
+      .then((r) => {
+        if (!r.ok) { window.location.href = LOGIN_URL; return null; }
+        return r.json();
+      })
+      .then((data) => {
+        if (data) document.getElementById("welcomeMessage").textContent = `Welcome ${data.user.email}`;
+      });
+
+    loadMeta()
+      .then(() => {
+        const view = new URLSearchParams(window.location.search).get("view") || "timetable";
+        switchView(view);
+      })
+      .catch((error) => {
+        document.getElementById("timetableMessage").textContent = error.message;
+      });
+  </script>
+</body>
+</html>

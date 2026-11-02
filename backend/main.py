@@ -58,6 +58,27 @@ if ASSETS_DIR.exists():
 
         name="LMS",
     )
+    academic_dir = FRONTEND_DIR / "Academic"
+    if academic_dir.exists():
+        app.mount(
+            "/Academic",
+            StaticFiles(directory=academic_dir, html=True),
+            name="Academic",
+        )
+    examination_dir = FRONTEND_DIR / "Examination"
+    if examination_dir.exists():
+        app.mount(
+            "/Examination",
+            StaticFiles(directory=examination_dir, html=True),
+            name="Examination",
+        )
+    pay_online_dir = FRONTEND_DIR / "PayOnline"
+    if pay_online_dir.exists():
+        app.mount(
+            "/PayOnline",
+            StaticFiles(directory=pay_online_dir, html=True),
+            name="PayOnline",
+        )
     app.mount(
         "/frontend",
         StaticFiles(directory=FRONTEND_DIR),
@@ -69,6 +90,15 @@ app.add_middleware(
     allow_origins=[
         "http://127.0.0.1:5500",
         "http://localhost:5500",
+        "http://127.0.0.1:5501",
+        "http://localhost:5501",
+        "http://127.0.0.1:5502",
+        "http://localhost:5502",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+        "null",  # file:// opens during local testing
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -373,6 +403,611 @@ def get_course_assignments(
 
     return {"assignments": assignments}
 
+@app.get("/api/student/profile")
+def get_student_profile(access_token: str | None = Cookie(default=None)):
+    """Return the logged-in student's academic profile for Student Complete Detail."""
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    user = verify_token(access_token)
+    if user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Only students can view this profile")
+
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                s.id,
+                s.roll_number,
+                s.full_name,
+                s.semester,
+                s.branch,
+                u.email,
+                u.created_at
+            FROM students s
+            JOIN users u ON u.id = s.user_id
+            WHERE s.user_id = %s
+            """,
+            (user["id"],),
+        ).fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Student profile not found")
+
+        student_id, roll_number, full_name, semester, branch, email, created_at = row
+
+        courses = conn.execute(
+            """
+            SELECT
+                c.course_code,
+                c.course_name,
+                c.semester,
+                c.description,
+                t.full_name AS teacher_name
+            FROM enrollments e
+            JOIN courses c ON c.id = e.course_id
+            LEFT JOIN teachers t ON t.id = c.teacher_id
+            WHERE e.student_id = %s
+            ORDER BY c.course_code
+            """,
+            (student_id,),
+        ).fetchall()
+
+    session_label = f"July-Dec 2026-2027"
+    degree = (
+        "Bachelor of Technology - Computer Science and Engineering"
+        if branch == "CSE"
+        else f"Bachelor of Technology - {branch}"
+    )
+
+    return {
+        "profile": {
+            "id": str(student_id),
+            "rrn": roll_number,
+            "enrollment_no": roll_number,
+            "full_name": full_name,
+            "email": email,
+            "mobile": "9876543210",
+            "login_status": "Enabled",
+            "admission_status": "Admitted",
+            "admission_batch": "2023-24",
+            "admission_type": "REGULAR",
+            "school": "School of Engineering and Technology",
+            "degree_branch": degree,
+            "semester": semester,
+            "branch": branch,
+            "scheme": f"B.Tech-{branch}-2023-24-Department of Computer Engineering (New)",
+            "session": session_label,
+            "last_login": datetime.now().strftime("%d-%b-%Y %I:%M %p"),
+            "created_at": created_at.isoformat() if created_at else None,
+            "personal": {
+                "dob": "01-01-2005",
+                "gender": "Male",
+                "nationality": "Indian",
+                "religion": "Hindu",
+                "category": "General",
+                "aadhar": "XXXX-XXXX-1234",
+                "father_name": "Ramesh Kumar",
+                "mother_name": "Sunita Devi",
+            },
+            "address": {
+                "permanent": "Plot No. 24, Demo Nagar, Jaipur",
+                "state": "Rajasthan",
+                "pin": "302034",
+                "area": "Urban",
+                "same_as_permanent": True,
+            },
+            "qualification": [
+                {
+                    "level": "12th / Senior Secondary",
+                    "board": "RBSE / CBSE",
+                    "year": "2023",
+                    "percentage": "85.40",
+                },
+                {
+                    "level": "10th / Secondary",
+                    "board": "RBSE / CBSE",
+                    "year": "2021",
+                    "percentage": "88.20",
+                },
+            ],
+            "fees": [
+                {
+                    "year": "First Year",
+                    "semester": "I",
+                    "receipt_type": "Academic Fees",
+                    "receipt_no": "C/TF/23/1001",
+                    "receipt_date": "15/07/2023",
+                    "applied": 120000.0,
+                    "paid": 120000.0,
+                    "outstanding": 0.0,
+                },
+                {
+                    "year": "Second Year",
+                    "semester": "III",
+                    "receipt_type": "Academic Fees",
+                    "receipt_no": "C/TF/24/2104",
+                    "receipt_date": "12/07/2024",
+                    "applied": 110000.0,
+                    "paid": 110000.0,
+                    "outstanding": 0.0,
+                },
+                {
+                    "year": "Third Year",
+                    "semester": "V",
+                    "receipt_type": "Academic Fees",
+                    "receipt_no": "C/TF/25/3308",
+                    "receipt_date": "10/07/2025",
+                    "applied": 110000.0,
+                    "paid": 56000.0,
+                    "outstanding": 54000.0,
+                },
+            ],
+            "attendance_summary": {
+                "session": f"{session_label} ({_roman(semester)})",
+                "total_classes": 18,
+                "present": 16,
+                "absent": 2,
+                "od": 0,
+                "percent": 88.75,
+                "subjects": [
+                    {
+                        "code": c[0],
+                        "name": c[1],
+                        "type": "Theory",
+                        "total": 10,
+                        "present": 9,
+                        "absent": 1,
+                        "percent": 90.0,
+                    }
+                    for c in courses[:2]
+                ],
+            },
+            "results": [
+                {
+                    "semester": "I",
+                    "session": "July-Dec 2023-2024",
+                    "section": "SF",
+                    "registered_courses": 8,
+                    "failed_courses": 0,
+                    "registered_credits": 22.0,
+                    "earned_credits": 22.0,
+                    "sgpa": 7.80,
+                    "result_date": "20 Jan 2024",
+                },
+                {
+                    "semester": "II",
+                    "session": "Jan-June 2023-2024",
+                    "section": "SF",
+                    "registered_courses": 9,
+                    "failed_courses": 0,
+                    "registered_credits": 24.0,
+                    "earned_credits": 24.0,
+                    "sgpa": 7.65,
+                    "result_date": "18 Jun 2024",
+                },
+            ],
+            "internal_marks": [
+                {
+                    "session": session_label,
+                    "code": c[0],
+                    "name": c[1],
+                }
+                for c in courses
+            ],
+            "disciplinary": [],
+            "mentor": {
+                "mentor_name": courses[0][4] if courses and courses[0][4] else "Faculty Mentor",
+                "department": "Computer Science",
+                "meeting_notes": "No counselling records found.",
+            },
+            "courses": [
+                {
+                    "code": c[0],
+                    "name": c[1],
+                    "semester": c[2],
+                    "description": c[3],
+                    "teacher": c[4],
+                    "subject_type": "Theory",
+                    "credits": 4.0,
+                    "course_registered": True,
+                    "exam_registered": True,
+                }
+                for c in courses
+            ],
+        }
+    }
+
+
+def _roman(num: int) -> str:
+    mapping = {
+        1: "I", 2: "II", 3: "III", 4: "IV",
+        5: "V", 6: "VI", 7: "VII", 8: "VIII",
+    }
+    return mapping.get(int(num), str(num))
+
+
+def _require_student(access_token: str | None) -> dict:
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    user = verify_token(access_token)
+    if user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Only students can access examination")
+    return user
+
+
+def _student_row(user_id: str):
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT s.id, s.roll_number, s.full_name, s.semester, s.branch, u.email
+            FROM students s
+            JOIN users u ON u.id = s.user_id
+            WHERE s.user_id = %s
+            """,
+            (user_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Student profile not found")
+
+        courses = conn.execute(
+            """
+            SELECT c.course_code, c.course_name, c.semester
+            FROM enrollments e
+            JOIN courses c ON c.id = e.course_id
+            WHERE e.student_id = %s
+            ORDER BY c.course_code
+            """,
+            (row[0],),
+        ).fetchall()
+    return row, courses
+
+
+@app.get("/api/exams/meta")
+def get_exam_meta(access_token: str | None = Cookie(default=None)):
+    _require_student(access_token)
+    return {
+        "sessions": [
+            "July-Dec 2026-2027",
+            "Jan-June 2025-2026",
+            "July-Dec 2024-2025",
+            "Jan-June 2024-2025",
+        ],
+        "exam_names": [
+            "INTERNAL EXAM",
+            "ASSIGNMENT",
+            "INTERNAL PRACTICAL",
+            "END TERM",
+        ],
+    }
+
+
+@app.get("/api/exams/timetable")
+def get_exam_timetable(
+    session: str,
+    exam_name: str,
+    access_token: str | None = Cookie(default=None),
+):
+    user = _require_student(access_token)
+    _student, courses = _student_row(user["id"])
+
+    if not session.strip() or not exam_name.strip():
+        raise HTTPException(status_code=400, detail="Session and Exam Name are required")
+
+    # Demo timetable for END TERM / INTERNAL; others intentionally empty.
+    if exam_name.upper() not in {"END TERM", "INTERNAL EXAM"}:
+        return {"session": session, "exam_name": exam_name, "rows": []}
+
+    slots = ["09:00 AM - 12:00 PM", "01:00 PM - 04:00 PM"]
+    rows = []
+    for index, course in enumerate(courses[:6]):
+        day = 10 + index
+        rows.append(
+            {
+                "exam_date": f"{day:02d}-Dec-2026",
+                "slot": slots[index % 2],
+                "code": course[0],
+                "course": course[1],
+                "semester": course[2],
+                "type": "Regular",
+            }
+        )
+    return {"session": session, "exam_name": exam_name, "rows": rows}
+
+
+@app.get("/api/exams/admit-card")
+def get_admit_card(access_token: str | None = Cookie(default=None)):
+    user = _require_student(access_token)
+    student, courses = _student_row(user["id"])
+    _id, roll_number, full_name, semester, branch, email = student
+
+    return {
+        "admit_card": {
+            "student_name": full_name,
+            "rrn": roll_number,
+            "email": email,
+            "semester": semester,
+            "branch": branch,
+            "exam_name": "END TERM",
+            "session": "July-Dec 2026-2027",
+            "center": "JECRC University Main Campus",
+            "instructions": [
+                "Carry this admit card and a valid photo ID to the exam hall.",
+                "Report at least 30 minutes before the exam start time.",
+                "Electronic devices are not allowed inside the examination hall.",
+            ],
+            "papers": [
+                {
+                    "code": c[0],
+                    "name": c[1],
+                    "date": f"{12 + i:02d}-Dec-2026",
+                    "slot": "09:00 AM - 12:00 PM" if i % 2 == 0 else "01:00 PM - 04:00 PM",
+                }
+                for i, c in enumerate(courses[:5])
+            ],
+        }
+    }
+
+
+@app.get("/api/exams/backlog")
+def get_backlog_courses(
+    semester: int | None = None,
+    access_token: str | None = Cookie(default=None),
+):
+    user = _require_student(access_token)
+    student, _courses = _student_row(user["id"])
+    _id, roll_number, full_name, current_sem, branch, email = student
+    selected = semester if semester is not None else 2
+
+    # Demo backlog papers for older semesters.
+    demo = [
+        {
+            "code": "DMA002A",
+            "name": "Engineering Mathematics-II",
+            "credit": 4.0,
+            "semester": 2,
+            "course_type": "Theory",
+            "grade": "F",
+            "exam_fees": 1400.0,
+        },
+        {
+            "code": "BCO101A",
+            "name": "Programming Fundamentals",
+            "credit": 3.0,
+            "semester": 1,
+            "course_type": "Theory",
+            "grade": "F",
+            "exam_fees": 1400.0,
+        },
+    ]
+    rows = [row for row in demo if row["semester"] == selected]
+
+    return {
+        "student": {
+            "name": full_name,
+            "rrn": roll_number,
+            "email": email,
+            "semester": current_sem,
+            "branch": f"B.Tech {branch}",
+            "scheme": f"B.Tech-{branch}-2023-24",
+            "session": "July-Dec 2026-2027",
+        },
+        "selected_semester": selected,
+        "fee_summary": {
+            "processing_fee": 0,
+            "certificate_fee": 0,
+            "subjects_fee": sum(r["exam_fees"] for r in rows),
+            "late_fee": 0,
+            "total_fee": sum(r["exam_fees"] for r in rows),
+            "paid_fee": 0,
+        },
+        "courses": rows,
+        "warning": "This Is One Time Activity, Kindly Verify Data Before Final Registration.",
+    }
+
+
+class BacklogRegisterRequest(BaseModel):
+    semester: int
+    course_codes: list[str]
+
+
+@app.post("/api/exams/backlog/register")
+def register_backlog(
+    data: BacklogRegisterRequest,
+    access_token: str | None = Cookie(default=None),
+):
+    _require_student(access_token)
+    if not data.course_codes:
+        raise HTTPException(status_code=400, detail="Select at least one backlog course")
+
+    return {
+        "message": "Backlog registration saved. Proceed to Pay Online to complete payment.",
+        "semester": data.semester,
+        "course_codes": data.course_codes,
+        "redirect": "/Examination/examination.html?view=backlog",
+    }
+
+
+@app.get("/api/payments/overview")
+def get_payments_overview(access_token: str | None = Cookie(default=None)):
+    """Student fee ledger and payment options for Pay Online."""
+    user = _require_student(access_token)
+    student, _courses = _student_row(user["id"])
+    _id, roll_number, full_name, semester, branch, email = student
+
+    ledger = [
+        {
+            "receipt_type": "Academic Fees",
+            "semester": "I",
+            "payable": 120000.0,
+            "paid": 120000.0,
+            "balance": 0.0,
+        },
+        {
+            "receipt_type": "Backlog Exam",
+            "semester": "II",
+            "payable": 500.0,
+            "paid": 500.0,
+            "balance": 0.0,
+        },
+        {
+            "receipt_type": "Academic Fees",
+            "semester": "II",
+            "payable": 110000.0,
+            "paid": 110000.0,
+            "balance": 0.0,
+        },
+        {
+            "receipt_type": "Academic Fees",
+            "semester": "III",
+            "payable": 110000.0,
+            "paid": 110000.0,
+            "balance": 0.0,
+        },
+        {
+            "receipt_type": "Academic Fees",
+            "semester": "IV",
+            "payable": 110000.0,
+            "paid": 110000.0,
+            "balance": 0.0,
+        },
+        {
+            "receipt_type": "Academic Fees",
+            "semester": "V",
+            "payable": 110000.0,
+            "paid": 56000.0,
+            "balance": 54000.0,
+        },
+        {
+            "receipt_type": "Academic Fees",
+            "semester": "VII",
+            "payable": 110000.0,
+            "paid": 0.0,
+            "balance": 110000.0,
+        },
+        {
+            "receipt_type": "Academic Fees",
+            "semester": "VIII",
+            "payable": 110000.0,
+            "paid": 0.0,
+            "balance": 110000.0,
+        },
+    ]
+
+    receipts = [
+        {
+            "receipt_type": "Academic Fees",
+            "receipt_no": "C/TF/23/5712",
+            "date": "02/07/2023",
+            "semester": "I",
+            "pay_type": "O",
+            "amount": 120000.0,
+        },
+        {
+            "receipt_type": "Backlog Exam",
+            "receipt_no": "C/TF/24/8821",
+            "date": "23/10/2024",
+            "semester": "II",
+            "pay_type": "O",
+            "amount": 500.0,
+        },
+        {
+            "receipt_type": "Academic Fees",
+            "receipt_no": "C/TF/24/9104",
+            "date": "12/07/2024",
+            "semester": "III",
+            "pay_type": "O",
+            "amount": 110000.0,
+        },
+        {
+            "receipt_type": "Academic Fees",
+            "receipt_no": "C/TF/25/3308",
+            "date": "10/07/2025",
+            "semester": "V",
+            "pay_type": "O",
+            "amount": 56000.0,
+        },
+        {
+            "receipt_type": "Academic Fees",
+            "receipt_no": "C/TF/25/43622",
+            "date": "22/01/2026",
+            "semester": "V",
+            "pay_type": "O",
+            "amount": 96800.0,
+        },
+    ]
+
+    return {
+        "student": {
+            "name": full_name,
+            "rrn": roll_number,
+            "email": email,
+            "mobile": "9876543210",
+            "school": "School of Engineering and Technology",
+            "degree": "Bachelor of Technology",
+            "branch": f"Computer Science and Engineering ({branch})",
+            "semester": semester,
+        },
+        "receipt_types": ["Academic Fees", "Backlog Exam"],
+        "semesters": ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"],
+        "ledger": ledger,
+        "previous_receipts": receipts,
+    }
+
+
+class PaymentRequest(BaseModel):
+    receipt_type: str
+    semester: str
+
+
+@app.post("/api/payments/pay")
+def make_payment(
+    data: PaymentRequest,
+    access_token: str | None = Cookie(default=None),
+):
+    """Simulate an online payment for the selected fee head."""
+    _require_student(access_token)
+
+    overview = get_payments_overview(access_token)
+    match = next(
+        (
+            row
+            for row in overview["ledger"]
+            if row["receipt_type"] == data.receipt_type
+            and row["semester"] == data.semester
+        ),
+        None,
+    )
+
+    if not match:
+        raise HTTPException(
+            status_code=404,
+            detail="No fee record found for selected receipt type and semester",
+        )
+
+    if match["balance"] <= 0:
+        return {
+            "status": "already_paid",
+            "message": "Fees already paid for selected semester.",
+            "amount": 0,
+            "receipt_no": None,
+        }
+
+    receipt_no = f"C/TF/26/{datetime.now().strftime('%H%M%S')}"
+    return {
+        "status": "paid",
+        "message": (
+            f"Payment of ₹{match['balance']:.2f} successful for "
+            f"{data.receipt_type} (Sem {data.semester})."
+        ),
+        "amount": match["balance"],
+        "receipt_no": receipt_no,
+        "receipt_type": data.receipt_type,
+        "semester": data.semester,
+        "date": datetime.now().strftime("%d/%m/%Y"),
+    }
+
+
 @app.post("/logout")
 def logout(response: Response):
     response.delete_cookie("access_token", path="/")
@@ -387,3 +1022,9 @@ def get_me(user: dict = Depends(get_current_user)):
 @app.get("/")
 def root():
     return {"message": "ERP AI API is running"}
+
+
+@app.get("/signin")
+def signin_page():
+    """Serve the login page from the API origin to avoid Live Server CORS issues."""
+    return FileResponse(FRONTEND_DIR / "index.html")

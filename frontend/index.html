@@ -294,8 +294,12 @@
             return;
         }
 
+        const API = (window.location.port === "8000")
+            ? ""
+            : "http://127.0.0.1:8000";
+
         try {
-            const response = await fetch("http://127.0.0.1:8000/login", {
+            const response = await fetch(`${API}/login`, {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
@@ -305,7 +309,7 @@
                 })
             });
 
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
 
             if (!response.ok) {
                 loginMessage.textContent = data.detail || "Invalid credentials.";
@@ -321,7 +325,7 @@
 
         } catch (error) {
             loginMessage.textContent =
-                "Cannot connect to server. Ensure the backend is running.";
+                "Cannot connect to server. Open http://127.0.0.1:8000/signin (backend must be running).";
             loginMessage.className =
                 "mt-4 p-3 rounded text-sm text-center bg-red-100 text-red-800";
         }

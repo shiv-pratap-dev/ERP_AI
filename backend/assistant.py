@@ -11,6 +11,7 @@ from assignment_tools import (
 )
 from database import get_connection
 from fastapi import APIRouter, Cookie, HTTPException
+from gemini_agent import invoke_erp_agent
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
