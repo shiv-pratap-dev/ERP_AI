@@ -1,17 +1,40 @@
-
 """Assignment assistant host."""
 
 from datetime import datetime
+import re
 from typing import Any
 
-from assignment_tools import (
+from erp_ai.tools.academic_tools import (
+    format_attendance_summary,
+    format_fees_summary,
+    format_profile_summary,
+    format_results_summary,
+    get_attendance_summary,
+    get_fees_summary,
+    get_results_summary,
+    get_student_profile,
+)
+from erp_ai.tools.examination_tools import (
+    format_admit_card,
+    format_backlog,
+    format_exam_timetable,
+    get_admit_card,
+    get_backlog_courses,
+    get_exam_timetable,
+)
+from erp_ai.tools.lms_tools.assignment_tools import (
     find_assignment,
+    find_assignment_matches,
     list_current_assignments,
     list_my_courses,
 )
+import json
+from collections.abc import Iterator
+
 from database import get_connection
 from fastapi import APIRouter, Cookie, HTTPException
-from gemini_agent import invoke_erp_agent
+from fastapi.responses import StreamingResponse
+from gemini_agent import invoke_erp_agent, stream_erp_agent
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
@@ -19,6 +42,11 @@ router = APIRouter(prefix="/api/assistant", tags=["assistant"])
 
 class ChatRequest(BaseModel):
     message: str
+
+
+def _sse(event: str, data: Any) -> str:
+    payload = json.dumps(data, default=str)
+    return f"event: {event}\ndata: {payload}\n\n"
 
 
 def _current_student(
@@ -85,6 +113,20 @@ def _effective_status(
     return status
 
 
+def _has_phrase(text: str, phrase: str) -> bool:
+    """Match a phrase with word boundaries (avoids submit⊂submitted, due⊂overdue)."""
+    pattern = r"\b" + re.escape(phrase) + r"\b"
+    return re.search(pattern, text) is not None
+
+
+def _has_any_phrase(text: str, phrases: tuple[str, ...]) -> bool:
+    return any(_has_phrase(text, phrase) for phrase in phrases)
+
+
+def _mentions_assignment(text: str) -> bool:
+    return re.search(r"\bassignments?\b", text) is not None
+
+
 def _answer(
     message: str,
     *,
@@ -104,52 +146,389 @@ def _answer(
     }
 
 
-@router.post("/chat")
-def chat(
-    data: ChatRequest,
-    access_token: str | None = Cookie(default=None),
-):
-    _user, student_id, semester = _current_student(access_token)
+def _deadline_answer(
+    assignments: list[dict[str, Any]],
+    semester: int,
+    normalized: str,
+) -> dict[str, Any]:
+    now = datetime.now().astimezone()
 
-    message = data.message.strip()
-
-    if not message:
-        raise HTTPException(
-            status_code=400,
-            detail="Message cannot be empty",
+    if not assignments:
+        return _answer(
+            f"There are no assignments in your current semester "
+            f"({semester}).",
+            kind="empty",
+            title="No assignments found",
         )
 
-    assignments = list_current_assignments(student_id, semester)
+    upcoming = []
 
-    print("DEBUG SEMESTER:", semester)
-    print("DEBUG ASSIGNMENT COUNT:", len(assignments))
-    print(
-        "DEBUG ASSIGNMENTS:",
-        [
-            {
-                "id": a["id"],
-                "course_code": a["course_code"],
-                "course_name": a["course_name"],
-                "title": a["title"],
-            }
-            for a in assignments
-        ],
+    for item in assignments:
+        try:
+            due_date = _parse_due_date(item["due_date"])
+        except (ValueError, TypeError, KeyError):
+            continue
+
+        if (
+            _effective_status(item, now) == "pending"
+            and due_date > now
+        ):
+            upcoming.append((due_date, item))
+
+    upcoming.sort(key=lambda pair: pair[0])
+
+    if not upcoming:
+        return _answer(
+            "You have no pending assignments with upcoming deadlines.",
+            kind="empty",
+            title="No upcoming deadlines",
+        )
+
+    wants_latest = _has_any_phrase(
+        normalized,
+        ("latest", "last date"),
     )
+
+    selected = upcoming[-1][1] if wants_latest else upcoming[0][1]
+    direction = "latest" if wants_latest else "nearest upcoming"
+
+    return _answer(
+        f"Your {direction} assignment deadline is "
+        f"{_date_label(selected['due_date'])}.",
+        kind="deadline",
+        title=f"{direction.title()} deadline",
+        assignments=[selected],
+    )
+
+
+def _upload_answer(
+    message: str,
+    assignments: list[dict[str, Any]],
+) -> dict[str, Any]:
+    matches = find_assignment_matches(message, assignments)
+
+    if len(matches) == 1:
+        assignment = matches[0]
+        return _answer(
+            f"I found {assignment['title']} for "
+            f"{assignment['course_code']} - {assignment['course_name']}. "
+            "Attach your PDF or DOCX and confirm the upload below.",
+            kind="upload",
+            title="Ready for your file",
+            action={
+                "type": "upload_confirmation",
+                "assignment": assignment,
+            },
+        )
+
+    if len(matches) > 1:
+        return _answer(
+            f"I found {len(matches)} matching assignments. "
+            "Reply with the full title, or include the assignment number "
+            "(for example: upload assignment 1 for DBMS).",
+            kind="assignment_list",
+            title="Choose an assignment to upload",
+            assignments=matches,
+        )
+
+    return _answer(
+        "Mention one subject, course code, or assignment title so I can "
+        "identify the correct upload destination.",
+        kind="help",
+        title="Which assignment should I use?",
+    )
+
+
+def _resolve_academic(
+    message: str,
+    student_id: str,
+) -> dict[str, Any] | None:
+    """Fast path for Academic read-only intents."""
     normalized = message.casefold()
-    
-    asks_for_list = any(
-        phrase in normalized
-        for phrase in ("show", "list", "view", "display", "give me")
-    ) and "assignment" in normalized
 
-    asks_for_count = any(
-        phrase in normalized
-        for phrase in ("how many", "count", "number of", "total")
-    ) and "assignment" in normalized
+    asks_profile = _has_any_phrase(
+        normalized,
+        (
+            "my profile",
+            "student profile",
+            "student detail",
+            "student details",
+            "personal details",
+            "who am i",
+            "my rrn",
+            "my enrollment",
+        ),
+    )
 
-    asks_for_dates = any(
-        phrase in normalized
-        for phrase in (
+    asks_attendance = _has_any_phrase(
+        normalized,
+        (
+            "my attendance",
+            "attendance summary",
+            "attendance details",
+            "attendance percentage",
+            "attendance %",
+        ),
+    ) or (
+        _has_phrase(normalized, "attendance")
+        and _has_any_phrase(normalized, ("show", "list", "view", "what", "tell"))
+    )
+
+    asks_results = _has_any_phrase(
+        normalized,
+        (
+            "my results",
+            "result details",
+            "my sgpa",
+            "semester results",
+            "exam results",
+        ),
+    ) or (
+        _has_phrase(normalized, "result")
+        and _has_any_phrase(normalized, ("show", "list", "view", "my", "tell"))
+    )
+
+    asks_fees = _has_any_phrase(
+        normalized,
+        (
+            "my fees",
+            "fee details",
+            "fees details",
+            "fee ledger",
+            "outstanding fees",
+            "fees outstanding",
+        ),
+    ) or (
+        _has_any_phrase(normalized, ("fee", "fees"))
+        and _has_any_phrase(normalized, ("show", "list", "view", "my", "tell"))
+        and not _has_any_phrase(
+            normalized,
+            ("backlog", "exam fee", "exam fees"),
+        )
+    )
+
+    try:
+        if asks_profile:
+            profile = get_student_profile(student_id)
+            return _answer(
+                format_profile_summary(profile),
+                kind="academic_profile",
+                title="Student profile",
+            )
+
+        if asks_attendance:
+            summary = get_attendance_summary(student_id)
+            return _answer(
+                format_attendance_summary(summary),
+                kind="academic_attendance",
+                title="Attendance summary",
+            )
+
+        if asks_results:
+            payload = get_results_summary(student_id)
+            return _answer(
+                format_results_summary(payload),
+                kind="academic_results",
+                title="Result details",
+            )
+
+        if asks_fees:
+            payload = get_fees_summary(student_id)
+            return _answer(
+                format_fees_summary(payload),
+                kind="academic_fees",
+                title="Fees details",
+            )
+    except ValueError as exc:
+        return _answer(
+            str(exc),
+            kind="empty",
+            title="Academic data unavailable",
+        )
+
+    return None
+
+
+def _resolve_examination(
+    message: str,
+    student_id: str,
+) -> dict[str, Any] | None:
+    """Fast path for Examination read-only intents."""
+    normalized = message.casefold()
+
+    asks_admit = _has_any_phrase(
+        normalized,
+        (
+            "admit card",
+            "hall ticket",
+            "my admit",
+            "show admit",
+            "download admit",
+        ),
+    )
+
+    asks_timetable = _has_any_phrase(
+        normalized,
+        (
+            "exam timetable",
+            "examination timetable",
+            "exam schedule",
+            "exam dates",
+            "my exam timetable",
+            "show timetable",
+            "exam time table",
+        ),
+    ) or (
+        _has_any_phrase(normalized, ("timetable", "time table"))
+        and _has_any_phrase(normalized, ("exam", "examination", "my", "show", "list"))
+    )
+
+    asks_backlog_write = _has_phrase(normalized, "backlog") and _has_any_phrase(
+        normalized,
+        (
+            "register",
+            "registration",
+            "enroll",
+            "enrol",
+            "pay",
+            "payment",
+            "submit backlog",
+        ),
+    )
+
+    asks_backlog = _has_any_phrase(
+        normalized,
+        (
+            "my backlog",
+            "backlog courses",
+            "backlog papers",
+            "backlog subjects",
+            "show backlog",
+            "list backlog",
+            "arrear",
+            "arrears",
+        ),
+    ) or (
+        _has_phrase(normalized, "backlog")
+        and _has_any_phrase(
+            normalized,
+            ("show", "list", "view", "my", "tell", "what"),
+        )
+    )
+
+    # Prefer examination intents before academic fees when backlog is mentioned.
+    try:
+        if asks_admit:
+            payload = get_admit_card(student_id)
+            return _answer(
+                format_admit_card(payload),
+                kind="exam_admit_card",
+                title="Admit card",
+            )
+
+        if asks_timetable:
+            payload = get_exam_timetable(student_id)
+            return _answer(
+                format_exam_timetable(payload),
+                kind="exam_timetable",
+                title="Exam timetable",
+            )
+
+        if asks_backlog_write:
+            return _answer(
+                "Backlog registration and payment are not available in chat "
+                "(read-only). Use the Examination module or Pay Online UI. "
+                "Ask 'my backlog' if you want the course list and fees.",
+                kind="help",
+                title="Backlog registration unavailable",
+            )
+
+        if asks_backlog:
+            payload = get_backlog_courses(student_id)
+            return _answer(
+                format_backlog(payload),
+                kind="exam_backlog",
+                title="Backlog courses",
+            )
+    except ValueError as exc:
+        return _answer(
+            str(exc),
+            kind="empty",
+            title="Examination data unavailable",
+        )
+
+    return None
+
+
+def _resolve_rule_based(
+    message: str,
+    student_id: str,
+    semester: int,
+) -> dict[str, Any] | None:
+    """Return a structured answer for LMS/Academic/Exam intents, else None."""
+    examination = _resolve_examination(message, student_id)
+    if examination is not None:
+        return examination
+
+    academic = _resolve_academic(message, student_id)
+    if academic is not None:
+        return academic
+
+    assignments = list_current_assignments(student_id, semester)
+    normalized = message.casefold()
+
+    asks_for_list = _has_any_phrase(
+        normalized,
+        ("show", "list", "view", "display", "give me"),
+    ) and _mentions_assignment(normalized)
+
+    asks_for_count = _has_any_phrase(
+        normalized,
+        ("how many", "count", "number of", "total"),
+    ) and _mentions_assignment(normalized)
+
+    asks_for_pending = _has_any_phrase(
+        normalized,
+        (
+            "pending assignment",
+            "pending assignments",
+            "not submitted",
+            "haven't submitted",
+            "have not submitted",
+            "yet to submit",
+        ),
+    )
+
+    asks_for_overdue = _has_any_phrase(
+        normalized,
+        (
+            "overdue",
+            "past deadline",
+            "past due",
+            "missed deadline",
+        ),
+    )
+
+    asks_for_submitted = _has_any_phrase(
+        normalized,
+        (
+            "submitted assignment",
+            "submitted assignments",
+            "already submitted",
+            "my submissions",
+        ),
+    ) or (
+        _has_phrase(normalized, "submitted")
+        and _mentions_assignment(normalized)
+    )
+
+    asks_for_status = (
+        asks_for_pending or asks_for_overdue or asks_for_submitted
+    )
+
+    asks_for_dates = _has_any_phrase(
+        normalized,
+        (
             "last date",
             "latest",
             "next",
@@ -164,124 +543,104 @@ def chat(
             "upcoming deadline",
             "earliest deadline",
             "which assignment is due",
-        )
+        ),
     ) and (
-        "assignment" in normalized
-        or any(
-            phrase in normalized
-            for phrase in (
+        _mentions_assignment(normalized)
+        or _has_any_phrase(
+            normalized,
+            (
                 "deadline",
                 "due date",
                 "last date",
                 "closes soon",
                 "close soon",
-            )
+            ),
         )
     )
 
-    asks_to_upload = any(
-        phrase in normalized
-        for phrase in ("upload", "submit", "send")
-    )
+    # Word-boundary match so "submit" does not hit "submitted".
+    asks_to_upload = _has_any_phrase(
+        normalized,
+        ("upload", "submit", "send"),
+    ) and not asks_for_submitted
+
+    # Status filters must run before upload/deadline (avoids false matches).
+    now = datetime.now().astimezone()
+
+    if asks_for_overdue:
+        filtered_assignments = [
+            {**item, "status": _effective_status(item, now)}
+            for item in assignments
+            if _effective_status(item, now) == "overdue"
+        ]
+        result_title = "Overdue assignments"
+        count = len(filtered_assignments)
+        if count == 0:
+            return _answer(
+                "No overdue assignments were found in your current semester.",
+                kind="empty",
+                title=result_title,
+            )
+        return _answer(
+            f"Found {count} overdue assignment(s).",
+            kind="assignment_list",
+            title=result_title,
+            assignments=filtered_assignments,
+        )
+
+    if asks_for_pending:
+        filtered_assignments = [
+            {**item, "status": _effective_status(item, now)}
+            for item in assignments
+            if _effective_status(item, now) == "pending"
+        ]
+        result_title = "Pending assignments"
+        count = len(filtered_assignments)
+        if count == 0:
+            return _answer(
+                "No pending assignments were found in your current semester.",
+                kind="empty",
+                title=result_title,
+            )
+        return _answer(
+            f"Found {count} pending assignment(s).",
+            kind="assignment_list",
+            title=result_title,
+            assignments=filtered_assignments,
+        )
+
+    if asks_for_submitted:
+        filtered_assignments = [
+            {**item, "status": _effective_status(item, now)}
+            for item in assignments
+            if _effective_status(item, now) in ("submitted", "late")
+        ]
+        result_title = "Submitted assignments"
+        count = len(filtered_assignments)
+        if count == 0:
+            return _answer(
+                "No submitted assignments were found in your current semester.",
+                kind="empty",
+                title=result_title,
+            )
+        return _answer(
+            f"Found {count} submitted assignment(s).",
+            kind="assignment_list",
+            title=result_title,
+            assignments=filtered_assignments,
+        )
 
     # Upload requests require an identified assignment and user confirmation.
     if asks_to_upload:
-        assignment = find_assignment(message, assignments)
-
-        if not assignment:
-            return _answer(
-                "Mention one subject or assignment title so I can identify "
-                "the correct upload destination.",
-                kind="help",
-                title="Which assignment should I use?",
-            )
-
-        return _answer(
-            f"I found {assignment['title']} for "
-            f"{assignment['course_code']} - {assignment['course_name']}. "
-            "Attach your PDF or DOCX and confirm the upload below.",
-            kind="upload",
-            title="Ready for your file",
-            action={
-                "type": "upload_confirmation",
-                "assignment": assignment,
-            },
-        )
+        return _upload_answer(message, assignments)
 
     # Upcoming and latest deadline requests.
     if asks_for_dates:
-        now = datetime.now().astimezone()
-
-        if not assignments:
-            return _answer(
-                f"There are no assignments in your current semester "
-                f"({semester}).",
-                kind="empty",
-                title="No assignments found",
-            )
-
-        upcoming = []
-
-        for item in assignments:
-            try:
-                due_date = _parse_due_date(item["due_date"])
-            except (ValueError, TypeError, KeyError):
-                continue
-
-            if (
-                _effective_status(item, now) == "pending"
-                and due_date > now
-            ):
-                upcoming.append((due_date, item))
-
-        upcoming.sort(key=lambda pair: pair[0])
-
-        if not upcoming:
-            return _answer(
-                "You have no pending assignments with upcoming deadlines.",
-                kind="empty",
-                title="No upcoming deadlines",
-            )
-
-        wants_latest = (
-            "latest" in normalized or "last date" in normalized
-        )
-
-        selected = upcoming[-1][1] if wants_latest else upcoming[0][1]
-        direction = "latest" if wants_latest else "nearest upcoming"
-
-        return _answer(
-            f"Your {direction} assignment deadline is "
-            f"{_date_label(selected['due_date'])}.",
-            kind="deadline",
-            title=f"{direction.title()} deadline",
-            assignments=[selected],
-        )
-
-    # Detect assignment status requests.
-    asks_for_status = any(
-        phrase in normalized
-        for phrase in (
-            "pending assignment",
-            "pending assignments",
-            "not submitted",
-            "haven't submitted",
-            "have not submitted",
-            "yet to submit",
-            "overdue",
-            "past deadline",
-            "past due",
-            "missed deadline",
-            "submitted assignment",
-            "submitted assignments",
-            "already submitted",
-            "my submissions",
-        )
-    )
+        return _deadline_answer(assignments, semester, normalized)
 
     # Return details for a specifically named assignment.
     if (
-        "assignment" in normalized
+        _mentions_assignment(normalized)
         and not asks_for_list
         and not asks_for_count
         and not asks_for_status
@@ -296,101 +655,39 @@ def chat(
                 assignments=[assignment],
             )
 
-    # Identify the requested status filter.
-    asks_for_pending = any(
-        phrase in normalized
-        for phrase in (
-            "pending assignment",
-            "pending assignments",
-            "not submitted",
-            "haven't submitted",
-            "have not submitted",
-            "yet to submit",
-        )
-    )
-
-    asks_for_overdue = any(
-        phrase in normalized
-        for phrase in (
-            "overdue",
-            "past deadline",
-            "past due",
-            "missed deadline",
-        )
-    )
-
-    asks_for_submitted = any(
-        phrase in normalized
-        for phrase in (
-            "submitted assignment",
-            "submitted assignments",
-            "already submitted",
-            "my submissions",
-        )
-    )
-
-    # Filter assignments using calculated statuses.
-    now = datetime.now().astimezone()
-
-    if asks_for_overdue:
-        filtered_assignments = [
-            {**item, "status": _effective_status(item, now)}
-            for item in assignments
-            if _effective_status(item, now) == "overdue"
-        ]
-        result_title = "Overdue assignments"
-
-    elif asks_for_pending:
-        filtered_assignments = [
-            {**item, "status": _effective_status(item, now)}
-            for item in assignments
-            if _effective_status(item, now) == "pending"
-        ]
-        result_title = "Pending assignments"
-
-    elif asks_for_submitted:
-        filtered_assignments = [
-            {**item, "status": _effective_status(item, now)}
-            for item in assignments
-            if _effective_status(item, now) in ("submitted", "late")
-        ]
-        result_title = "Submitted assignments"
-
-    else:
-        filtered_assignments = assignments
-        result_title = f"Semester {semester} assignments"
+        matches = find_assignment_matches(message, assignments)
+        if len(matches) > 1:
+            return _answer(
+                f"I found {len(matches)} matching assignments. "
+                "Ask about one by full title or assignment number.",
+                kind="assignment_list",
+                title="Matching assignments",
+                assignments=matches,
+            )
 
     # Return assignment lists and counts.
-    if (
-        asks_for_count
-        or asks_for_list
-        or asks_for_pending
-        or asks_for_overdue
-        or asks_for_submitted
-        or "semester" in normalized
-    ):
-        count = len(filtered_assignments)
+    if asks_for_count or asks_for_list or _has_phrase(normalized, "semester"):
+        count = len(assignments)
 
         if count == 0:
             return _answer(
-                f"No {result_title.lower()} were found "
-                "in your current semester.",
+                "No assignments were found in your current semester.",
                 kind="empty",
-                title=result_title,
+                title=f"Semester {semester} assignments",
             )
 
         return _answer(
             f"Found {count} assignment(s). Here is your "
-            f"{result_title.lower()} list, ordered by deadline.",
+            f"semester {semester} assignments list, ordered by deadline.",
             kind="assignment_list",
-            title=result_title,
-            assignments=filtered_assignments,
+            title=f"Semester {semester} assignments",
+            assignments=assignments,
         )
 
     # Course questions use structured database results.
-    asks_for_courses = any(
-        phrase in normalized
-        for phrase in (
+    asks_for_courses = _has_any_phrase(
+        normalized,
+        (
             "course",
             "courses",
             "subject",
@@ -400,7 +697,7 @@ def chat(
             "faculty",
             "instructor",
             "enrolled",
-        )
+        ),
     )
 
     if asks_for_courses:
@@ -421,6 +718,50 @@ def chat(
             courses=courses,
         )
 
+    return None
+
+
+def _gemini_fallback_answer() -> dict[str, Any]:
+    return _answer(
+        "I can help with your courses, assignments, deadlines, "
+        "submission status, guided uploads, academic profile/"
+        "attendance/results/fees, and exam timetable/admit card/"
+        "backlog (read-only). "
+        "Try asking: 'list my assignments', 'my attendance', "
+        "'exam timetable', 'admit card', or 'my backlog'. "
+        "The live Gemini model is temporarily unavailable; "
+        "LMS, Academic, and Examination questions still work without it.",
+        kind="help",
+        title="ERP Assistant",
+    )
+
+
+def _iter_text_chunks(text: str, size: int = 24) -> Iterator[str]:
+    if not text:
+        return
+    for index in range(0, len(text), size):
+        yield text[index:index + size]
+
+
+@router.post("/chat")
+def chat(
+    data: ChatRequest,
+    access_token: str | None = Cookie(default=None),
+):
+    _user, student_id, semester = _current_student(access_token)
+
+    message = data.message.strip()
+
+    if not message:
+        raise HTTPException(
+            status_code=400,
+            detail="Message cannot be empty",
+        )
+
+    ruled = _resolve_rule_based(message, student_id, semester)
+    if ruled is not None:
+        return ruled
+
     # Delegate other questions to the LangGraph ERP agent.
     try:
         answer = invoke_erp_agent(
@@ -428,17 +769,103 @@ def chat(
             student_id=student_id,
             semester=semester,
         )
-    except Exception:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "The ERP assistant is temporarily unavailable. "
-                "Please try again."
-            ),
-        )
+    except Exception as exc:
+        print(f"GEMINI_AGENT_ERROR: {type(exc).__name__}: {exc}")
+        return _gemini_fallback_answer()
 
     return _answer(
         answer,
         kind="help",
         title="ERP Assistant",
+    )
+
+
+@router.post("/chat/stream")
+def chat_stream(
+    data: ChatRequest,
+    access_token: str | None = Cookie(default=None),
+):
+    """SSE stream: typing waits on client until the first token event."""
+    _user, student_id, semester = _current_student(access_token)
+
+    message = data.message.strip()
+    if not message:
+        raise HTTPException(
+            status_code=400,
+            detail="Message cannot be empty",
+        )
+
+    def event_stream() -> Iterator[str]:
+        ruled = _resolve_rule_based(message, student_id, semester)
+        if ruled is not None:
+            yield _sse(
+                "meta",
+                {
+                    "kind": ruled["kind"],
+                    "title": ruled["title"],
+                    "streaming": False,
+                },
+            )
+            for chunk in _iter_text_chunks(ruled.get("message") or ""):
+                yield _sse("token", {"text": chunk})
+            if ruled.get("assignments"):
+                yield _sse("assignments", ruled["assignments"])
+            if ruled.get("courses"):
+                yield _sse("courses", ruled["courses"])
+            if ruled.get("action"):
+                yield _sse("action", ruled["action"])
+            yield _sse("done", {})
+            return
+
+        yield _sse(
+            "meta",
+            {
+                "kind": "help",
+                "title": "ERP Assistant",
+                "streaming": True,
+            },
+        )
+
+        produced = False
+        try:
+            for token in stream_erp_agent(
+                question=message,
+                student_id=student_id,
+                semester=semester,
+            ):
+                if not token:
+                    continue
+                produced = True
+                yield _sse("token", {"text": token})
+        except Exception as exc:
+            print(f"GEMINI_STREAM_ERROR: {type(exc).__name__}: {exc}")
+            if not produced:
+                fallback = _gemini_fallback_answer()
+                for chunk in _iter_text_chunks(fallback["message"]):
+                    yield _sse("token", {"text": chunk})
+            else:
+                yield _sse(
+                    "token",
+                    {
+                        "text": "\n\n(The live model interrupted. "
+                        "You can retry this question.)",
+                    },
+                )
+
+        if not produced:
+            # Graph finished with only tool calls / empty text.
+            fallback = _gemini_fallback_answer()
+            for chunk in _iter_text_chunks(fallback["message"]):
+                yield _sse("token", {"text": chunk})
+
+        yield _sse("done", {})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )

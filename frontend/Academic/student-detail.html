@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JECRC ERP | Student Complete Detail</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=3">
   <style>
     body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
     .nav-dropdown { display: none; position: absolute; top: 100%; left: 0; min-width: 210px; background: white; box-shadow: 0 4px 12px #0002; border: 1px solid #eee; border-radius: 4px; z-index: 50; }
@@ -33,59 +34,9 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
-    <div class="h-[58px] px-3 flex items-center gap-4">
-      <a href="/home" class="flex items-center gap-1 shrink-0">
-        <img src="/assests/jecrc-logo.jpeg" alt="JECRC" class="h-9 w-auto" onerror="this.style.display='none'">
-      </a>
-      <nav class="flex items-center gap-1 sm:gap-4 text-sm text-gray-600 flex-1">
-        <div class="nav-item relative">
-          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Academic <span>⌄</span></button>
-          <div class="nav-dropdown">
-            <a href="/Academic/student-detail.html">Student Related</a>
-            <a href="#" data-page="Feedback">Feedback</a>
-          </div>
-        </div>
-        <div class="nav-item relative">
-          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Examination <span>⌄</span></button>
-          <div class="nav-dropdown">
-            <a href="/Examination/examination.html?view=timetable">Exam Time Table</a>
-            <a href="/Examination/examination.html?view=admit">Admit Card for Student</a>
-            <a href="/Examination/examination.html?view=backlog">BackLog Exam Reg</a>
-          </div>
-        </div>
-        <div class="nav-item relative">
-          <button class="nav-trigger py-4 hover:text-blue-600" type="button">LMS <span>⌄</span></button>
-          <div class="nav-dropdown">
-            <a href="/LMS/transaction.html">Transactions</a>
-            <a href="/LMS/view.html">View</a>
-            <a href="#" data-page="Virtual Notice Board">Virtual Notice Board</a>
-          </div>
-        </div>
-        <div class="nav-item relative">
-          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Pay Online <span>⌄</span></button>
-          <div class="nav-dropdown">
-            <a href="/PayOnline/payment.html">Online Payment</a>
-          </div>
-        </div>
-      </nav>
-      <div class="flex items-center gap-3 shrink-0">
-        <button class="border border-red-200 text-red-500 px-2 py-1 text-xs rounded" type="button">FAQs</button>
-        <div class="relative">
-          <button id="profileButton" class="w-9 h-9 rounded-full overflow-hidden border border-gray-200 bg-yellow-400 text-white font-bold" type="button">S</button>
-          <div id="profileMenu" class="profile-menu rounded-b-lg">
-            <div class="p-5 text-center border-b">
-              <p id="welcomeMessage" class="font-medium text-gray-800">Welcome!</p>
-            </div>
-            <a href="/home" class="block px-4 py-3 hover:bg-gray-100 text-sm">🏠 &nbsp; Home</a>
-            <div class="flex justify-around border-t p-4">
-              <button onclick="logout()" class="bg-red-600 text-white rounded-lg w-11 h-11" type="button">⏻</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </header>
+  <div id="portal-navbar"></div>
+  <script src="/frontend/shared/navbar.js?v=3"></script>
+
 
   <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
     <h1 class="text-lg font-semibold text-gray-800">Student Complete Detail</h1>
@@ -587,33 +538,7 @@
       document.getElementById("sidebar").classList.toggle("collapsed");
     });
 
-    const profileButton = document.getElementById("profileButton");
-    const profileMenu = document.getElementById("profileMenu");
-    profileButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      profileMenu.classList.toggle("open");
-    });
-    document.addEventListener("click", (event) => {
-      if (!profileMenu.contains(event.target) && !profileButton.contains(event.target)) {
-        profileMenu.classList.remove("open");
-      }
-    });
-
-    document.querySelectorAll(".nav-trigger").forEach((button) => {
-      button.addEventListener("click", () => {
-        const menu = button.nextElementSibling;
-        const wasOpen = menu.style.display === "block";
-        document.querySelectorAll(".nav-dropdown").forEach((other) => { other.style.display = ""; });
-        menu.style.display = wasOpen ? "" : "block";
-      });
-    });
-
-    document.querySelectorAll("[data-page]").forEach((link) => {
-      link.addEventListener("click", (event) => {
-        event.preventDefault();
-        showNotice(link.dataset.page);
-      });
-    });
+    // Top navbar chrome is owned by /frontend/shared/navbar.js
 
     loadProfile();
   </script>

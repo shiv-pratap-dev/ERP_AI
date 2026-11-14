@@ -11,7 +11,15 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from assignment_upload import router as assignment_upload_router
+from erp_ai.tools.lms_tools.assignment_upload import (
+    router as assignment_upload_router,
+)
+from erp_ai.tools.examination_tools import (
+    get_admit_card as load_admit_card,
+    get_backlog_courses as load_backlog_courses,
+    get_exam_meta as load_exam_meta,
+    get_exam_timetable as load_exam_timetable,
+)
 from assistant import router as assistant_router
 
 from auth import authenticate_user
@@ -84,6 +92,27 @@ if ASSETS_DIR.exists():
         StaticFiles(directory=FRONTEND_DIR),
         name="frontend",
     )
+
+@app.middleware("http")
+async def disable_static_cache(request, call_next):
+    """Prevent browsers from keeping stale LMS/module HTML/JS during local dev."""
+    response = await call_next(request)
+    path = request.url.path.lower()
+    if (
+        path.endswith((".html", ".js", ".css"))
+        or path.startswith("/lms/")
+        or path.startswith("/frontend/")
+        or path.startswith("/academic/")
+        or path.startswith("/examination/")
+        or path.startswith("/payonline/")
+    ):
+        response.headers["Cache-Control"] = (
+            "no-store, no-cache, must-revalidate, max-age=0"
+        )
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -415,216 +444,22 @@ def get_student_profile(access_token: str | None = Cookie(default=None)):
 
     with get_connection() as conn:
         row = conn.execute(
-            """
-            SELECT
-                s.id,
-                s.roll_number,
-                s.full_name,
-                s.semester,
-                s.branch,
-                u.email,
-                u.created_at
-            FROM students s
-            JOIN users u ON u.id = s.user_id
-            WHERE s.user_id = %s
-            """,
+            "SELECT id FROM students WHERE user_id = %s",
             (user["id"],),
         ).fetchone()
 
-        if not row:
-            raise HTTPException(status_code=404, detail="Student profile not found")
+    if not row:
+        raise HTTPException(status_code=404, detail="Student profile not found")
 
-        student_id, roll_number, full_name, semester, branch, email, created_at = row
+    from erp_ai.tools.academic_tools import get_student_profile as load_profile
 
-        courses = conn.execute(
-            """
-            SELECT
-                c.course_code,
-                c.course_name,
-                c.semester,
-                c.description,
-                t.full_name AS teacher_name
-            FROM enrollments e
-            JOIN courses c ON c.id = e.course_id
-            LEFT JOIN teachers t ON t.id = c.teacher_id
-            WHERE e.student_id = %s
-            ORDER BY c.course_code
-            """,
-            (student_id,),
-        ).fetchall()
+    try:
+        profile = load_profile(str(row[0]))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    session_label = f"July-Dec 2026-2027"
-    degree = (
-        "Bachelor of Technology - Computer Science and Engineering"
-        if branch == "CSE"
-        else f"Bachelor of Technology - {branch}"
-    )
+    return {"profile": profile}
 
-    return {
-        "profile": {
-            "id": str(student_id),
-            "rrn": roll_number,
-            "enrollment_no": roll_number,
-            "full_name": full_name,
-            "email": email,
-            "mobile": "9876543210",
-            "login_status": "Enabled",
-            "admission_status": "Admitted",
-            "admission_batch": "2023-24",
-            "admission_type": "REGULAR",
-            "school": "School of Engineering and Technology",
-            "degree_branch": degree,
-            "semester": semester,
-            "branch": branch,
-            "scheme": f"B.Tech-{branch}-2023-24-Department of Computer Engineering (New)",
-            "session": session_label,
-            "last_login": datetime.now().strftime("%d-%b-%Y %I:%M %p"),
-            "created_at": created_at.isoformat() if created_at else None,
-            "personal": {
-                "dob": "01-01-2005",
-                "gender": "Male",
-                "nationality": "Indian",
-                "religion": "Hindu",
-                "category": "General",
-                "aadhar": "XXXX-XXXX-1234",
-                "father_name": "Ramesh Kumar",
-                "mother_name": "Sunita Devi",
-            },
-            "address": {
-                "permanent": "Plot No. 24, Demo Nagar, Jaipur",
-                "state": "Rajasthan",
-                "pin": "302034",
-                "area": "Urban",
-                "same_as_permanent": True,
-            },
-            "qualification": [
-                {
-                    "level": "12th / Senior Secondary",
-                    "board": "RBSE / CBSE",
-                    "year": "2023",
-                    "percentage": "85.40",
-                },
-                {
-                    "level": "10th / Secondary",
-                    "board": "RBSE / CBSE",
-                    "year": "2021",
-                    "percentage": "88.20",
-                },
-            ],
-            "fees": [
-                {
-                    "year": "First Year",
-                    "semester": "I",
-                    "receipt_type": "Academic Fees",
-                    "receipt_no": "C/TF/23/1001",
-                    "receipt_date": "15/07/2023",
-                    "applied": 120000.0,
-                    "paid": 120000.0,
-                    "outstanding": 0.0,
-                },
-                {
-                    "year": "Second Year",
-                    "semester": "III",
-                    "receipt_type": "Academic Fees",
-                    "receipt_no": "C/TF/24/2104",
-                    "receipt_date": "12/07/2024",
-                    "applied": 110000.0,
-                    "paid": 110000.0,
-                    "outstanding": 0.0,
-                },
-                {
-                    "year": "Third Year",
-                    "semester": "V",
-                    "receipt_type": "Academic Fees",
-                    "receipt_no": "C/TF/25/3308",
-                    "receipt_date": "10/07/2025",
-                    "applied": 110000.0,
-                    "paid": 56000.0,
-                    "outstanding": 54000.0,
-                },
-            ],
-            "attendance_summary": {
-                "session": f"{session_label} ({_roman(semester)})",
-                "total_classes": 18,
-                "present": 16,
-                "absent": 2,
-                "od": 0,
-                "percent": 88.75,
-                "subjects": [
-                    {
-                        "code": c[0],
-                        "name": c[1],
-                        "type": "Theory",
-                        "total": 10,
-                        "present": 9,
-                        "absent": 1,
-                        "percent": 90.0,
-                    }
-                    for c in courses[:2]
-                ],
-            },
-            "results": [
-                {
-                    "semester": "I",
-                    "session": "July-Dec 2023-2024",
-                    "section": "SF",
-                    "registered_courses": 8,
-                    "failed_courses": 0,
-                    "registered_credits": 22.0,
-                    "earned_credits": 22.0,
-                    "sgpa": 7.80,
-                    "result_date": "20 Jan 2024",
-                },
-                {
-                    "semester": "II",
-                    "session": "Jan-June 2023-2024",
-                    "section": "SF",
-                    "registered_courses": 9,
-                    "failed_courses": 0,
-                    "registered_credits": 24.0,
-                    "earned_credits": 24.0,
-                    "sgpa": 7.65,
-                    "result_date": "18 Jun 2024",
-                },
-            ],
-            "internal_marks": [
-                {
-                    "session": session_label,
-                    "code": c[0],
-                    "name": c[1],
-                }
-                for c in courses
-            ],
-            "disciplinary": [],
-            "mentor": {
-                "mentor_name": courses[0][4] if courses and courses[0][4] else "Faculty Mentor",
-                "department": "Computer Science",
-                "meeting_notes": "No counselling records found.",
-            },
-            "courses": [
-                {
-                    "code": c[0],
-                    "name": c[1],
-                    "semester": c[2],
-                    "description": c[3],
-                    "teacher": c[4],
-                    "subject_type": "Theory",
-                    "credits": 4.0,
-                    "course_registered": True,
-                    "exam_registered": True,
-                }
-                for c in courses
-            ],
-        }
-    }
-
-
-def _roman(num: int) -> str:
-    mapping = {
-        1: "I", 2: "II", 3: "III", 4: "IV",
-        5: "V", 6: "VI", 7: "VII", 8: "VIII",
-    }
-    return mapping.get(int(num), str(num))
 
 
 def _require_student(access_token: str | None) -> dict:
@@ -663,23 +498,15 @@ def _student_row(user_id: str):
     return row, courses
 
 
+def _student_id_for_user(user_id: str) -> str:
+    student, _courses = _student_row(user_id)
+    return str(student[0])
+
+
 @app.get("/api/exams/meta")
 def get_exam_meta(access_token: str | None = Cookie(default=None)):
     _require_student(access_token)
-    return {
-        "sessions": [
-            "July-Dec 2026-2027",
-            "Jan-June 2025-2026",
-            "July-Dec 2024-2025",
-            "Jan-June 2024-2025",
-        ],
-        "exam_names": [
-            "INTERNAL EXAM",
-            "ASSIGNMENT",
-            "INTERNAL PRACTICAL",
-            "END TERM",
-        ],
-    }
+    return load_exam_meta()
 
 
 @app.get("/api/exams/timetable")
@@ -689,64 +516,28 @@ def get_exam_timetable(
     access_token: str | None = Cookie(default=None),
 ):
     user = _require_student(access_token)
-    _student, courses = _student_row(user["id"])
-
     if not session.strip() or not exam_name.strip():
-        raise HTTPException(status_code=400, detail="Session and Exam Name are required")
-
-    # Demo timetable for END TERM / INTERNAL; others intentionally empty.
-    if exam_name.upper() not in {"END TERM", "INTERNAL EXAM"}:
-        return {"session": session, "exam_name": exam_name, "rows": []}
-
-    slots = ["09:00 AM - 12:00 PM", "01:00 PM - 04:00 PM"]
-    rows = []
-    for index, course in enumerate(courses[:6]):
-        day = 10 + index
-        rows.append(
-            {
-                "exam_date": f"{day:02d}-Dec-2026",
-                "slot": slots[index % 2],
-                "code": course[0],
-                "course": course[1],
-                "semester": course[2],
-                "type": "Regular",
-            }
+        raise HTTPException(
+            status_code=400,
+            detail="Session and Exam Name are required",
         )
-    return {"session": session, "exam_name": exam_name, "rows": rows}
+    try:
+        return load_exam_timetable(
+            _student_id_for_user(user["id"]),
+            session=session,
+            exam_name=exam_name,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/exams/admit-card")
 def get_admit_card(access_token: str | None = Cookie(default=None)):
     user = _require_student(access_token)
-    student, courses = _student_row(user["id"])
-    _id, roll_number, full_name, semester, branch, email = student
-
-    return {
-        "admit_card": {
-            "student_name": full_name,
-            "rrn": roll_number,
-            "email": email,
-            "semester": semester,
-            "branch": branch,
-            "exam_name": "END TERM",
-            "session": "July-Dec 2026-2027",
-            "center": "JECRC University Main Campus",
-            "instructions": [
-                "Carry this admit card and a valid photo ID to the exam hall.",
-                "Report at least 30 minutes before the exam start time.",
-                "Electronic devices are not allowed inside the examination hall.",
-            ],
-            "papers": [
-                {
-                    "code": c[0],
-                    "name": c[1],
-                    "date": f"{12 + i:02d}-Dec-2026",
-                    "slot": "09:00 AM - 12:00 PM" if i % 2 == 0 else "01:00 PM - 04:00 PM",
-                }
-                for i, c in enumerate(courses[:5])
-            ],
-        }
-    }
+    try:
+        return load_admit_card(_student_id_for_user(user["id"]))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/api/exams/backlog")
@@ -755,55 +546,13 @@ def get_backlog_courses(
     access_token: str | None = Cookie(default=None),
 ):
     user = _require_student(access_token)
-    student, _courses = _student_row(user["id"])
-    _id, roll_number, full_name, current_sem, branch, email = student
-    selected = semester if semester is not None else 2
-
-    # Demo backlog papers for older semesters.
-    demo = [
-        {
-            "code": "DMA002A",
-            "name": "Engineering Mathematics-II",
-            "credit": 4.0,
-            "semester": 2,
-            "course_type": "Theory",
-            "grade": "F",
-            "exam_fees": 1400.0,
-        },
-        {
-            "code": "BCO101A",
-            "name": "Programming Fundamentals",
-            "credit": 3.0,
-            "semester": 1,
-            "course_type": "Theory",
-            "grade": "F",
-            "exam_fees": 1400.0,
-        },
-    ]
-    rows = [row for row in demo if row["semester"] == selected]
-
-    return {
-        "student": {
-            "name": full_name,
-            "rrn": roll_number,
-            "email": email,
-            "semester": current_sem,
-            "branch": f"B.Tech {branch}",
-            "scheme": f"B.Tech-{branch}-2023-24",
-            "session": "July-Dec 2026-2027",
-        },
-        "selected_semester": selected,
-        "fee_summary": {
-            "processing_fee": 0,
-            "certificate_fee": 0,
-            "subjects_fee": sum(r["exam_fees"] for r in rows),
-            "late_fee": 0,
-            "total_fee": sum(r["exam_fees"] for r in rows),
-            "paid_fee": 0,
-        },
-        "courses": rows,
-        "warning": "This Is One Time Activity, Kindly Verify Data Before Final Registration.",
-    }
+    try:
+        return load_backlog_courses(
+            _student_id_for_user(user["id"]),
+            semester=semester,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 class BacklogRegisterRequest(BaseModel):

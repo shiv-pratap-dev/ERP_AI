@@ -2,12 +2,14 @@
 Assignment upload API for ERP_AI.
 
 Integrate into main.py:
-    from assignment_upload import router as assignment_upload_router
+    from erp_ai.tools.lms_tools.assignment_upload import (
+        router as assignment_upload_router,
+    )
     app.include_router(assignment_upload_router)
 
-This module expects main.py's project layout:
+This module expects project layout:
     ERP_AI/
-      backend/...
+      backend/erp_ai/tools/lms_tools/...
       database/assignments/
       frontend/LMS/
 
@@ -25,10 +27,12 @@ from fastapi.responses import FileResponse
 
 router = APIRouter()
 
-# Robust across machines: resolve from this file's location, not a user's home path.
-# Expected layout is ERP_AI/backend/assignment_upload.py.
+# backend/erp_ai/tools/lms_tools/this_file.py → parents[4] = repo root
 PROJECT_ROOT = Path(
-    os.getenv("ERP_PROJECT_ROOT", str(Path(__file__).resolve().parent.parent))
+    os.getenv(
+        "ERP_PROJECT_ROOT",
+        str(Path(__file__).resolve().parents[4]),
+    )
 ).resolve()
 UPLOAD_DIR = PROJECT_ROOT / "database" / "assignments"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

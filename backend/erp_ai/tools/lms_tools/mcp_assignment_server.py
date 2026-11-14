@@ -5,7 +5,10 @@ future MCP server one stable assignment tool surface while the ERP chat host
 continues to enforce authentication and confirmation.
 """
 
-from assignment_tools import find_assignment, list_current_assignments
+from erp_ai.tools.lms_tools.assignment_tools import (
+    find_assignment,
+    list_current_assignments,
+)
 
 ASSIGNMENT_TOOLS = (
     "list_current_assignments",

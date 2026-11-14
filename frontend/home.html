@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JECRC ERP | Home</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=3">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
     .card { background: white; border: 1px solid #e5e7eb; border-radius: 13px; overflow: hidden; }
@@ -23,82 +25,98 @@
     .notice-date { background: #14b8a6; color: white; border-radius: 12px; min-width: 52px; padding: 8px 6px; text-align: center; }
     .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
     .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; box-shadow: 0 2px 8px #0002; }
+    .chat-fab {
+      position: fixed; right: 20px; bottom: 20px; z-index: 9999;
+      min-width: 64px; height: 64px; padding: 0 16px; border-radius: 999px; border: 2px solid #fff;
+      background: linear-gradient(135deg, #1d4ed8, #7c3aed); color: #fff;
+      box-shadow: 0 12px 28px rgba(29, 78, 216, 0.55); font-size: 14px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .chat-fab:hover { transform: translateY(-1px); }
+    .chat-panel {
+      position: fixed; right: 20px; bottom: 96px; z-index: 9999;
+      width: min(400px, calc(100vw - 28px)); height: min(560px, calc(100vh - 120px));
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 16px;
+      box-shadow: 0 18px 40px #0f172a33; display: none; flex-direction: column; overflow: hidden;
+    }
+    .chat-panel.open { display: flex; }
+    .chat-header {
+      background: linear-gradient(135deg, #1d4ed8, #4338ca); color: white;
+      padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 14px; background: #f8fafc; }
+    .chat-bubble {
+      max-width: 92%; padding: 10px 12px; border-radius: 12px; margin-bottom: 10px;
+      font-size: 13px; line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+    }
+    .chat-bubble.user { margin-left: auto; background: #2563eb; color: white; border-bottom-right-radius: 4px; }
+    .chat-bubble.bot { margin-right: auto; background: white; border: 1px solid #e5e7eb; color: #1f2937; border-bottom-left-radius: 4px; }
+    .chat-meta { font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 6px; }
+    .chat-list { margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+    .chat-list-item { padding: 8px 10px; border-top: 1px solid #e2e8f0; font-size: 12px; background: #fff; }
+    .chat-list-item:first-child { border-top: none; }
+    .chat-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 10px; background: #f8fafc; }
+    .chat-chip {
+      border: 1px solid #cbd5e1; background: white; color: #334155; border-radius: 999px;
+      padding: 5px 10px; font-size: 11px; cursor: pointer;
+    }
+    .chat-chip:hover { border-color: #2563eb; color: #2563eb; }
+    .chat-input-row { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #e5e7eb; background: white; }
+    .chat-input-row input {
+      flex: 1; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 12px; font-size: 13px;
+    }
+    .chat-input-row button {
+      background: #2563eb; color: white; border: none; border-radius: 10px; padding: 0 14px; font-size: 13px;
+    }
+    .chat-input-row button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .chat-upload-box {
+      margin-top: 10px; padding: 10px; border: 1px dashed #93c5fd; border-radius: 10px; background: #eff6ff;
+    }
+    .chat-upload-box input[type="file"] { font-size: 12px; width: 100%; margin: 8px 0; }
+    .chat-upload-box button {
+      background: #16a34a; color: white; border: none; border-radius: 8px; padding: 7px 12px; font-size: 12px;
+    }
+    .chat-status { font-size: 11px; color: #64748b; margin-top: 6px; }
+    .chat-md { font-size: 13px; line-height: 1.5; }
+    .chat-md h1, .chat-md h2, .chat-md h3, .chat-md h4 {
+      font-weight: 700; margin: 0.55em 0 0.35em; color: #0f172a; line-height: 1.3;
+    }
+    .chat-md h1 { font-size: 1.15em; }
+    .chat-md h2 { font-size: 1.08em; }
+    .chat-md h3, .chat-md h4 { font-size: 1em; }
+    .chat-md p { margin: 0.35em 0; }
+    .chat-md ul, .chat-md ol { margin: 0.35em 0 0.35em 1.1em; padding: 0; }
+    .chat-md li { margin: 0.2em 0; }
+    .chat-md strong { font-weight: 700; color: #0f172a; }
+    .chat-md code {
+      background: #e2e8f0; border-radius: 4px; padding: 1px 5px; font-size: 12px;
+    }
+    .chat-md pre {
+      background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 10px;
+      overflow-x: auto; font-size: 12px;
+    }
+    .chat-md pre code { background: transparent; color: inherit; padding: 0; }
+    .typing-indicator {
+      display: inline-flex; align-items: center; gap: 5px; padding: 4px 2px;
+    }
+    .typing-indicator span {
+      width: 7px; height: 7px; border-radius: 999px; background: #64748b;
+      animation: typingBounce 1.1s infinite ease-in-out;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.15s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes typingBounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
+      40% { transform: translateY(-4px); opacity: 1; }
+    }
   </style>
 </head>
 
 <body class="min-h-screen flex flex-col">
 
-  <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
-    <div class="h-[58px] px-3 flex items-center gap-4">
-      <a href="/home" class="flex items-center gap-1 shrink-0">
-        <img src="/assests/jecrc-logo.jpeg" alt="JECRC" class="h-9 w-auto"
-             onerror="this.style.display='none'">
-      </a>
+  <div id="portal-navbar"></div>
+  <script src="/frontend/shared/navbar.js?v=3"></script>
 
-      <nav class="flex items-center gap-1 sm:gap-4 text-sm text-gray-600 flex-1">
-        <div class="nav-item relative">
-          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Academic <span>⌄</span></button>
-          <div class="nav-dropdown">
-            <a href="/Academic/student-detail.html">Student Related</a>
-            <a href="#" data-page="Feedback">Feedback</a>
-          </div>
-        </div>
-
-        <div class="nav-item relative">
-          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Examination <span>⌄</span></button>
-          <div class="nav-dropdown">
-            <a href="/Examination/examination.html?view=timetable">Exam Time Table</a>
-            <a href="/Examination/examination.html?view=admit">Admit Card for Student</a>
-            <a href="/Examination/examination.html?view=backlog">BackLog Exam Reg</a>
-          </div>
-        </div>
-
-        <div class="nav-item relative">
-          <button class="nav-trigger py-4 hover:text-blue-600" type="button">LMS <span>⌄</span></button>
-          <div class="nav-dropdown">
-            <a href="/LMS/transaction.html">Transactions</a>
-            <a href="/LMS/view.html">View</a>
-            <a href="#" data-page="Virtual Notice Board">Virtual Notice Board</a>
-          </div>
-        </div>
-
-        <div class="nav-item relative">
-          <button class="nav-trigger py-4 hover:text-blue-600" type="button">Pay Online <span>⌄</span></button>
-          <div class="nav-dropdown">
-            <a href="/PayOnline/payment.html">Online Payment</a>
-          </div>
-        </div>
-      </nav>
-
-      <div class="flex items-center gap-3 shrink-0">
-        <button title="Search" class="text-gray-500 text-xl" type="button">⌕</button>
-        <button class="border border-red-200 text-red-500 px-2 py-1 text-xs rounded" type="button">FAQs</button>
-        <button title="Applications" class="text-blue-600 text-xl" type="button">▦</button>
-
-        <div class="relative">
-          <button id="profileButton" class="w-9 h-9 rounded-full overflow-hidden border border-gray-200"
-                  aria-label="Open profile menu" aria-expanded="false" type="button">
-            <img src="/assests/student-profile.jpg" alt="Student profile"
-                 class="w-full h-full object-cover"
-                 onerror="this.style.display='none'; this.parentElement.textContent='S'; this.parentElement.classList.add('bg-yellow-400','text-white','font-bold','grid','place-items-center')">
-          </button>
-
-          <div id="profileMenu" class="profile-menu rounded-b-lg">
-            <div class="p-5 text-center border-b">
-              <div class="w-20 h-20 rounded-full bg-yellow-400 mx-auto mb-3 flex items-center justify-center text-white text-3xl font-bold">S</div>
-              <p id="welcomeMessage" class="font-medium text-gray-800">Welcome!</p>
-            </div>
-            <a href="#" data-page="User Profile" class="block px-4 py-3 hover:bg-gray-100 text-sm">👤 &nbsp; User Profile</a>
-            <a href="/home" class="block px-4 py-3 hover:bg-gray-100 text-sm">🏠 &nbsp; Home</a>
-            <div class="flex justify-around border-t p-4">
-              <button title="Change Password" onclick="showNotice('Change Password')" class="utility-btn" type="button">🔑</button>
-              <button title="Logout" onclick="logout()" class="bg-red-600 text-white rounded-lg w-11 h-11" type="button">⏻</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </header>
 
   <main class="p-4 sm:p-6 flex-1">
 
@@ -286,6 +304,32 @@
     <button type="button" title="Information" onclick="showNotice('Help - Information')">ℹ</button>
     <button type="button" title="Quick links" onclick="showNotice('Quick Links')">🔗</button>
   </div>
+
+  <button id="chatFab" class="chat-fab" type="button" title="ERP Assistant" aria-label="Open ERP Assistant">
+    <span aria-hidden="true">💬</span>
+    <span>ERP AI</span>
+  </button>
+  <section id="chatPanel" class="chat-panel" aria-label="ERP Assistant chat">
+    <div class="chat-header">
+      <div>
+        <p class="font-semibold text-sm">ERP Assistant</p>
+        <p class="text-xs text-blue-100">Courses · Assignments · Uploads</p>
+      </div>
+      <button id="chatClose" type="button" class="text-xl leading-none" aria-label="Close chat">×</button>
+    </div>
+    <div id="chatMessages" class="chat-messages"></div>
+    <div class="chat-chips" id="chatChips">
+      <button type="button" class="chat-chip" data-chat="list my assignments">List assignments</button>
+      <button type="button" class="chat-chip" data-chat="pending assignments">Pending</button>
+      <button type="button" class="chat-chip" data-chat="show my courses">My courses</button>
+      <button type="button" class="chat-chip" data-chat="what is my next assignment deadline">Next deadline</button>
+      <button type="button" class="chat-chip" data-chat="upload assignment 1 for DBMS">Upload DBMS A1</button>
+    </div>
+    <form id="chatForm" class="chat-input-row">
+      <input id="chatInput" type="text" placeholder="Ask about courses or assignments..." autocomplete="off" />
+      <button id="chatSend" type="submit">Send</button>
+    </form>
+  </section>
 
   <!-- Startup Notice/News modal (like live ERP) -->
   <div id="startupNoticeModal" class="hidden fixed inset-0 bg-black/40 z-[210] items-center justify-center p-4">
@@ -540,35 +584,7 @@
         }
       });
 
-    const profileButton = document.getElementById("profileButton");
-    const profileMenu = document.getElementById("profileMenu");
-    profileButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const open = profileMenu.classList.toggle("open");
-      profileButton.setAttribute("aria-expanded", String(open));
-    });
-    document.addEventListener("click", (event) => {
-      if (!profileMenu.contains(event.target) && !profileButton.contains(event.target)) {
-        profileMenu.classList.remove("open");
-        profileButton.setAttribute("aria-expanded", "false");
-      }
-    });
-
-    document.querySelectorAll(".nav-trigger").forEach((button) => {
-      button.addEventListener("click", () => {
-        const menu = button.nextElementSibling;
-        const wasOpen = menu.style.display === "block";
-        document.querySelectorAll(".nav-dropdown").forEach((other) => { other.style.display = ""; });
-        menu.style.display = wasOpen ? "" : "block";
-      });
-    });
-
-    document.querySelectorAll("[data-page]").forEach((link) => {
-      link.addEventListener("click", (event) => {
-        event.preventDefault();
-        showNotice(link.dataset.page);
-      });
-    });
+    // Top navbar chrome is owned by /frontend/shared/navbar.js
 
     function showNotice(title) {
       document.getElementById("modalTitle").textContent = title;
@@ -644,6 +660,316 @@
 
     renderDashboard();
     openNoticeArchive(0);
+
+    // ---- ERP Assistant chatbot (SSE streaming + markdown) ----
+    const chatFab = document.getElementById("chatFab");
+    const chatPanel = document.getElementById("chatPanel");
+    const chatMessages = document.getElementById("chatMessages");
+    const chatForm = document.getElementById("chatForm");
+    const chatInput = document.getElementById("chatInput");
+    const chatSend = document.getElementById("chatSend");
+    let chatBusy = false;
+
+    if (window.marked) {
+      marked.setOptions({
+        gfm: true,
+        breaks: true,
+      });
+    }
+
+    function formatChatDate(value) {
+      try {
+        return new Date(value).toLocaleString();
+      } catch (_) {
+        return value || "-";
+      }
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderMarkdown(text) {
+      if (!text) return "";
+      if (window.marked && typeof marked.parse === "function") {
+        return `<div class="chat-md">${marked.parse(text)}</div>`;
+      }
+      return `<div class="chat-md">${escapeHtml(text)}</div>`;
+    }
+
+    function appendChatBubble(role, html) {
+      const bubble = document.createElement("div");
+      bubble.className = `chat-bubble ${role}`;
+      bubble.innerHTML = html;
+      chatMessages.appendChild(bubble);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      return bubble;
+    }
+
+    function renderAssignmentList(assignments) {
+      if (!assignments || !assignments.length) return "";
+      const items = assignments.map((item) => `
+        <div class="chat-list-item">
+          <div><strong>${escapeHtml(item.course_code || "")}</strong> · ${escapeHtml(item.title || "")}</div>
+          <div class="text-gray-500">Due: ${escapeHtml(formatChatDate(item.due_date))} · Status: ${escapeHtml(item.status || "pending")}</div>
+        </div>
+      `).join("");
+      return `<div class="chat-list">${items}</div>`;
+    }
+
+    function renderCourseList(courses) {
+      if (!courses || !courses.length) return "";
+      const items = courses.map((item) => `
+        <div class="chat-list-item">
+          <div><strong>${escapeHtml(item.course_code || "")}</strong> · ${escapeHtml(item.course_name || "")}</div>
+          <div class="text-gray-500">Teacher: ${escapeHtml(item.teacher || "N/A")}</div>
+        </div>
+      `).join("");
+      return `<div class="chat-list">${items}</div>`;
+    }
+
+    function renderUploadAction(action, hostBubble) {
+      if (!action || action.type !== "upload_confirmation" || !action.assignment) return;
+      const assignment = action.assignment;
+      const box = document.createElement("div");
+      box.className = "chat-upload-box";
+      box.innerHTML = `
+        <div><strong>Upload ready</strong></div>
+        <div class="text-xs text-gray-600 mt-1">${escapeHtml(assignment.course_code)} · ${escapeHtml(assignment.title)}</div>
+        <input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        <button type="button">Confirm upload</button>
+        <div class="chat-status"></div>
+      `;
+      const fileInput = box.querySelector('input[type="file"]');
+      const uploadBtn = box.querySelector("button");
+      const status = box.querySelector(".chat-status");
+
+      uploadBtn.addEventListener("click", async () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) {
+          status.textContent = "Choose a PDF or DOCX file first.";
+          status.style.color = "#b91c1c";
+          return;
+        }
+        const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+        if (![".pdf", ".docx"].includes(ext)) {
+          status.textContent = "Only PDF and DOCX files are allowed.";
+          status.style.color = "#b91c1c";
+          return;
+        }
+        if (file.size > 3 * 1024 * 1024) {
+          status.textContent = "File exceeds the 3 MB limit.";
+          status.style.color = "#b91c1c";
+          return;
+        }
+        uploadBtn.disabled = true;
+        status.textContent = "Uploading...";
+        status.style.color = "#64748b";
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          const response = await fetch(
+            `${API}/api/assignments/${encodeURIComponent(assignment.id)}/upload`,
+            { method: "POST", body: formData, credentials: "include" }
+          );
+          if (response.status === 401) {
+            window.location.href = LOGIN_URL;
+            return;
+          }
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.detail || "Upload failed.");
+          }
+          status.textContent = data.message || "Upload successful.";
+          status.style.color = "#15803d";
+          fileInput.value = "";
+          loadAssignmentCount();
+        } catch (error) {
+          status.textContent = error.message || "Upload failed.";
+          status.style.color = "#b91c1c";
+        } finally {
+          uploadBtn.disabled = false;
+        }
+      });
+
+      hostBubble.appendChild(box);
+    }
+
+    function createStreamingBotBubble() {
+      const bubble = appendChatBubble(
+        "bot",
+        `<div class="chat-meta">ERP Assistant</div>
+         <div class="js-typing"><div class="typing-indicator" aria-label="Assistant is typing"><span></span><span></span><span></span></div></div>
+         <div class="js-md" style="display:none;"></div>
+         <div class="js-extra"></div>`
+      );
+      return {
+        bubble,
+        metaEl: bubble.querySelector(".chat-meta"),
+        typingEl: bubble.querySelector(".js-typing"),
+        mdEl: bubble.querySelector(".js-md"),
+        extraEl: bubble.querySelector(".js-extra"),
+        rawText: "",
+        started: false,
+      };
+    }
+
+    function applyStreamMarkdown(state) {
+      state.mdEl.style.display = "block";
+      state.mdEl.innerHTML = renderMarkdown(state.rawText);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function appendStreamToken(state, token) {
+      if (!token) return;
+      if (!state.started) {
+        state.started = true;
+        if (state.typingEl) state.typingEl.remove();
+      }
+      state.rawText += token;
+      applyStreamMarkdown(state);
+    }
+
+    async function consumeSseResponse(response, state) {
+      if (!response.body) {
+        throw new Error("Streaming is not supported in this browser.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let eventName = "message";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n");
+        buffer = parts.pop() || "";
+
+        for (const line of parts) {
+          if (line.startsWith("event:")) {
+            eventName = line.slice(6).trim();
+            continue;
+          }
+          if (line.startsWith("data:")) {
+            const raw = line.slice(5).trim();
+            let payload = {};
+            try {
+              payload = raw ? JSON.parse(raw) : {};
+            } catch (_) {
+              payload = { text: raw };
+            }
+
+            if (eventName === "meta") {
+              if (payload.title) state.metaEl.textContent = payload.title;
+            } else if (eventName === "token") {
+              appendStreamToken(state, payload.text || "");
+            } else if (eventName === "assignments") {
+              state.extraEl.insertAdjacentHTML("beforeend", renderAssignmentList(payload));
+            } else if (eventName === "courses") {
+              state.extraEl.insertAdjacentHTML("beforeend", renderCourseList(payload));
+            } else if (eventName === "action") {
+              renderUploadAction(payload, state.bubble);
+            } else if (eventName === "error") {
+              appendStreamToken(
+                state,
+                payload.detail || "Assistant stream error."
+              );
+            }
+            eventName = "message";
+            continue;
+          }
+          if (!line.trim()) {
+            eventName = "message";
+          }
+        }
+      }
+    }
+
+    async function sendChatMessage(rawText) {
+      const text = (rawText || "").trim();
+      if (!text || chatBusy) return;
+      chatBusy = true;
+      chatSend.disabled = true;
+      appendChatBubble("user", escapeHtml(text));
+      chatInput.value = "";
+
+      const state = createStreamingBotBubble();
+
+      try {
+        const response = await fetch(`${API}/api/assistant/chat/stream`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text }),
+        });
+        if (response.status === 401) {
+          window.location.href = LOGIN_URL;
+          return;
+        }
+        if (!response.ok) {
+          let detail = "Assistant request failed.";
+          try {
+            const err = await response.json();
+            detail = err.detail || detail;
+          } catch (_) {}
+          throw new Error(detail);
+        }
+
+        await consumeSseResponse(response, state);
+
+        if (!state.started) {
+          if (state.typingEl) state.typingEl.remove();
+          state.rawText = "No response received. Please try again.";
+          applyStreamMarkdown(state);
+        }
+      } catch (error) {
+        if (state.typingEl) state.typingEl.remove();
+        state.rawText = error.message || "Could not reach the assistant.";
+        applyStreamMarkdown(state);
+      } finally {
+        chatBusy = false;
+        chatSend.disabled = false;
+        chatInput.focus();
+      }
+    }
+
+    function openChat() {
+      chatPanel.classList.add("open");
+      if (!chatMessages.dataset.ready) {
+        appendChatBubble(
+          "bot",
+          `<div class="chat-meta">ERP Assistant</div>${renderMarkdown(
+            "Hi! I can help with your **courses**, **assignments**, deadlines, and guided uploads. Try a quick chip below or type a question."
+          )}`
+        );
+        chatMessages.dataset.ready = "1";
+      }
+      chatInput.focus();
+    }
+
+    function closeChat() {
+      chatPanel.classList.remove("open");
+    }
+
+    chatFab.addEventListener("click", () => {
+      if (chatPanel.classList.contains("open")) closeChat();
+      else openChat();
+    });
+    document.getElementById("chatClose").addEventListener("click", closeChat);
+    chatForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      sendChatMessage(chatInput.value);
+    });
+    document.querySelectorAll("#chatChips .chat-chip").forEach((chip) => {
+      chip.addEventListener("click", () => sendChatMessage(chip.dataset.chat));
+    });
   </script>
 </body>
 </html>

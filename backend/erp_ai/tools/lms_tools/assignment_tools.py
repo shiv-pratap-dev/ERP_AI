@@ -1,7 +1,6 @@
 """Assignment-domain tools used by the assistant and future MCP server."""
 
 from datetime import datetime
-from typing import Any
 import re
 from typing import Any
 
@@ -39,13 +38,11 @@ def list_current_assignments(student_id: str, semester: int) -> list[dict[str, A
     ]
 
 
-
-
-def find_assignment(
+def find_assignment_matches(
     message: str,
     assignments: list[dict[str, Any]],
-) -> dict[str, Any] | None:
-    """Match assignments by course alias, course code, or title."""
+) -> list[dict[str, Any]]:
+    """Return all assignments matching course alias, course code, or title."""
 
     normalized = re.sub(
         r"[^a-z0-9]+", " ", message.casefold()
@@ -57,6 +54,8 @@ def find_assignment(
         "dsa": ("data structures and algorithms",),
         "os": ("operating systems",),
         "cn": ("computer networks",),
+        "oop": ("object oriented programming",),
+        "se": ("software engineering",),
     }
 
     # Expand aliases into their full course names.
@@ -73,7 +72,7 @@ def find_assignment(
     )
     requested_number = number_match.group(1) if number_match else None
 
-    matches = {}
+    matches: dict[str, dict[str, Any]] = {}
 
     for assignment in assignments:
         title = str(assignment.get("title", ""))
@@ -123,9 +122,19 @@ def find_assignment(
         if course_matched or title_matched:
             matches[str(assignment["id"])] = assignment
 
+    return list(matches.values())
+
+
+def find_assignment(
+    message: str,
+    assignments: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Match a single assignment by course alias, course code, or title."""
+    matches = find_assignment_matches(message, assignments)
+
     # Never guess when multiple assignments remain.
     if len(matches) == 1:
-        return next(iter(matches.values()))
+        return matches[0]
 
     return None
 
