@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Employee Service Book</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <link rel="stylesheet" href="/frontend/shared/establishment.css?v=1">
+  <style>.star { border:0; background:transparent; color:#d1d5db; } .star.on { color:#f59e0b; }</style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <div id="est-sidebar" data-active="Employee Service Book"></div>
+    <script src="/frontend/shared/establishment-sidebar.js?v=1"></script>
+
+    <main class="flex-1 p-4 overflow-y-auto space-y-4">
+      <section class="panel">
+        <h1 class="text-base font-semibold text-gray-800 mb-4">Employee Service Book</h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="profileGrid"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-label">Service History</div>
+        <div class="tool-row">
+          <label class="search-label">Search: <input id="search" type="search"></label>
+          <button type="button" id="exportBtn" class="outline-btn">Export</button>
+        </div>
+        <div class="table-wrap">
+          <table class="est-table">
+            <thead>
+              <tr>
+                <th>Effective Date</th>
+                <th>Event</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+        <div id="pager" class="pager"></div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="foot">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    let historyRows = [];
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function field(label, value) {
+      return `
+        <div>
+          <div class="text-xs text-gray-500 mb-1">${escapeHTML(label)}</div>
+          <div class="field">${escapeHTML(value || "—")}</div>
+        </div>
+      `;
+    }
+    function visibleRows() {
+      const query = document.getElementById("search").value.trim().toLowerCase();
+      return historyRows.filter((row) => !query || [
+        row.effective_date, row.event, row.remarks
+      ].join(" ").toLowerCase().includes(query));
+    }
+    function renderHistory() {
+      const rows = visibleRows();
+      const body = document.getElementById("historyBody");
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="3" class="text-center text-gray-500">No service history.</td></tr>`;
+      } else {
+        body.innerHTML = rows.map((row) => `
+          <tr>
+            <td>${escapeHTML(row.effective_date)}</td>
+            <td>${escapeHTML(row.event)}</td>
+            <td>${escapeHTML(row.remarks)}</td>
+          </tr>
+        `).join("");
+      }
+      document.getElementById("pager").textContent =
+        `Showing ${rows.length ? 1 : 0} to ${rows.length} of ${historyRows.length} entries`;
+    }
+
+    async function loadBook() {
+      const response = await fetch(`${API}/api/faculty/establishment/service-book`, { credentials: "include" });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+      const data = await response.json();
+      const profile = data.profile || {};
+      document.getElementById("profileGrid").innerHTML = [
+        field("Employee Id", profile.employee_id),
+        field("Employee Name", profile.full_name),
+        field("Designation", profile.designation),
+        field("Department", profile.department),
+        field("Date of Joining", profile.date_of_joining),
+        field("Employment Type", profile.employment_type),
+        field("Pay Scale", profile.pay_scale),
+        field("Current Status", profile.current_status),
+        field("Email", profile.email),
+      ].join("");
+      historyRows = data.history || [];
+      renderHistory();
+    }
+
+    document.getElementById("search").addEventListener("input", renderHistory);
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const lines = [["Effective Date", "Event", "Remarks"].join(",")];
+      visibleRows().forEach((row) => {
+        lines.push([row.effective_date, row.event, row.remarks]
+          .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","));
+      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+      link.download = "service-book.csv";
+      link.click();
+    });
+
+    loadBook().catch(() => { window.location.href = LOGIN_URL; });
+  </script>
+</body>
+</html>

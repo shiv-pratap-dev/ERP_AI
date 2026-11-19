@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Employee Leave Card</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <link rel="stylesheet" href="/frontend/shared/establishment.css?v=1">
+  <style>.star { border:0; background:transparent; color:#d1d5db; } .star.on { color:#f59e0b; }</style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <div id="est-sidebar" data-active="Employee Leave Card"></div>
+    <script src="/frontend/shared/establishment-sidebar.js?v=1"></script>
+
+    <main class="flex-1 p-4 overflow-y-auto space-y-4">
+      <section class="panel">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <h1 class="text-base font-semibold text-gray-800">Employee Leave Card</h1>
+          <div id="lastUpdated" class="text-sm text-gray-500"></div>
+        </div>
+
+        <div class="section-label">Employee Leave Card List</div>
+        <div class="tool-row">
+          <label class="search-label">Search: <input id="balanceSearch" type="search"></label>
+          <div class="flex items-center gap-2">
+            <div class="menu">
+              <button type="button" id="colBtn" class="outline-btn">Column Visibility ▾</button>
+              <div id="colMenu" class="menu-panel hidden text-sm space-y-1"></div>
+            </div>
+            <button type="button" id="exportBalances" class="outline-btn">Export</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="est-table">
+            <thead>
+              <tr>
+                <th data-col="name">Leave Name</th>
+                <th data-col="period">Period</th>
+                <th data-col="op">Op. Bal</th>
+                <th data-col="credit">Credit</th>
+                <th data-col="total">Total</th>
+                <th data-col="taken">Taken</th>
+                <th data-col="bal">Bal</th>
+                <th data-col="apply">Apply</th>
+              </tr>
+            </thead>
+            <tbody id="balanceBody"></tbody>
+          </table>
+        </div>
+        <div id="balancePager" class="pager"></div>
+
+        <div class="flex flex-wrap gap-2 justify-center mt-5">
+          <button type="button" id="statusBtn" class="outline-btn">Leave Application Status</button>
+          <button type="button" id="holidayBtn" class="outline-btn">Holidays List</button>
+          <button type="button" id="cancelLeaveBtn" class="outline-btn">Cancel Leave</button>
+        </div>
+      </section>
+
+      <section id="applyPanel" class="panel hidden">
+        <div class="section-label">Apply Leave</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-sm mb-1" for="leaveName"><span class="req">*</span>Leave Name</label>
+            <input id="leaveName" class="field" readonly>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="fromDate"><span class="req">*</span>From Date</label>
+            <input id="fromDate" type="date" class="field">
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="toDate"><span class="req">*</span>To Date</label>
+            <input id="toDate" type="date" class="field">
+          </div>
+          <div class="flex items-end">
+            <label class="inline-flex items-center gap-2 text-sm mb-2">
+              <input id="halfDay" type="checkbox"> Half Day
+            </label>
+          </div>
+          <div class="md:col-span-2 xl:col-span-4">
+            <label class="block text-sm mb-1" for="reason"><span class="req">*</span>Reason</label>
+            <textarea id="reason" rows="3" class="field"></textarea>
+          </div>
+        </div>
+        <p id="applyMsg" class="text-sm mt-3 hidden"></p>
+        <div class="flex gap-2 justify-center mt-3">
+          <button type="button" id="submitLeave" class="outline-btn">Submit</button>
+          <button type="button" id="closeApply" class="cancel-btn">Cancel</button>
+        </div>
+      </section>
+
+      <section id="statusPanel" class="panel hidden">
+        <div class="flex items-center justify-between gap-3 mb-2">
+          <div class="section-label">Leave Application Status</div>
+          <button type="button" id="closeStatus" class="cancel-btn">Close</button>
+        </div>
+        <div class="tool-row">
+          <label class="search-label">Search: <input id="appSearch" type="search"></label>
+          <button type="button" id="exportApps" class="outline-btn">Export</button>
+        </div>
+        <div class="table-wrap">
+          <table class="est-table">
+            <thead>
+              <tr>
+                <th>Leave Name</th>
+                <th>From Date</th>
+                <th>To Date</th>
+                <th>Days</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Applied At</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="appBody"></tbody>
+          </table>
+        </div>
+        <div id="appPager" class="pager"></div>
+      </section>
+
+      <section id="holidayPanel" class="panel hidden">
+        <div class="flex items-center justify-between gap-3 mb-2">
+          <div class="section-label">Holidays List</div>
+          <button type="button" id="closeHoliday" class="cancel-btn">Close</button>
+        </div>
+        <div class="table-wrap">
+          <table class="est-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Holiday Name</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="holidayBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="foot">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    const COLUMNS = [
+      ["name", "Leave Name"], ["period", "Period"], ["op", "Op. Bal"], ["credit", "Credit"],
+      ["total", "Total"], ["taken", "Taken"], ["bal", "Bal"], ["apply", "Apply"],
+    ];
+    let balances = [];
+    let applications = [];
+    let cancelMode = false;
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function num(value) {
+      return Number(value || 0).toFixed(2);
+    }
+    function statusClass(status) {
+      const value = String(status || "").toLowerCase();
+      if (value.includes("approved")) return "approved";
+      if (value.includes("reject") || value.includes("cancel")) return "cancelled";
+      return "pending";
+    }
+    function setMsg(id, text, ok) {
+      const el = document.getElementById(id);
+      if (!text) {
+        el.classList.add("hidden");
+        el.textContent = "";
+        return;
+      }
+      el.textContent = text;
+      el.className = `text-sm mt-3 ${ok ? "text-green-600" : "text-red-600"}`;
+    }
+
+    function visibleBalances() {
+      const query = document.getElementById("balanceSearch").value.trim().toLowerCase();
+      return balances.filter((row) => !query || row.leave_name.toLowerCase().includes(query) || row.period.toLowerCase().includes(query));
+    }
+
+    function renderBalances() {
+      const rows = visibleBalances();
+      const body = document.getElementById("balanceBody");
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="8" class="text-center text-gray-500">No leave balances found.</td></tr>`;
+      } else {
+        body.innerHTML = rows.map((row) => `
+          <tr>
+            <td data-col="name">${escapeHTML(row.leave_name)}</td>
+            <td data-col="period">${escapeHTML(row.period)}</td>
+            <td data-col="op">${num(row.opening_balance)}</td>
+            <td data-col="credit">${num(row.credit)}</td>
+            <td data-col="total">${num(row.total)}</td>
+            <td data-col="taken">${num(row.taken)}</td>
+            <td data-col="bal">${num(row.balance)}</td>
+            <td data-col="apply"><button type="button" class="apply-link apply-btn" data-name="${escapeHTML(row.leave_name)}">Apply</button></td>
+          </tr>
+        `).join("");
+      }
+      document.getElementById("balancePager").textContent =
+        `Showing ${rows.length ? 1 : 0} to ${rows.length} of ${balances.length} entries`;
+      body.querySelectorAll(".apply-btn").forEach((button) => {
+        button.addEventListener("click", () => openApply(button.dataset.name));
+      });
+      applyColumns();
+    }
+
+    function visibleApps() {
+      const query = document.getElementById("appSearch").value.trim().toLowerCase();
+      return applications.filter((row) => !query || [
+        row.leave_name, row.status, row.reason, row.from_date, row.to_date
+      ].join(" ").toLowerCase().includes(query));
+    }
+
+    function renderApps() {
+      const rows = visibleApps();
+      const body = document.getElementById("appBody");
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="8" class="text-center text-gray-500">No leave applications.</td></tr>`;
+      } else {
+        body.innerHTML = rows.map((row) => `
+          <tr>
+            <td>${escapeHTML(row.leave_name)}</td>
+            <td>${escapeHTML(row.from_date)}</td>
+            <td>${escapeHTML(row.to_date)}</td>
+            <td>${num(row.days)}</td>
+            <td>${escapeHTML(row.reason)}</td>
+            <td><span class="status-pill ${statusClass(row.status)}">${escapeHTML(row.status)}</span></td>
+            <td>${escapeHTML(row.applied_at)}</td>
+            <td>${row.status === "Pending"
+              ? `<button type="button" class="apply-link cancel-app" data-id="${escapeHTML(row.id)}">Cancel</button>`
+              : "—"}</td>
+          </tr>
+        `).join("");
+      }
+      document.getElementById("appPager").textContent =
+        `Showing ${rows.length ? 1 : 0} to ${rows.length} of ${applications.length} entries`;
+      body.querySelectorAll(".cancel-app").forEach((button) => {
+        button.addEventListener("click", () => cancelApplication(button.dataset.id));
+      });
+    }
+
+    function openApply(leaveName) {
+      cancelMode = false;
+      document.getElementById("applyPanel").classList.remove("hidden");
+      document.getElementById("leaveName").value = leaveName;
+      document.getElementById("fromDate").value = "";
+      document.getElementById("toDate").value = "";
+      document.getElementById("reason").value = "";
+      document.getElementById("halfDay").checked = false;
+      setMsg("applyMsg", "", true);
+      document.getElementById("applyPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    async function loadCard() {
+      const response = await fetch(`${API}/api/faculty/establishment/leave-card`, { credentials: "include" });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+      const data = await response.json();
+      balances = data.balances || [];
+      document.getElementById("lastUpdated").textContent = `Last Updated: ${data.last_updated || ""}`;
+      renderBalances();
+    }
+
+    async function loadApplications(showPanel) {
+      const response = await fetch(`${API}/api/faculty/establishment/leave-applications`, { credentials: "include" });
+      const data = await response.json();
+      applications = data.applications || [];
+      renderApps();
+      if (showPanel) {
+        document.getElementById("statusPanel").classList.remove("hidden");
+        document.getElementById("statusPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+
+    async function cancelApplication(id) {
+      const response = await fetch(`${API}/api/faculty/establishment/leave-applications/cancel`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ application_id: id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(data.detail || "Could not cancel leave.");
+        return;
+      }
+      await Promise.all([loadCard(), loadApplications(true)]);
+    }
+
+    function applyColumns() {
+      document.querySelectorAll("#colMenu input[data-col]").forEach((box) => {
+        document.querySelectorAll(`[data-col="${box.dataset.col}"]`).forEach((cell) => {
+          cell.style.display = box.checked ? "" : "none";
+        });
+      });
+    }
+
+    function downloadCsv(name, lines) {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+      link.download = name;
+      link.click();
+    }
+
+    document.getElementById("colMenu").innerHTML = COLUMNS.map(([key, label]) =>
+      `<label class="flex items-center gap-2"><input type="checkbox" data-col="${key}" checked> ${label}</label>`
+    ).join("");
+    document.getElementById("colBtn").addEventListener("click", () => {
+      document.getElementById("colMenu").classList.toggle("hidden");
+    });
+    document.getElementById("colMenu").addEventListener("change", applyColumns);
+    document.getElementById("balanceSearch").addEventListener("input", renderBalances);
+    document.getElementById("appSearch").addEventListener("input", renderApps);
+    document.getElementById("closeApply").addEventListener("click", () => {
+      document.getElementById("applyPanel").classList.add("hidden");
+    });
+    document.getElementById("closeStatus").addEventListener("click", () => {
+      document.getElementById("statusPanel").classList.add("hidden");
+      cancelMode = false;
+    });
+    document.getElementById("closeHoliday").addEventListener("click", () => {
+      document.getElementById("holidayPanel").classList.add("hidden");
+    });
+    document.getElementById("statusBtn").addEventListener("click", () => {
+      cancelMode = false;
+      loadApplications(true).catch(() => {});
+    });
+    document.getElementById("cancelLeaveBtn").addEventListener("click", () => {
+      cancelMode = true;
+      loadApplications(true).then(() => {
+        alert("Select Cancel against a Pending leave application.");
+      }).catch(() => {});
+    });
+    document.getElementById("holidayBtn").addEventListener("click", async () => {
+      const response = await fetch(`${API}/api/faculty/establishment/holidays`, { credentials: "include" });
+      const data = await response.json();
+      document.getElementById("holidayBody").innerHTML = (data.holidays || []).map((row) => `
+        <tr>
+          <td>${escapeHTML(row.date)}</td>
+          <td>${escapeHTML(row.name)}</td>
+          <td>${row.upcoming ? "Upcoming" : "Passed"}</td>
+        </tr>
+      `).join("");
+      document.getElementById("holidayPanel").classList.remove("hidden");
+      document.getElementById("holidayPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    document.getElementById("exportBalances").addEventListener("click", () => {
+      const lines = [["Leave Name", "Period", "Op. Bal", "Credit", "Total", "Taken", "Bal"].join(",")];
+      visibleBalances().forEach((row) => {
+        lines.push([row.leave_name, row.period, row.opening_balance, row.credit, row.total, row.taken, row.balance]
+          .map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","));
+      });
+      downloadCsv("leave-balances.csv", lines);
+    });
+    document.getElementById("exportApps").addEventListener("click", () => {
+      const lines = [["Leave Name", "From Date", "To Date", "Days", "Reason", "Status", "Applied At"].join(",")];
+      visibleApps().forEach((row) => {
+        lines.push([row.leave_name, row.from_date, row.to_date, row.days, row.reason, row.status, row.applied_at]
+          .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","));
+      });
+      downloadCsv("leave-applications.csv", lines);
+    });
+    document.getElementById("submitLeave").addEventListener("click", async () => {
+      const payload = {
+        leave_name: document.getElementById("leaveName").value,
+        from_date: document.getElementById("fromDate").value,
+        to_date: document.getElementById("toDate").value,
+        reason: document.getElementById("reason").value.trim(),
+        half_day: document.getElementById("halfDay").checked,
+      };
+      if (!payload.from_date || !payload.to_date) return setMsg("applyMsg", "Select from and to dates.", false);
+      if (!payload.reason) return setMsg("applyMsg", "Reason is required.", false);
+      const response = await fetch(`${API}/api/faculty/establishment/leave-applications`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return setMsg("applyMsg", data.detail || "Could not apply leave.", false);
+      setMsg("applyMsg", "Leave application submitted.", true);
+      await loadCard();
+      await loadApplications(false);
+    });
+
+    loadCard().catch(() => { window.location.href = LOGIN_URL; });
+  </script>
+</body>
+</html>

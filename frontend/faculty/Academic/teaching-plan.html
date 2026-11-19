@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Teaching Plan Entry</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
+    .side-link { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; font-size: 13px; color: #4b5563; }
+    .side-link.active { color: #4f46e5; background: #eef2ff; border-left: 3px solid #4f46e5; }
+    .tab-btn { padding: 8px 14px; font-size: 13px; border: 1px solid #e5e7eb; border-bottom: none; background: #fff; color: #4b5563; border-radius: 8px 8px 0 0; }
+    .tab-btn.active { background: #eef2ff; color: #4338ca; font-weight: 600; }
+    .field { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #fff; }
+    .field:disabled { background: #f3f4f6; color: #6b7280; }
+    .req { color: #dc2626; margin-right: 2px; }
+    .outline-btn { border: 1px solid #6366f1; color: #4f46e5; background: #fff; border-radius: 6px; padding: 6px 12px; font-size: 13px; }
+    .outline-btn:hover { background: #eef2ff; }
+    .cancel-btn { border: 1px solid #f87171; color: #dc2626; background: #fff; border-radius: 6px; padding: 6px 12px; font-size: 13px; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 6px; font-size: 12px; font-weight: 700; color: #374151; text-align: left; white-space: nowrap; }
+    .icon-btn { width: 28px; height: 26px; border: 1px solid #d1d5db; border-radius: 4px; background: #f9fafb; font-size: 13px; }
+    .course-cell { color: #dc2626; font-size: 12px; }
+    .upload-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; background: #fafafa; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+    .day-label { font-size: 12px; color: #4b5563; margin-bottom: 4px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <aside class="w-60 bg-white border-r hidden md:flex md:flex-col shrink-0">
+      <div class="px-4 py-3 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
+        Faculty Related
+        <span class="text-gray-400">×</span>
+      </div>
+      <a href="/faculty/Academic/teaching-plan.html" class="side-link active">Teaching Plan Entry <span>☆</span></a>
+      <a href="/faculty/Academic/attendance.html" class="side-link">Attendance By Faculty <span>☆</span></a>
+      <a href="/faculty/Academic/extra-class.html" class="side-link">Extra Class Time Table <span>☆</span></a>
+      <a href="/faculty/Academic/attendance-register.html" class="side-link">Attendance Register Report <span>☆</span></a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <div class="bg-white rounded-xl border shadow-sm p-4 md:p-5">
+        <h1 class="text-base font-semibold text-gray-800 mb-3">Teaching Plan Entry</h1>
+
+        <div class="flex gap-1 border-b mb-4">
+          <button type="button" id="tabCore" class="tab-btn active">Core/Elective Teaching Plan</button>
+          <button type="button" id="tabElective" class="tab-btn">Open/Global Elective Teaching Plan</button>
+        </div>
+
+        <form id="planForm">
+          <div class="grid grid-cols-1 xl:grid-cols-[1fr_240px] gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-sm mb-1" for="session"><span class="req">*</span>Session</label>
+                <select id="session" class="field"><option value="">Please Select</option></select>
+              </div>
+              <div>
+                <label class="block text-sm mb-1" for="college"><span class="req">*</span>College</label>
+                <select id="college" class="field"><option value="">Please Select</option></select>
+              </div>
+              <div>
+                <label class="block text-sm mb-1" for="course"><span class="req">*</span>Semester/Course</label>
+                <select id="course" class="field" disabled><option value="">Please Select</option></select>
+              </div>
+              <div>
+                <label class="block text-sm mb-1" for="teachingFor"><span class="req">*</span>Teaching Plan For</label>
+                <select id="teachingFor" class="field">
+                  <option value="">Please Select</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm mb-1" for="section"><span class="req">*</span>Section</label>
+                <select id="section" class="field" disabled><option value="">Please Select</option></select>
+              </div>
+              <div>
+                <label class="block text-sm mb-1" for="unit"><span class="req">*</span>Unit No</label>
+                <select id="unit" class="field" disabled><option value="">Please Select</option></select>
+              </div>
+              <div>
+                <label class="block text-sm mb-1" for="topic"><span class="req">*</span>Topic No.</label>
+                <select id="topic" class="field" disabled><option value="">Please Select</option></select>
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-sm mb-1" for="description"><span class="req">*</span>Topic Description</label>
+                <textarea id="description" rows="2" class="field" placeholder="Topic description"></textarea>
+              </div>
+              <div>
+                <label class="block text-sm mb-1" for="sessions"><span class="req">*</span>No. of Session Required</label>
+                <input id="sessions" type="number" min="1" max="40" class="field" />
+              </div>
+            </div>
+
+            <aside class="upload-box h-fit">
+              <h2 class="text-sm font-semibold text-gray-700 mb-3">Upload Teaching Plan</h2>
+              <button type="button" id="downloadTemplate" class="outline-btn w-full mb-3">Download Template</button>
+              <label class="block text-xs text-gray-500 mb-1">Excel File</label>
+              <input id="excelFile" type="file" accept=".csv,text/csv" class="block w-full text-xs mb-3" />
+              <button type="button" id="uploadBtn" class="outline-btn w-full">Upload Excel</button>
+              <p class="text-[11px] text-gray-500 mt-2">Save the template as CSV, then upload it. Session and college above are applied to every row.</p>
+              <p id="uploadMsg" class="text-xs mt-2 hidden"></p>
+            </aside>
+          </div>
+
+          <div class="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm mb-1" for="timetable"><span class="req">*</span>Time Table Date</label>
+              <select id="timetable" class="field mb-4"><option value="">Please Select</option></select>
+              <div class="text-sm font-medium text-gray-700 mb-2 border-l-4 border-indigo-500 pl-2">Proposed Dates / Lecture Dates</div>
+              <div id="dateGrid" class="grid grid-cols-2 md:grid-cols-4 gap-2"></div>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="conduct">Conduct Date</label>
+              <input id="conduct" type="date" class="field mb-4" />
+              <div class="text-sm font-medium text-gray-700 mb-2 border-l-4 border-indigo-500 pl-2">Lecture Slots</div>
+              <div id="slotGrid" class="grid grid-cols-2 md:grid-cols-4 gap-2"></div>
+            </div>
+          </div>
+
+          <p id="formMsg" class="text-sm mt-3 hidden"></p>
+          <p id="editHint" class="text-sm text-indigo-700 mt-2 hidden">Editing a schedule row. Submit updates it. Cancel clears the form.</p>
+
+          <div class="flex flex-wrap gap-2 justify-center mt-4">
+            <button type="submit" id="submitBtn" class="outline-btn">Submit</button>
+            <button type="button" id="reportBtn" class="outline-btn">Planned Vs Executed Lecture Report</button>
+            <button type="button" id="excelBtn" class="outline-btn">Planned Vs Executed Report Excel</button>
+            <button type="button" id="cancelBtn" class="cancel-btn">Cancel</button>
+          </div>
+        </form>
+
+        <div class="mt-6">
+          <h2 class="font-semibold text-gray-800 mb-2 border-l-4 border-indigo-500 pl-2">TEACHING PLAN SCHEDULE</h2>
+          <div class="overflow-x-auto border rounded-lg">
+            <table class="w-full text-sm">
+              <thead>
+                <tr>
+                  <th class="table-head">Edit</th>
+                  <th class="table-head">Delete</th>
+                  <th class="table-head">Unit No</th>
+                  <th class="table-head">Topic Code</th>
+                  <th class="table-head">Session Required</th>
+                  <th class="table-head">Topic</th>
+                  <th class="table-head">Proposed Date</th>
+                  <th class="table-head">Conduct Date</th>
+                  <th class="table-head">Course</th>
+                </tr>
+              </thead>
+              <tbody id="planBody">
+                <tr><td colspan="9" class="p-4 text-center text-gray-500">Loading schedule...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="planCount" class="text-xs text-gray-500 mt-2"></p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="text-center text-xs text-gray-500 py-4">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <div id="reportModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-[10000] p-4">
+    <div class="bg-white rounded-xl shadow-xl w-[min(980px,96vw)] max-h-[80vh] overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between px-4 py-3 border-b">
+        <h3 class="font-semibold text-gray-800">Planned Vs Executed Lecture Report</h3>
+        <button type="button" id="closeReport" class="text-xl text-gray-500">×</button>
+      </div>
+      <p id="reportSummary" class="px-4 py-2 text-sm text-gray-600"></p>
+      <div class="overflow-auto px-4 pb-4">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="table-head">Unit</th>
+              <th class="table-head">Topic</th>
+              <th class="table-head">Proposed</th>
+              <th class="table-head">Conduct</th>
+              <th class="table-head">Status</th>
+              <th class="table-head">Course</th>
+            </tr>
+          </thead>
+          <tbody id="reportBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    const DAYS = [
+      ["monday", "Monday", 1],
+      ["tuesday", "Tuesday", 2],
+      ["wednesday", "Wednesday", 3],
+      ["thursday", "Thursday", 4],
+      ["friday", "Friday", 5],
+      ["saturday", "Saturday", 6],
+    ];
+
+    let options = null;
+    let planType = "core";
+    let editingId = null;
+    let restoring = false;
+    let plansById = {};
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function setMsg(text, ok) {
+      const el = document.getElementById("formMsg");
+      el.textContent = text;
+      el.className = `text-sm mt-3 ${ok ? "text-green-600" : "text-red-600"}`;
+      el.classList.remove("hidden");
+    }
+
+    function setUploadMsg(text, ok) {
+      const el = document.getElementById("uploadMsg");
+      el.textContent = text;
+      el.className = `text-xs mt-2 ${ok ? "text-green-600" : "text-red-600"}`;
+      el.classList.remove("hidden");
+    }
+
+    async function api(path, opts) {
+      const response = await fetch(`${API}${path}`, { credentials: "include", ...opts });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        throw new Error("auth");
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = data.detail;
+        throw new Error(typeof detail === "string" ? detail : "Request failed");
+      }
+      return data;
+    }
+
+    function fillSelect(id, values, placeholder, getValue, getLabel) {
+      const select = document.getElementById(id);
+      const current = select.value;
+      select.innerHTML = `<option value="">${placeholder}</option>`;
+      values.forEach((item) => {
+        const opt = document.createElement("option");
+        opt.value = getValue ? getValue(item) : item;
+        opt.textContent = getLabel ? getLabel(item) : item;
+        select.appendChild(opt);
+      });
+      if (current) select.value = current;
+    }
+
+    function coursesForTab() {
+      return (options?.courses || []).filter((course) => course.plan_type === planType);
+    }
+
+    function courseLabel(course) {
+      const roman = options.roman[String(course.semester)] || course.semester;
+      const kind = document.getElementById("teachingFor").value || "Theory";
+      return `${roman} - ${kind} - ${course.course_code} - ${course.course_name}`;
+    }
+
+    function renderCourses() {
+      const select = document.getElementById("course");
+      const current = select.value;
+      select.innerHTML = `<option value="">Please Select</option>`;
+      coursesForTab().forEach((course) => {
+        const opt = document.createElement("option");
+        opt.value = course.id;
+        opt.textContent = courseLabel(course);
+        select.appendChild(opt);
+      });
+      if (current && [...select.options].some((opt) => opt.value === current)) {
+        select.value = current;
+      }
+    }
+
+    function refreshRanges(keepValue) {
+      const session = document.getElementById("session").value;
+      const select = document.getElementById("timetable");
+      const current = keepValue === undefined ? select.value : keepValue;
+      select.innerHTML = `<option value="">Please Select</option>`;
+      ((options?.timetable_ranges || {})[session] || []).forEach((range) => {
+        const opt = document.createElement("option");
+        opt.value = range;
+        opt.textContent = range;
+        select.appendChild(opt);
+      });
+      if (current) select.value = current;
+    }
+
+    function syncDisabled() {
+      const ready = document.getElementById("session").value && document.getElementById("college").value;
+      const course = document.getElementById("course").value;
+      document.getElementById("course").disabled = !ready || coursesForTab().length === 0;
+      document.getElementById("section").disabled = !course;
+      document.getElementById("unit").disabled = !course;
+      document.getElementById("topic").disabled = !document.getElementById("unit").value;
+    }
+
+    function parseDMY(value) {
+      const [day, month, year] = value.split("/").map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    function toISO(value) {
+      const month = String(value.getMonth() + 1).padStart(2, "0");
+      const day = String(value.getDate()).padStart(2, "0");
+      return `${value.getFullYear()}-${month}-${day}`;
+    }
+
+    function datesForWeekday(range, weekday) {
+      if (!range || !range.includes(" - ")) return [];
+      const [startText, endText] = range.split(" - ");
+      const start = parseDMY(startText.trim());
+      const end = parseDMY(endText.trim());
+      const dates = [];
+      for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+        if (cursor.getDay() === weekday) dates.push(new Date(cursor));
+      }
+      return dates;
+    }
+
+    function fillDateSelect(select, dates, selected) {
+      select.innerHTML = `<option value="">Please Select</option>`;
+      dates.forEach((value) => {
+        const opt = document.createElement("option");
+        opt.value = toISO(value);
+        const weekday = value.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase();
+        opt.textContent = `${value.toLocaleDateString("en-GB")} ${weekday}`;
+        select.appendChild(opt);
+      });
+      select.disabled = dates.length === 0;
+      if (selected && ![...select.options].some((opt) => opt.value === selected)) {
+        const extra = document.createElement("option");
+        extra.value = selected;
+        extra.textContent = selected;
+        select.appendChild(extra);
+      }
+      if (selected) select.value = selected;
+    }
+
+    function renderDayControls() {
+      const dateGrid = document.getElementById("dateGrid");
+      const slotGrid = document.getElementById("slotGrid");
+      dateGrid.innerHTML = DAYS.map(([key, label]) => `
+        <div>
+          <div class="day-label">${label}</div>
+          <select id="date_${key}" class="field" disabled><option value="">Please Select</option></select>
+        </div>
+      `).join("");
+      const slotOptions = (options?.lecture_slots || [])
+        .map((slot) => `<option value="${escapeHTML(slot)}">${escapeHTML(slot)}</option>`)
+        .join("");
+      slotGrid.innerHTML = DAYS.map(([key, label]) => `
+        <div>
+          <div class="day-label">${label}</div>
+          <select id="slot_${key}" class="field">
+            <option value="">Please Select</option>
+            ${slotOptions}
+          </select>
+        </div>
+      `).join("");
+    }
+
+    function applyRange(preserved) {
+      const range = document.getElementById("timetable").value;
+      DAYS.forEach(([key, , weekday]) => {
+        fillDateSelect(
+          document.getElementById(`date_${key}`),
+          datesForWeekday(range, weekday),
+          preserved?.proposed_dates?.[key] || ""
+        );
+        const slot = document.getElementById(`slot_${key}`);
+        const chosen = preserved?.lecture_slots?.[key] || "";
+        if (chosen && ![...slot.options].some((opt) => opt.value === chosen)) {
+          const extra = document.createElement("option");
+          extra.value = chosen;
+          extra.textContent = chosen;
+          slot.appendChild(extra);
+        }
+        slot.value = chosen;
+      });
+    }
+
+    async function loadTopics(selectedTopic) {
+      const courseId = document.getElementById("course").value;
+      const unit = document.getElementById("unit").value;
+      const topic = document.getElementById("topic");
+      topic.innerHTML = `<option value="">Please Select</option>`;
+      if (!courseId || !unit) {
+        syncDisabled();
+        return;
+      }
+      const data = await api(`/api/faculty/teaching-plan/topics?course_id=${encodeURIComponent(courseId)}&unit_no=${encodeURIComponent(unit)}`);
+      data.topics.forEach((item) => {
+        const opt = document.createElement("option");
+        opt.value = String(item.topic_no);
+        opt.textContent = String(item.topic_no);
+        opt.dataset.title = item.topic_title;
+        topic.appendChild(opt);
+      });
+      if (selectedTopic) topic.value = String(selectedTopic);
+      syncDisabled();
+    }
+
+    function scheduleQuery() {
+      const params = new URLSearchParams({ plan_type: planType });
+      const courseId = document.getElementById("course").value;
+      const section = document.getElementById("section").value;
+      if (courseId) params.set("course_id", courseId);
+      if (section) params.set("section", section);
+      return params.toString();
+    }
+
+    async function loadPlans() {
+      const data = await api(`/api/faculty/teaching-plan?${scheduleQuery()}`);
+      const plans = data.plans || [];
+      plansById = {};
+      plans.forEach((plan) => { plansById[plan.id] = plan; });
+      const body = document.getElementById("planBody");
+      if (!plans.length) {
+        body.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">No records to display..</td></tr>`;
+        document.getElementById("planCount").textContent = "";
+        return;
+      }
+      body.innerHTML = plans.map((plan) => `
+        <tr class="border-t align-top">
+          <td class="p-2"><button type="button" class="icon-btn edit-plan" data-id="${escapeHTML(plan.id)}" title="Edit">✎</button></td>
+          <td class="p-2"><button type="button" class="icon-btn delete-plan" data-id="${escapeHTML(plan.id)}" title="Delete">✕</button></td>
+          <td class="p-2">${escapeHTML(plan.unit_no)}</td>
+          <td class="p-2">${escapeHTML(plan.topic_no)}</td>
+          <td class="p-2">${escapeHTML(plan.sessions_required)}</td>
+          <td class="p-2 max-w-[180px] truncate" title="${escapeHTML(plan.topic_description)}">${escapeHTML(plan.topic_description)}</td>
+          <td class="p-2 whitespace-nowrap">${escapeHTML(plan.proposed_date_label)}</td>
+          <td class="p-2 whitespace-nowrap">${escapeHTML(plan.conduct_date_label)}</td>
+          <td class="p-2 course-cell">${escapeHTML(plan.course_code)}- ${escapeHTML(plan.course_name)}[Section : ${escapeHTML(plan.section)}]</td>
+        </tr>
+      `).join("");
+      document.getElementById("planCount").textContent = `Showing 1 to ${plans.length} of ${plans.length} entries`;
+      body.querySelectorAll(".edit-plan").forEach((button) => {
+        button.addEventListener("click", () => beginEdit(plansById[button.dataset.id]));
+      });
+      body.querySelectorAll(".delete-plan").forEach((button) => {
+        button.addEventListener("click", () => removePlan(button.dataset.id));
+      });
+    }
+
+    function resetEntry(clearFilters) {
+      editingId = null;
+      document.getElementById("editHint").classList.add("hidden");
+      document.getElementById("submitBtn").textContent = "Submit";
+      document.getElementById("description").value = "";
+      document.getElementById("sessions").value = "";
+      document.getElementById("conduct").value = "";
+      document.getElementById("topic").innerHTML = `<option value="">Please Select</option>`;
+      if (clearFilters) {
+        ["session", "college", "course", "teachingFor", "section", "unit", "timetable"].forEach((id) => {
+          document.getElementById(id).value = "";
+        });
+        refreshRanges("");
+      }
+      applyRange(null);
+      syncDisabled();
+    }
+
+    async function beginEdit(plan) {
+      if (!plan) return;
+      restoring = true;
+      editingId = plan.id;
+      document.getElementById("editHint").classList.remove("hidden");
+      document.getElementById("submitBtn").textContent = "Update";
+      document.getElementById("session").value = plan.session_label;
+      document.getElementById("college").value = plan.college_label;
+      renderCourses();
+      syncDisabled();
+      document.getElementById("course").value = plan.course_id;
+      document.getElementById("teachingFor").value = plan.teaching_for;
+      renderCourses();
+      document.getElementById("course").value = plan.course_id;
+      syncDisabled();
+      document.getElementById("section").value = plan.section;
+      document.getElementById("unit").value = String(plan.unit_no);
+      document.getElementById("description").value = plan.topic_description;
+      document.getElementById("sessions").value = plan.sessions_required;
+      document.getElementById("conduct").value = plan.conduct_date || "";
+      refreshRanges(plan.timetable_range);
+      await loadTopics(plan.topic_no);
+      document.getElementById("description").value = plan.topic_description;
+      applyRange(plan);
+      restoring = false;
+      document.getElementById("formMsg").classList.add("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    async function removePlan(id) {
+      if (!confirm("Delete this teaching plan row?")) return;
+      await api(`/api/faculty/teaching-plan/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (editingId === id) resetEntry(false);
+      setMsg("Teaching plan deleted.", true);
+      await loadPlans();
+    }
+
+    function collectPayload() {
+      const proposed = {};
+      const slots = {};
+      DAYS.forEach(([key]) => {
+        const day = document.getElementById(`date_${key}`).value;
+        const slot = document.getElementById(`slot_${key}`).value;
+        if (day) proposed[key] = day;
+        if (slot) slots[key] = slot;
+      });
+      return {
+        plan_type: planType,
+        session_label: document.getElementById("session").value,
+        college_label: document.getElementById("college").value,
+        course_id: document.getElementById("course").value,
+        teaching_for: document.getElementById("teachingFor").value,
+        section: document.getElementById("section").value,
+        unit_no: Number(document.getElementById("unit").value),
+        topic_no: Number(document.getElementById("topic").value),
+        topic_description: document.getElementById("description").value.trim(),
+        sessions_required: Number(document.getElementById("sessions").value),
+        timetable_range: document.getElementById("timetable").value,
+        proposed_dates: proposed,
+        lecture_slots: slots,
+        conduct_date: document.getElementById("conduct").value || null,
+      };
+    }
+
+    function validate(payload) {
+      const checks = [
+        [payload.session_label, "Select a session."],
+        [payload.college_label, "Select a college."],
+        [payload.course_id, "Select a semester / course."],
+        [payload.teaching_for, "Select what the teaching plan is for."],
+        [payload.section, "Select a section."],
+        [payload.unit_no, "Select a unit number."],
+        [payload.topic_no, "Select a topic number."],
+        [payload.topic_description, "Enter the topic description."],
+        [payload.sessions_required > 0, "Enter the number of sessions required."],
+        [payload.timetable_range, "Select a time table date."],
+        [Object.keys(payload.proposed_dates).length, "Select at least one proposed lecture date."],
+      ];
+      for (const [ok, message] of checks) {
+        if (!ok) {
+          setMsg(message, false);
+          return false;
+        }
+      }
+      return true;
+    }
+
+    async function openReport() {
+      const data = await api(`/api/faculty/teaching-plan/report?${scheduleQuery()}`);
+      const summary = data.summary || {};
+      document.getElementById("reportSummary").textContent =
+        `${summary.total || 0} rows · ${summary.executed || 0} executed · ${summary.planned || 0} still planned`;
+      const rows = data.plans || [];
+      document.getElementById("reportBody").innerHTML = rows.length
+        ? rows.map((plan) => `
+          <tr class="border-t">
+            <td class="p-2">${escapeHTML(plan.unit_no)}</td>
+            <td class="p-2">${escapeHTML(plan.topic_description)}</td>
+            <td class="p-2">${escapeHTML(plan.proposed_date_label)}</td>
+            <td class="p-2">${escapeHTML(plan.conduct_date_label || "—")}</td>
+            <td class="p-2">${escapeHTML(plan.status)}</td>
+            <td class="p-2">${escapeHTML(plan.course_code)}</td>
+          </tr>
+        `).join("")
+        : `<tr><td colspan="6" class="p-4 text-center text-gray-500">No records to display..</td></tr>`;
+      const modal = document.getElementById("reportModal");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+
+    document.getElementById("closeReport").addEventListener("click", () => {
+      const modal = document.getElementById("reportModal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    });
+    document.getElementById("reportModal").addEventListener("click", (event) => {
+      if (event.target.id === "reportModal") document.getElementById("closeReport").click();
+    });
+
+    document.getElementById("tabCore").addEventListener("click", () => switchTab("core"));
+    document.getElementById("tabElective").addEventListener("click", () => switchTab("elective"));
+
+    async function switchTab(next) {
+      planType = next;
+      document.getElementById("tabCore").classList.toggle("active", next === "core");
+      document.getElementById("tabElective").classList.toggle("active", next === "elective");
+      resetEntry(true);
+      renderCourses();
+      syncDisabled();
+      document.getElementById("formMsg").classList.add("hidden");
+      await loadPlans();
+    }
+
+    document.getElementById("session").addEventListener("change", () => {
+      if (restoring) return;
+      refreshRanges("");
+      applyRange(null);
+      syncDisabled();
+    });
+    document.getElementById("college").addEventListener("change", () => {
+      if (!restoring) syncDisabled();
+    });
+    document.getElementById("teachingFor").addEventListener("change", () => {
+      if (restoring) return;
+      renderCourses();
+    });
+    document.getElementById("course").addEventListener("change", async () => {
+      if (restoring) return;
+      document.getElementById("unit").value = "";
+      document.getElementById("description").value = "";
+      await loadTopics();
+      syncDisabled();
+      await loadPlans();
+    });
+    document.getElementById("section").addEventListener("change", () => {
+      if (!restoring) loadPlans().catch(() => {});
+    });
+    document.getElementById("unit").addEventListener("change", async () => {
+      if (restoring) return;
+      document.getElementById("description").value = "";
+      await loadTopics();
+    });
+    document.getElementById("topic").addEventListener("change", () => {
+      if (restoring) return;
+      const selected = document.getElementById("topic").selectedOptions[0];
+      if (selected?.dataset?.title) {
+        document.getElementById("description").value = selected.dataset.title;
+      }
+    });
+    document.getElementById("timetable").addEventListener("change", () => {
+      if (!restoring) applyRange(null);
+    });
+
+    document.getElementById("planForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const payload = collectPayload();
+      if (!validate(payload)) return;
+      const button = document.getElementById("submitBtn");
+      button.disabled = true;
+      try {
+        if (editingId) {
+          await api(`/api/faculty/teaching-plan/${encodeURIComponent(editingId)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          setMsg("Teaching plan updated.", true);
+        } else {
+          await api("/api/faculty/teaching-plan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          setMsg("Teaching plan saved.", true);
+        }
+        const unit = document.getElementById("unit").value;
+        resetEntry(false);
+        if (unit) await loadTopics();
+        await loadPlans();
+      } catch (error) {
+        if (error.message !== "auth") setMsg(error.message, false);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById("cancelBtn").addEventListener("click", async () => {
+      resetEntry(true);
+      document.getElementById("formMsg").classList.add("hidden");
+      await loadPlans();
+    });
+
+    document.getElementById("reportBtn").addEventListener("click", () => {
+      openReport().catch((error) => {
+        if (error.message !== "auth") setMsg(error.message, false);
+      });
+    });
+
+    document.getElementById("excelBtn").addEventListener("click", () => {
+      window.location.href = `${API}/api/faculty/teaching-plan/report.csv?${scheduleQuery()}`;
+    });
+
+    document.getElementById("downloadTemplate").addEventListener("click", () => {
+      window.location.href = `${API}/api/faculty/teaching-plan/template.csv`;
+    });
+
+    document.getElementById("uploadBtn").addEventListener("click", async () => {
+      const file = document.getElementById("excelFile").files[0];
+      if (!file) return setUploadMsg("Choose the template CSV first.", false);
+      if (!document.getElementById("session").value || !document.getElementById("college").value) {
+        return setUploadMsg("Select session and college before uploading.", false);
+      }
+      const body = new FormData();
+      body.append("file", file);
+      body.append("plan_type", planType);
+      body.append("session_label", document.getElementById("session").value);
+      body.append("college_label", document.getElementById("college").value);
+      body.append("teaching_for", document.getElementById("teachingFor").value || "Theory");
+      try {
+        const data = await api("/api/faculty/teaching-plan/upload", { method: "POST", body });
+        const extra = (data.errors || []).length ? ` Some rows were skipped: ${data.errors[0]}` : "";
+        setUploadMsg(`${data.message}.${extra}`, true);
+        await loadPlans();
+      } catch (error) {
+        if (error.message !== "auth") setUploadMsg(error.message, false);
+      }
+    });
+
+    document.querySelectorAll("[data-soon]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (window.showNotice) window.showNotice(link.dataset.soon);
+      });
+    });
+
+    async function init() {
+      options = await api("/api/faculty/teaching-plan/options");
+      fillSelect("session", options.sessions, "Please Select");
+      fillSelect("college", options.colleges, "Please Select");
+      fillSelect("teachingFor", options.teaching_for, "Please Select");
+      fillSelect("section", options.sections, "Please Select");
+      fillSelect("unit", options.units, "Please Select");
+      renderDayControls();
+      renderCourses();
+      syncDisabled();
+      await loadPlans();
+    }
+
+    init().catch((error) => {
+      if (error.message !== "auth") {
+        document.getElementById("planBody").innerHTML =
+          `<tr><td colspan="9" class="p-4 text-center text-red-600">${escapeHTML(error.message)}</td></tr>`;
+      }
+    });
+  </script>
+</body>
+</html>

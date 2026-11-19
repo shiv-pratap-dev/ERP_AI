@@ -34,7 +34,8 @@ from collections.abc import Iterator
 from database import get_connection
 from fastapi import APIRouter, Cookie, HTTPException
 from fastapi.responses import StreamingResponse
-from gemini_agent import invoke_erp_agent, stream_erp_agent
+from faculty_assistant import faculty_fallback, resolve_faculty_message
+from gemini_agent import invoke_erp_agent, invoke_faculty_agent, stream_erp_agent, stream_faculty_agent
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
@@ -47,6 +48,43 @@ class ChatRequest(BaseModel):
 def _sse(event: str, data: Any) -> str:
     payload = json.dumps(data, default=str)
     return f"event: {event}\ndata: {payload}\n\n"
+
+
+def _role(access_token: str | None) -> str:
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    from main import verify_token
+
+    return verify_token(access_token)["role"]
+
+
+def _current_teacher(access_token: str | None) -> tuple[dict[str, Any], str]:
+    from faculty_api import _require_teacher
+
+    return _require_teacher(access_token)
+
+
+def _faculty_reply(message: str, teacher: dict[str, Any], teacher_id: str) -> dict[str, Any]:
+    ruled = resolve_faculty_message(message, teacher, teacher_id)
+    if ruled is not None:
+        return ruled
+    try:
+        answer = invoke_faculty_agent(
+            question=message,
+            teacher_id=teacher_id,
+            teacher=teacher,
+        )
+    except Exception as exc:
+        print(f"FACULTY_AGENT_ERROR: {type(exc).__name__}: {exc}")
+        return faculty_fallback()
+    return {
+        "message": answer,
+        "kind": "help",
+        "title": "Faculty assistant",
+        "assignments": [],
+        "courses": [],
+        "action": None,
+    }
 
 
 def _current_student(
@@ -496,7 +534,18 @@ def _resolve_rule_based(
             "haven't submitted",
             "have not submitted",
             "yet to submit",
+            "status is pending",
+            "status pending",
+            "whose status is pending",
+            "whose staus is pending",  # common typo
         ),
+    ) or (
+        _has_phrase(normalized, "pending")
+        and (
+            _mentions_assignment(normalized)
+            or _has_phrase(normalized, "status")
+            or _has_phrase(normalized, "staus")
+        )
     )
 
     asks_for_overdue = _has_any_phrase(
@@ -506,6 +555,10 @@ def _resolve_rule_based(
             "past deadline",
             "past due",
             "missed deadline",
+            "expired",
+            "expire",
+            "status is expired",
+            "status expired",
         ),
     )
 
@@ -573,16 +626,16 @@ def _resolve_rule_based(
             for item in assignments
             if _effective_status(item, now) == "overdue"
         ]
-        result_title = "Overdue assignments"
+        result_title = "Expired assignments"
         count = len(filtered_assignments)
         if count == 0:
             return _answer(
-                "No overdue assignments were found in your current semester.",
+                f"No expired assignments in semester {semester}.",
                 kind="empty",
                 title=result_title,
             )
         return _answer(
-            f"Found {count} overdue assignment(s).",
+            f"{count} expired assignment(s) in semester {semester}.",
             kind="assignment_list",
             title=result_title,
             assignments=filtered_assignments,
@@ -598,12 +651,12 @@ def _resolve_rule_based(
         count = len(filtered_assignments)
         if count == 0:
             return _answer(
-                "No pending assignments were found in your current semester.",
+                f"No pending assignments in semester {semester}.",
                 kind="empty",
                 title=result_title,
             )
         return _answer(
-            f"Found {count} pending assignment(s).",
+            f"{count} pending assignment(s) in semester {semester}.",
             kind="assignment_list",
             title=result_title,
             assignments=filtered_assignments,
@@ -619,12 +672,12 @@ def _resolve_rule_based(
         count = len(filtered_assignments)
         if count == 0:
             return _answer(
-                "No submitted assignments were found in your current semester.",
+                f"No submitted assignments in semester {semester}.",
                 kind="empty",
                 title=result_title,
             )
         return _answer(
-            f"Found {count} submitted assignment(s).",
+            f"{count} submitted assignment(s) in semester {semester}.",
             kind="assignment_list",
             title=result_title,
             assignments=filtered_assignments,
@@ -667,21 +720,32 @@ def _resolve_rule_based(
 
     # Return assignment lists and counts.
     if asks_for_count or asks_for_list or _has_phrase(normalized, "semester"):
-        count = len(assignments)
+        tagged = [
+            {**item, "status": _effective_status(item, now)}
+            for item in assignments
+        ]
+        count = len(tagged)
 
         if count == 0:
             return _answer(
-                "No assignments were found in your current semester.",
+                f"No assignments in semester {semester}.",
                 kind="empty",
                 title=f"Semester {semester} assignments",
             )
 
+        if asks_for_count and not asks_for_list:
+            return _answer(
+                f"{count} assignment(s) in semester {semester}.",
+                kind="assignment_list",
+                title=f"Semester {semester} assignments",
+                assignments=tagged,
+            )
+
         return _answer(
-            f"Found {count} assignment(s). Here is your "
-            f"semester {semester} assignments list, ordered by deadline.",
+            f"{count} assignment(s) in semester {semester}:",
             kind="assignment_list",
             title=f"Semester {semester} assignments",
-            assignments=assignments,
+            assignments=tagged,
         )
 
     # Course questions use structured database results.
@@ -748,6 +812,13 @@ def chat(
     data: ChatRequest,
     access_token: str | None = Cookie(default=None),
 ):
+    if _role(access_token) == "teacher":
+        teacher, teacher_id = _current_teacher(access_token)
+        message = data.message.strip()
+        if not message:
+            raise HTTPException(status_code=400, detail="Message cannot be empty")
+        return _faculty_reply(message, teacher, teacher_id)
+
     _user, student_id, semester = _current_student(access_token)
 
     message = data.message.strip()
@@ -786,6 +857,56 @@ def chat_stream(
     access_token: str | None = Cookie(default=None),
 ):
     """SSE stream: typing waits on client until the first token event."""
+    if _role(access_token) == "teacher":
+        teacher, teacher_id = _current_teacher(access_token)
+        message = data.message.strip()
+        if not message:
+            raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+        def faculty_stream() -> Iterator[str]:
+            ruled = resolve_faculty_message(message, teacher, teacher_id)
+            if ruled is not None:
+                yield _sse(
+                    "meta",
+                    {"kind": ruled["kind"], "title": ruled["title"], "streaming": False},
+                )
+                for chunk in _iter_text_chunks(ruled.get("message") or ""):
+                    yield _sse("token", {"text": chunk})
+                yield _sse("done", {})
+                return
+
+            yield _sse(
+                "meta",
+                {"kind": "help", "title": "Faculty assistant", "streaming": True},
+            )
+            produced = False
+            try:
+                for token in stream_faculty_agent(
+                    question=message,
+                    teacher_id=teacher_id,
+                    teacher=teacher,
+                ):
+                    if not token:
+                        continue
+                    produced = True
+                    yield _sse("token", {"text": token})
+            except Exception as exc:
+                print(f"FACULTY_STREAM_ERROR: {type(exc).__name__}: {exc}")
+            if not produced:
+                for chunk in _iter_text_chunks(faculty_fallback()["message"]):
+                    yield _sse("token", {"text": chunk})
+            yield _sse("done", {})
+
+        return StreamingResponse(
+            faculty_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     _user, student_id, semester = _current_student(access_token)
 
     message = data.message.strip()

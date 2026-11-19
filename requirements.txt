@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+psycopg[binary]
+python-dotenv
+bcrypt
+pwdlib[argon2]
+PyJWT
+pydantic[email]
+python-multipart
+auth
+langgraph
+langchain-google-genai
+langchain-core

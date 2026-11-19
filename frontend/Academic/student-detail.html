@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JECRC ERP | Student Complete Detail</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=3">
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=4">
+  <link rel="stylesheet" href="/frontend/shared/erp-assistant.css?v=7">
   <style>
     body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
     .nav-dropdown { display: none; position: absolute; top: 100%; left: 0; min-width: 210px; background: white; box-shadow: 0 4px 12px #0002; border: 1px solid #eee; border-radius: 4px; z-index: 50; }
@@ -35,7 +36,8 @@
 <body class="min-h-screen flex flex-col">
 
   <div id="portal-navbar"></div>
-  <script src="/frontend/shared/navbar.js?v=3"></script>
+  <script src="/frontend/shared/navbar.js?v=5"></script>
+  <script src="/frontend/shared/erp-assistant.js?v=7"></script>
 
 
   <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
@@ -292,6 +294,10 @@
     }
 
     function showNotice(title) {
+      const menu = document.getElementById("profileMenu");
+      const btn = document.getElementById("profileButton");
+      if (menu) menu.classList.remove("open");
+      if (btn) btn.setAttribute("aria-expanded", "false");
       document.getElementById("modalTitle").textContent = title;
       document.getElementById("modalText").textContent = "This section is a UI placeholder and will be implemented later.";
       const modal = document.getElementById("noticeModal");
@@ -300,9 +306,18 @@
     }
     function closeNotice() {
       const modal = document.getElementById("noticeModal");
-      modal.classList.add("hidden");
-      modal.classList.remove("flex");
+      if (modal) {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      }
+      const portal = document.getElementById("portalNoticeModal");
+      if (portal) {
+        portal.classList.add("hidden");
+        portal.classList.remove("flex");
+      }
     }
+    window.showNotice = showNotice;
+    window.closeNotice = closeNotice;
 
     async function logout() {
       try { await fetch(`${API}/logout`, { method: "POST", credentials: "include" }); } catch (_) {}

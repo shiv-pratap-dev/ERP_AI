@@ -41,9 +41,9 @@
     </nav>
 
     <div class="flex items-center gap-3 shrink-0">
-      <button title="Search" class="text-gray-500 text-xl" type="button">⌕</button>
-      <button class="border border-red-200 text-red-500 px-2 py-1 text-xs rounded" type="button">FAQs</button>
-      <button title="Applications" class="text-blue-600 text-xl" type="button">▦</button>
+      <button title="Search" class="text-gray-500 text-xl" type="button" data-page="Search">⌕</button>
+      <button class="border border-red-200 text-red-500 px-2 py-1 text-xs rounded" type="button" data-page="FAQs">FAQs</button>
+      <button title="Applications" class="text-blue-600 text-xl" type="button" data-page="Applications">▦</button>
 
       <div class="relative">
         <button id="profileButton" class="w-9 h-9 rounded-full overflow-hidden border border-gray-200"
@@ -58,10 +58,10 @@
             <div class="w-20 h-20 rounded-full bg-yellow-400 mx-auto mb-3 flex items-center justify-center text-white text-3xl font-bold">S</div>
             <p id="welcomeMessage" class="font-medium text-gray-800">Welcome!</p>
           </div>
-          <a href="#" data-page="User Profile" class="block px-4 py-3 hover:bg-gray-100 text-sm">👤 &nbsp; User Profile</a>
+          <a href="/Academic/student-detail.html" class="block px-4 py-3 hover:bg-gray-100 text-sm">👤 &nbsp; User Profile</a>
           <a href="/home" class="block px-4 py-3 hover:bg-gray-100 text-sm">🏠 &nbsp; Home</a>
           <div class="flex justify-around border-t p-4">
-            <button title="Change Password" onclick="showNotice('Change Password')" class="utility-btn" type="button">🔑</button>
+            <button id="changePasswordBtn" title="Change Password" class="utility-btn" type="button">🔑</button>
             <button title="Logout" onclick="logout()" class="bg-red-600 text-white rounded-lg w-11 h-11" type="button">⏻</button>
           </div>
         </div>
@@ -70,9 +70,12 @@
   </div>
 </header>
 
-<div id="portalNoticeModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-[80]">
+<div id="portalNoticeModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-[10000]">
   <div class="bg-white rounded-xl shadow-xl w-[min(420px,92vw)] p-5">
-    <h3 id="portalModalTitle" class="text-lg font-semibold text-gray-800 mb-2"></h3>
+    <div class="flex items-start justify-between gap-3 mb-2">
+      <h3 id="portalModalTitle" class="text-lg font-semibold text-gray-800"></h3>
+      <button type="button" onclick="closeNotice()" class="text-xl text-gray-500 hover:text-black leading-none" aria-label="Close">×</button>
+    </div>
     <p id="portalModalText" class="text-sm text-gray-600 mb-4"></p>
     <div class="text-right">
       <button type="button" onclick="closeNotice()" class="px-4 py-2 rounded bg-indigo-600 text-white text-sm">OK</button>

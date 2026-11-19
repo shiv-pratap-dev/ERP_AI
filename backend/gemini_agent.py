@@ -61,11 +61,19 @@ SYSTEM_PROMPT = (
     "'admit card', 'my backlog', 'show my courses')\n"
     "- Do not partially answer the off-topic request\n"
     "\n"
+    "ANSWER STYLE (strict):\n"
+    "- Be short and to the point. Prefer 1 short lead sentence + a list.\n"
+    "- Do not add filler, disclaimers, or long preambles.\n"
+    "- When the user filters by status (pending / overdue / expired / "
+    "submitted), return ONLY matching rows — never mix other statuses.\n"
+    "- Pending means not submitted and deadline still in the future.\n"
+    "- Overdue/expired means not submitted and deadline already passed.\n"
+    "\n"
     "DATA RULES:\n"
     "- Always prefer ERP tools; never invent assignments, dates, teachers, "
     "statuses, attendance, results, fees, exam papers, or backlog rows\n"
     "- Status values include pending, submitted, late, and possibly overdue\n"
-    "- If tools return no matching records, say so clearly\n"
+    "- If tools return no matching records, say so clearly in one sentence\n"
     "- Never ask for or change the student's identity or credentials\n"
     "- Present lists with clear Markdown headings and bullet points\n"
     "- Interpret 'next' or 'nearest' deadline as the earliest upcoming "
@@ -97,7 +105,7 @@ def get_llm() -> ChatGoogleGenerativeAI:
     return ChatGoogleGenerativeAI(
         model=model_name,
         google_api_key=api_key,
-        temperature=0.2,
+        temperature=0.1,
     )
 
 
@@ -202,6 +210,117 @@ def build_agent(student_id: str, semester: int):
     workflow.add_edge("tools", "assistant")
 
     return workflow.compile()
+
+
+FACULTY_SYSTEM_PROMPT = (
+    "You are the JECRC faculty ERP assistant for the signed-in teacher only.\n"
+    "\n"
+    "IN-SCOPE:\n"
+    "- Courses this teacher teaches, student counts, assignments\n"
+    "- Submissions waiting to be checked\n"
+    "- Leave balances and upcoming holidays\n"
+    "- This teacher's own payslip totals (gross, deductions, net)\n"
+    "- Where a faculty screen lives (Academic, Examination, LMS, Payroll, "
+    "Establishment, OBE)\n"
+    "\n"
+    "OUT-OF-SCOPE:\n"
+    "- Student portal data (admit cards, a student's private fees, other teachers)\n"
+    "- Creating assignments, locking marks, applying leave, or any write action\n"
+    "- General knowledge, coding help, jokes, or exam-answer writing\n"
+    "- Bank account, PAN, or UAN numbers\n"
+    "\n"
+    "Refuse out-of-scope asks in 1–2 sentences and offer a faculty example "
+    "such as 'my courses', 'pending checks', or 'leave balance'.\n"
+    "Use tools for personal data. Never invent counts, dates, or amounts.\n"
+    "Be short: one lead sentence and a bullet list.\n"
+)
+
+
+def build_faculty_agent(teacher_id: str, teacher: dict[str, Any]):
+    """Graph scoped to the signed-in teacher. Read-only."""
+    from faculty_assistant import (
+        teacher_assignments,
+        teacher_courses,
+        teacher_leave,
+        teacher_payslip,
+        upcoming_holidays,
+    )
+
+    @tool
+    def get_my_courses() -> list[dict[str, Any]]:
+        """Courses this teacher teaches, with student and assignment counts."""
+        return teacher_courses(teacher_id)
+
+    @tool
+    def get_my_assignments() -> list[dict[str, Any]]:
+        """Assignments on this teacher's courses, including unchecked submission counts."""
+        return teacher_assignments(teacher_id)
+
+    @tool
+    def get_my_leave() -> list[dict[str, Any]]:
+        """This teacher's leave balances."""
+        return teacher_leave(teacher, teacher_id)
+
+    @tool
+    def get_my_payslip() -> dict[str, Any]:
+        """This month's payslip totals for this teacher. No bank or tax identifiers."""
+        return teacher_payslip(teacher)
+
+    @tool
+    def get_upcoming_holidays() -> list[dict[str, str]]:
+        """The next college holidays."""
+        return upcoming_holidays()
+
+    tools = [
+        get_my_courses,
+        get_my_assignments,
+        get_my_leave,
+        get_my_payslip,
+        get_upcoming_holidays,
+    ]
+    llm = get_llm().bind_tools(tools)
+
+    def assistant_node(state: MessagesState):
+        system_message = SystemMessage(content=FACULTY_SYSTEM_PROMPT)
+        response = llm.invoke([system_message, *state["messages"]])
+        return {"messages": [response]}
+
+    workflow = StateGraph(MessagesState)
+    workflow.add_node("assistant", assistant_node)
+    workflow.add_node("tools", ToolNode(tools))
+    workflow.add_edge(START, "assistant")
+    workflow.add_conditional_edges("assistant", tools_condition)
+    workflow.add_edge("tools", "assistant")
+    return workflow.compile()
+
+
+def invoke_faculty_agent(question: str, teacher_id: str, teacher: dict[str, Any]) -> str:
+    agent = build_faculty_agent(teacher_id, teacher)
+    result = agent.invoke({"messages": [{"role": "user", "content": question}]})
+    return result["messages"][-1].text
+
+
+def stream_faculty_agent(
+    question: str,
+    teacher_id: str,
+    teacher: dict[str, Any],
+) -> Iterator[str]:
+    agent = build_faculty_agent(teacher_id, teacher)
+    for message_chunk, metadata in agent.stream(
+        {"messages": [{"role": "user", "content": question}]},
+        stream_mode="messages",
+    ):
+        if metadata.get("langgraph_node") != "assistant":
+            continue
+        tool_calls = getattr(message_chunk, "tool_calls", None) or []
+        tool_call_chunks = getattr(message_chunk, "tool_call_chunks", None) or []
+        if tool_calls or tool_call_chunks:
+            continue
+        text = _chunk_text(getattr(message_chunk, "content", None))
+        if not text and isinstance(message_chunk, AIMessageChunk):
+            text = _chunk_text(getattr(message_chunk, "text", None))
+        if text:
+            yield text
 
 
 def invoke_erp_agent(

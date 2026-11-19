@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Select Course</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <link rel="stylesheet" href="/frontend/shared/lms.css?v=1">
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <div id="lms-sidebar" data-active="Select Course"></div>
+    <script src="/frontend/shared/lms-sidebar.js?v=1"></script>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <section class="panel">
+        <div class="page-kicker">SELECT COURSE</div>
+        <div class="warn mb-4">
+          <span aria-hidden="true">🔔</span>
+          <span>If the session is not binding, check the Exam Type on the session creation page.</span>
+        </div>
+
+        <label class="block text-sm mb-1" for="session"><span class="req">*</span>Session</label>
+        <select id="session" class="field max-w-xl mb-5">
+          <option>July-Dec 2026-2027 - School of Engineering and Technology</option>
+          <option>July-Dec 2025-2026 - School of Engineering and Technology</option>
+        </select>
+
+        <p id="status" class="text-sm text-gray-500 mb-3">Loading courses...</p>
+        <div id="courseGrid" class="course-grid"></div>
+        <p id="picked" class="text-sm text-emerald-700 mt-4 hidden"></p>
+      </section>
+    </main>
+  </div>
+
+  <footer class="foot">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    const CAP = `<svg class="cap" viewBox="0 0 64 48" width="46" height="36" aria-hidden="true">
+      <path d="M32 4 L60 18 L32 32 L4 18 Z" fill="#1e3a8a"/>
+      <path d="M14 26 v12 c6 6 30 6 36 0 V26" fill="none" stroke="#1e3a8a" stroke-width="3"/>
+      <path d="M60 18 v16" stroke="#f59e0b" stroke-width="3"/>
+      <circle cx="60" cy="36" r="3" fill="#f59e0b"/>
+    </svg>`;
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function cardTitle(course) {
+      return `${course.course_code} - ${course.course_name} - [${course.program}] - [ ${course.section} ]`;
+    }
+
+    let courses = [];
+    let selectedId = "";
+    try {
+      selectedId = JSON.parse(localStorage.getItem("facultySelectedCourse") || "null")?.id || "";
+    } catch (_) {
+      selectedId = "";
+    }
+
+    function render() {
+      const grid = document.getElementById("courseGrid");
+      const status = document.getElementById("status");
+      if (!courses.length) {
+        status.textContent = "No courses are assigned for this session.";
+        grid.innerHTML = "";
+        return;
+      }
+      status.textContent = "";
+      grid.innerHTML = courses.map((course) => `
+        <button type="button" class="course-card${course.id === selectedId ? " selected" : ""}" data-id="${escapeHTML(course.id)}">
+          ${CAP}
+          <div class="title">${escapeHTML(cardTitle(course))}</div>
+          <div class="meta">Type: ${escapeHTML(course.course_type)}</div>
+          <div class="meta">Year/Semester:${escapeHTML(course.year_semester)}</div>
+        </button>
+      `).join("");
+      grid.querySelectorAll(".course-card").forEach((button) => {
+        button.addEventListener("click", () => selectCourse(button.dataset.id));
+      });
+    }
+
+    function selectCourse(id) {
+      const course = courses.find((item) => item.id === id);
+      if (!course) return;
+      selectedId = id;
+      const stored = {
+        ...course,
+        session: document.getElementById("session").value,
+      };
+      localStorage.setItem("facultySelectedCourse", JSON.stringify(stored));
+      const picked = document.getElementById("picked");
+      picked.textContent = `Selected ${cardTitle(course)}. Open Create Assignment or Check Student Assignment.`;
+      picked.classList.remove("hidden");
+      render();
+    }
+
+    async function loadCourses() {
+      const response = await fetch(`${API}/api/faculty/courses`, { credentials: "include" });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+      const data = await response.json();
+      courses = data.courses || [];
+      render();
+    }
+
+    document.getElementById("session").addEventListener("change", () => {
+      if (!selectedId) return;
+      const course = courses.find((item) => item.id === selectedId);
+      if (!course) return;
+      localStorage.setItem("facultySelectedCourse", JSON.stringify({
+        ...course,
+        session: document.getElementById("session").value,
+      }));
+    });
+
+    loadCourses().catch(() => { window.location.href = LOGIN_URL; });
+  </script>
+</body>
+</html>

@@ -21,8 +21,17 @@ from erp_ai.tools.examination_tools import (
     get_exam_timetable as load_exam_timetable,
 )
 from assistant import router as assistant_router
+from attendance_api import router as attendance_router
+from attendance_register_api import router as attendance_register_router
+from extra_class_api import router as extra_class_router
+from faculty_api import ensure_lms_schema, router as faculty_router
+from mark_entry_api import router as mark_entry_router
+from establishment_api import router as establishment_router
+from obe_api import router as obe_router
+from payroll_api import router as payroll_router
+from teaching_plan_api import router as teaching_plan_router
 
-from auth import authenticate_user
+from auth import authenticate_user, change_user_password
 
 # Load .env from project root
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,11 +47,21 @@ TOKEN_EXPIRE_MINUTES = 30
 
 FRONTEND_DIR = BASE_DIR / "frontend"
 HOME_PAGE = FRONTEND_DIR / "home.html"
-LOGIN_URL = "http://127.0.0.1:5500/frontend/index.html"
+FACULTY_HOME_PAGE = FRONTEND_DIR / "faculty" / "home.html"
+LOGIN_URL = "http://127.0.0.1:8000/signin"
 
 app = FastAPI(title="ERP AI API")
 app.include_router(assignment_upload_router)
 app.include_router(assistant_router)
+app.include_router(faculty_router)
+app.include_router(teaching_plan_router)
+app.include_router(attendance_router)
+app.include_router(attendance_register_router)
+app.include_router(extra_class_router)
+app.include_router(mark_entry_router)
+app.include_router(payroll_router)
+app.include_router(establishment_router)
+app.include_router(obe_router)
 
 # Serve existing image/assets folder using both spellings
 ASSETS_DIR = FRONTEND_DIR / "assests"
@@ -87,6 +106,49 @@ if ASSETS_DIR.exists():
             StaticFiles(directory=pay_online_dir, html=True),
             name="PayOnline",
         )
+    faculty_lms_dir = FRONTEND_DIR / "faculty" / "LMS"
+    if faculty_lms_dir.exists():
+        app.mount(
+            "/faculty/LMS",
+            StaticFiles(directory=faculty_lms_dir, html=True),
+            name="faculty_lms",
+        )
+    # Mounted only when the folder exists, so reload after the page is added.
+    faculty_academic_dir = FRONTEND_DIR / "faculty" / "Academic"
+    if faculty_academic_dir.exists():
+        app.mount(
+            "/faculty/Academic",
+            StaticFiles(directory=faculty_academic_dir, html=True),
+            name="faculty_academic",
+        )
+    faculty_exam_dir = FRONTEND_DIR / "faculty" / "Examination"
+    if faculty_exam_dir.exists():
+        app.mount(
+            "/faculty/Examination",
+            StaticFiles(directory=faculty_exam_dir, html=True),
+            name="faculty_examination",
+        )
+    faculty_payroll_dir = FRONTEND_DIR / "faculty" / "Payroll"
+    if faculty_payroll_dir.exists():
+        app.mount(
+            "/faculty/Payroll",
+            StaticFiles(directory=faculty_payroll_dir, html=True),
+            name="faculty_payroll",
+        )
+    faculty_establishment_dir = FRONTEND_DIR / "faculty" / "Establishment"
+    if faculty_establishment_dir.exists():
+        app.mount(
+            "/faculty/Establishment",
+            StaticFiles(directory=faculty_establishment_dir, html=True),
+            name="faculty_establishment",
+        )
+    faculty_obe_dir = FRONTEND_DIR / "faculty" / "OBE"
+    if faculty_obe_dir.exists():
+        app.mount(
+            "/faculty/OBE",
+            StaticFiles(directory=faculty_obe_dir, html=True),
+            name="faculty_obe",
+        )
     app.mount(
         "/frontend",
         StaticFiles(directory=FRONTEND_DIR),
@@ -105,6 +167,7 @@ async def disable_static_cache(request, call_next):
         or path.startswith("/academic/")
         or path.startswith("/examination/")
         or path.startswith("/payonline/")
+        or path.startswith("/faculty/")
     ):
         response.headers["Cache-Control"] = (
             "no-store, no-cache, must-revalidate, max-age=0"
@@ -140,6 +203,11 @@ security = HTTPBearer()
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 
 def create_access_token(user: dict) -> str:
@@ -243,13 +311,36 @@ def protected_home(access_token: str | None = Cookie(default=None)):
         return RedirectResponse(LOGIN_URL, status_code=303)
 
     try:
-        verify_token(access_token)
+        user = verify_token(access_token)
     except HTTPException:
         response = RedirectResponse(LOGIN_URL, status_code=303)
         response.delete_cookie("access_token", path="/")
         return response
 
+    if user.get("role") == "teacher":
+        return RedirectResponse("/faculty/home", status_code=303)
+
     return FileResponse(HOME_PAGE)
+
+
+@app.get("/faculty/home")
+def faculty_home(access_token: str | None = Cookie(default=None)):
+    if not access_token:
+        return RedirectResponse(LOGIN_URL, status_code=303)
+
+    try:
+        user = verify_token(access_token)
+    except HTTPException:
+        response = RedirectResponse(LOGIN_URL, status_code=303)
+        response.delete_cookie("access_token", path="/")
+        return response
+
+    if user.get("role") != "teacher":
+        return RedirectResponse("/home", status_code=303)
+
+    if not FACULTY_HOME_PAGE.exists():
+        raise HTTPException(status_code=404, detail="Faculty home page missing")
+    return FileResponse(FACULTY_HOME_PAGE)
 
 
 @app.get("/session-user")
@@ -377,6 +468,7 @@ def get_course_assignments(
                 detail="Student profile not found",
             )
 
+        ensure_lms_schema(conn)
         rows = conn.execute(
             """
             SELECT
@@ -386,7 +478,10 @@ def get_course_assignments(
                 a.due_date,
                 s.submitted_at,
                 s.status,
-                s.marks_obtained,
+                CASE
+                    WHEN COALESCE(s.display_to_student, TRUE) THEN s.marks_obtained
+                    ELSE NULL
+                END,
                 a.max_marks
             FROM enrollments e
             JOIN assignments a ON a.course_id = e.course_id
@@ -395,6 +490,17 @@ def get_course_assignments(
                 AND s.student_id = e.student_id
             WHERE e.student_id = %s
               AND e.course_id = %s
+              AND (
+                NOT EXISTS (
+                    SELECT 1 FROM assignment_recipients r
+                    WHERE r.assignment_id = a.id
+                )
+                OR EXISTS (
+                    SELECT 1 FROM assignment_recipients r
+                    WHERE r.assignment_id = a.id
+                      AND r.student_id = e.student_id
+                )
+              )
             ORDER BY a.due_date DESC
             """,
             (student[0], course_id),
@@ -757,6 +863,43 @@ def make_payment(
     }
 
 
+@app.post("/api/change-password")
+def change_password(
+    data: ChangePasswordRequest,
+    access_token: str | None = Cookie(default=None),
+):
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    user = verify_token(access_token)
+    current = (data.current_password or "").strip()
+    new_password = (data.new_password or "").strip()
+
+    if len(new_password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be at least 6 characters",
+        )
+    if new_password == current:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different from the current password",
+        )
+
+    with get_connection() as conn:
+        ok, error = change_user_password(
+            conn,
+            user["id"],
+            current,
+            new_password,
+        )
+
+    if not ok:
+        raise HTTPException(status_code=400, detail=error or "Password change failed")
+
+    return {"message": "Password updated successfully"}
+
+
 @app.post("/logout")
 def logout(response: Response):
     response.delete_cookie("access_token", path="/")
@@ -770,7 +913,7 @@ def get_me(user: dict = Depends(get_current_user)):
 
 @app.get("/")
 def root():
-    return {"message": "ERP AI API is running"}
+    return RedirectResponse("/signin", status_code=303)
 
 
 @app.get("/signin")

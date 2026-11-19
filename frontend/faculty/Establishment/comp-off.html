@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Comp-Off Apply</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <link rel="stylesheet" href="/frontend/shared/establishment.css?v=1">
+  <style>.star { border:0; background:transparent; color:#d1d5db; } .star.on { color:#f59e0b; }</style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <div id="est-sidebar" data-active="Comp-Off Apply"></div>
+    <script src="/frontend/shared/establishment-sidebar.js?v=1"></script>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <section class="panel space-y-4">
+        <h1 class="text-base font-semibold text-gray-800">Comp-Off Apply</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-sm mb-1" for="workingDate"><span class="req">*</span>Working Date</label>
+            <input id="workingDate" type="date" class="field">
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="inTime">In Time</label>
+            <input id="inTime" type="time" step="1" value="08:13:30" class="field">
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="outTime">Out Time</label>
+            <input id="outTime" type="time" step="1" value="12:36:17" class="field">
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="workingHours">Working Hours</label>
+            <input id="workingHours" class="field" readonly>
+          </div>
+          <div class="md:col-span-2 xl:col-span-4">
+            <label class="block text-sm mb-1" for="reason"><span class="req">*</span>Reason</label>
+            <textarea id="reason" rows="3" class="field"></textarea>
+          </div>
+          <div class="md:col-span-2 xl:col-span-4">
+            <label class="block text-sm mb-1" for="path">Path</label>
+            <textarea id="path" rows="2" class="field" readonly></textarea>
+          </div>
+        </div>
+
+        <p id="formMsg" class="text-sm hidden"></p>
+        <div class="flex gap-2 justify-center">
+          <button type="button" id="submitBtn" class="outline-btn">Submit</button>
+          <button type="button" id="cancelBtn" class="cancel-btn">Cancel</button>
+        </div>
+
+        <div>
+          <div class="section-label">Comp-Off List</div>
+          <div class="tool-row">
+            <label class="search-label">Search: <input id="search" type="search"></label>
+            <div class="flex items-center gap-2">
+              <div class="menu">
+                <button type="button" id="colBtn" class="outline-btn">Column Visibility ▾</button>
+                <div id="colMenu" class="menu-panel hidden text-sm space-y-1"></div>
+              </div>
+              <button type="button" id="exportBtn" class="outline-btn">Export</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="est-table">
+              <thead>
+                <tr>
+                  <th data-col="working">Working Date</th>
+                  <th data-col="expiry">Expiry Date</th>
+                  <th data-col="in">In Time</th>
+                  <th data-col="out">Out Time</th>
+                  <th data-col="hours">Working Hour</th>
+                  <th data-col="days">No. of Day</th>
+                  <th data-col="status">Status</th>
+                </tr>
+              </thead>
+              <tbody id="listBody"></tbody>
+            </table>
+          </div>
+          <div id="pager" class="pager"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="foot">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    const COLUMNS = [
+      ["working", "Working Date"], ["expiry", "Expiry Date"], ["in", "In Time"],
+      ["out", "Out Time"], ["hours", "Working Hour"], ["days", "No. of Day"], ["status", "Status"],
+    ];
+    let rows = [];
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function statusClass(status) {
+      const value = String(status || "").toLowerCase();
+      if (value.includes("approved")) return "approved";
+      if (value.includes("reject") || value.includes("cancel")) return "cancelled";
+      return "pending";
+    }
+    function setMsg(text, ok) {
+      const el = document.getElementById("formMsg");
+      if (!text) {
+        el.classList.add("hidden");
+        el.textContent = "";
+        return;
+      }
+      el.textContent = text;
+      el.className = `text-sm ${ok ? "text-green-600" : "text-red-600"}`;
+    }
+    function parseTime(value) {
+      const parts = String(value || "00:00:00").split(":").map(Number);
+      return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+    }
+    function formatDuration(seconds) {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    }
+    function syncHours() {
+      const start = parseTime(document.getElementById("inTime").value);
+      const end = parseTime(document.getElementById("outTime").value);
+      if (end > start) {
+        document.getElementById("workingHours").value = formatDuration(end - start);
+      } else {
+        document.getElementById("workingHours").value = "";
+      }
+    }
+    function visibleRows() {
+      const query = document.getElementById("search").value.trim().toLowerCase();
+      return rows.filter((row) => !query || [
+        row.working_date, row.expiry_date, row.status, row.working_hours
+      ].join(" ").toLowerCase().includes(query));
+    }
+    function applyColumns() {
+      document.querySelectorAll("#colMenu input[data-col]").forEach((box) => {
+        document.querySelectorAll(`[data-col="${box.dataset.col}"]`).forEach((cell) => {
+          cell.style.display = box.checked ? "" : "none";
+        });
+      });
+    }
+    function render() {
+      const list = visibleRows();
+      const body = document.getElementById("listBody");
+      if (!list.length) {
+        body.innerHTML = `<tr><td colspan="7" class="text-center text-gray-500">No Comp-Off records.</td></tr>`;
+      } else {
+        body.innerHTML = list.map((row) => `
+          <tr>
+            <td data-col="working">${escapeHTML(row.working_date)}</td>
+            <td data-col="expiry">${escapeHTML(row.expiry_date)}</td>
+            <td data-col="in">${escapeHTML(row.in_time)}</td>
+            <td data-col="out">${escapeHTML(row.out_time)}</td>
+            <td data-col="hours">${escapeHTML(row.working_hours)}</td>
+            <td data-col="days">${Number(row.no_of_day).toFixed(2)}</td>
+            <td data-col="status"><span class="status-pill ${statusClass(row.status)}">${escapeHTML(row.status)}</span></td>
+          </tr>
+        `).join("");
+      }
+      document.getElementById("pager").textContent =
+        `Showing ${list.length ? 1 : 0} to ${list.length} of ${rows.length} entries`;
+      applyColumns();
+    }
+
+    async function loadList() {
+      const response = await fetch(`${API}/api/faculty/establishment/comp-off`, { credentials: "include" });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+      const data = await response.json();
+      rows = data.applications || [];
+      document.getElementById("path").value = data.approval_path || "";
+      render();
+    }
+
+    function resetForm() {
+      document.getElementById("workingDate").value = "";
+      document.getElementById("inTime").value = "08:13:30";
+      document.getElementById("outTime").value = "12:36:17";
+      document.getElementById("reason").value = "";
+      syncHours();
+      setMsg("", true);
+    }
+
+    document.getElementById("colMenu").innerHTML = COLUMNS.map(([key, label]) =>
+      `<label class="flex items-center gap-2"><input type="checkbox" data-col="${key}" checked> ${label}</label>`
+    ).join("");
+    document.getElementById("colBtn").addEventListener("click", () => {
+      document.getElementById("colMenu").classList.toggle("hidden");
+    });
+    document.getElementById("colMenu").addEventListener("change", applyColumns);
+    document.getElementById("search").addEventListener("input", render);
+    document.getElementById("inTime").addEventListener("input", syncHours);
+    document.getElementById("outTime").addEventListener("input", syncHours);
+    document.getElementById("cancelBtn").addEventListener("click", resetForm);
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const lines = [["Working Date", "Expiry Date", "In Time", "Out Time", "Working Hour", "No. of Day", "Status"].join(",")];
+      visibleRows().forEach((row) => {
+        lines.push([row.working_date, row.expiry_date, row.in_time, row.out_time, row.working_hours, row.no_of_day, row.status]
+          .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","));
+      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+      link.download = "comp-off.csv";
+      link.click();
+    });
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const payload = {
+        working_date: document.getElementById("workingDate").value,
+        in_time: document.getElementById("inTime").value,
+        out_time: document.getElementById("outTime").value,
+        reason: document.getElementById("reason").value.trim(),
+      };
+      if (!payload.working_date) return setMsg("Working Date is required.", false);
+      if (!payload.reason) return setMsg("Reason is required.", false);
+      const response = await fetch(`${API}/api/faculty/establishment/comp-off`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return setMsg(data.detail || "Could not submit Comp-Off.", false);
+      setMsg("Comp-Off application submitted.", true);
+      resetForm();
+      await loadList();
+    });
+
+    syncHours();
+    loadList().catch(() => { window.location.href = LOGIN_URL; });
+  </script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Mark Entry Report</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; color: #374151; }
+    .side-link { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; font-size: 13px; color: #4b5563; }
+    .side-link.active { color: #4f46e5; background: #eef2ff; border-left: 3px solid #4f46e5; }
+    .panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px 18px 18px; }
+    .field { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #fff; }
+    .table-head { border-bottom: 2px solid #60a5fa; padding: 8px 6px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-align: left; }
+    tbody tr:nth-child(even) { background: #f3f4f6; }
+    tbody td { padding: 8px 6px; font-size: 13px; }
+    .print-btn { width: 34px; height: 34px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; }
+    .print-btn:hover { background: #eef2ff; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+    .outline-btn { border: 1px solid #818cf8; color: #4f46e5; background: #fff; border-radius: 6px; padding: 6px 14px; font-size: 13px; }
+    @media print {
+      body { background: #fff; }
+      #facultyNavbar, aside, footer, .side-rail, #filterCard, #reportCard, .no-print { display: none !important; }
+      #preview { display: block !important; box-shadow: none; border: 0; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=10"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <aside id="sideBar" class="w-60 bg-white border-r hidden md:flex md:flex-col shrink-0">
+      <div class="px-4 py-3 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
+        OBE
+        <button type="button" id="sideClose" class="text-gray-400 text-lg leading-none" aria-label="Close">×</button>
+      </div>
+      <a href="/faculty/OBE/mark-report.html" class="side-link active">Mark Entry Report <span>☆</span></a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <section id="filterCard" class="panel mb-4">
+        <h1 class="text-base font-semibold tracking-wide text-gray-800 mb-4">MARK ENTRY REPORT</h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm mb-1" for="session">Session</label>
+            <select id="session" class="field"></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="subjectType">Subject Type</label>
+            <select id="subjectType" class="field">
+              <option value="Theory">Theory</option>
+              <option value="Practical">Practical</option>
+            </select>
+          </div>
+        </div>
+        <p id="formMsg" class="text-sm mt-3 hidden"></p>
+      </section>
+
+      <section id="reportCard" class="panel">
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[860px]">
+            <thead>
+              <tr>
+                <th class="table-head w-12">SR</th>
+                <th class="table-head">SUBJECT NAME</th>
+                <th class="table-head w-16">SEM</th>
+                <th class="table-head w-16">SEC</th>
+                <th class="table-head w-40">EXAM NAME</th>
+                <th class="table-head w-16">PRINT</th>
+              </tr>
+            </thead>
+            <tbody id="reportBody"></tbody>
+          </table>
+        </div>
+        <p id="emptyNote" class="text-sm text-center text-gray-500 py-8 hidden">No records to display..</p>
+      </section>
+
+      <section id="preview" class="panel mt-4 hidden">
+        <div class="flex items-center justify-between gap-3 mb-3 no-print">
+          <h2 class="font-semibold">Question Wise Marks</h2>
+          <div class="flex gap-2">
+            <button type="button" id="printBtn" class="outline-btn">Print</button>
+            <button type="button" id="closePreview" class="outline-btn">Close</button>
+          </div>
+        </div>
+        <div id="previewBody"></div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="text-center text-xs text-gray-500 py-4">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail no-print">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    let meta = null;
+    let scheme = "";
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function formatMark(value) {
+      if (value == null || value === "") return "";
+      const number = Number(value);
+      return Number.isNaN(number) ? "" : number.toFixed(2);
+    }
+    function setMsg(text, kind) {
+      const el = document.getElementById("formMsg");
+      if (!text) { el.classList.add("hidden"); el.textContent = ""; return; }
+      el.textContent = text;
+      el.className = `text-sm mt-3 ${kind === "error" ? "text-red-600" : "text-green-700"}`;
+    }
+    async function api(path) {
+      const response = await fetch(`${API}${path}`, { credentials: "include" });
+      if (response.status === 401) { window.location.href = LOGIN_URL; return null; }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || "Request failed");
+      return data;
+    }
+    function renderReport(rows) {
+      document.getElementById("emptyNote").classList.toggle("hidden", rows.length > 0);
+      document.getElementById("reportBody").innerHTML = rows.map((row) => `
+        <tr>
+          <td>${row.sr}</td>
+          <td class="whitespace-nowrap">${escapeHTML(row.subject)}</td>
+          <td>${escapeHTML(row.semester)}</td>
+          <td>${escapeHTML(row.section)}</td>
+          <td>${escapeHTML(row.exam_name)}</td>
+          <td>
+            <button type="button" class="print-btn" title="Print" data-course="${escapeHTML(row.course_id)}" data-exam="${escapeHTML(row.exam_name)}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="1.8" class="mx-auto"><path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2"/></svg>
+            </button>
+          </td>
+        </tr>`).join("");
+    }
+    async function loadReport() {
+      const session = document.getElementById("session").value;
+      const subjectType = document.getElementById("subjectType").value;
+      if (!session) return;
+      setMsg("", "");
+      const params = new URLSearchParams({ session_label: session, subject_type: subjectType });
+      const data = await api(`/api/faculty/obe/report?${params.toString()}`);
+      if (!data) return;
+      renderReport(data.rows || []);
+    }
+    function renderPreview(sheet) {
+      const questions = sheet.questions || [];
+      const head = questions.map((question) => `<th class="table-head">${escapeHTML(question.code)}<div class="font-normal">(${formatMark(question.max_marks)})</div></th>`).join("");
+      const body = (sheet.rows || []).map((row) => {
+        const cells = questions.map((question) => `<td>${formatMark(row.marks?.[question.code])}</td>`).join("");
+        const total = row.status_code ? `${row.status_code}.00` : formatMark(row.total);
+        return `<tr><td>${escapeHTML(row.roll_number)}</td><td>${escapeHTML(row.name)}</td><td>${escapeHTML(row.status_code || "")}</td>${cells}<td>${escapeHTML(total)}</td></tr>`;
+      }).join("");
+      document.getElementById("previewBody").innerHTML = `
+        <div class="text-center mb-3">
+          <div class="font-semibold">JECRC University</div>
+          <div class="text-sm">Question Wise Mark Entry — ${escapeHTML(sheet.exam_name)}</div>
+        </div>
+        <div class="text-sm mb-3 grid grid-cols-1 md:grid-cols-2 gap-1">
+          <div>Subject: ${escapeHTML(sheet.course?.label || "")}</div>
+          <div>Max Marks: ${formatMark(sheet.max_marks)}</div>
+          <div>Session: ${escapeHTML(sheet.session_label || "")}</div>
+          <div>Students: ${sheet.student_count ?? ""}</div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border">
+            <thead><tr><th class="table-head">Reg No.</th><th class="table-head">Student</th><th class="table-head">Status</th>${head}<th class="table-head">Total</th></tr></thead>
+            <tbody>${body || `<tr><td colspan="6" class="text-center py-4">No marks entered yet.</td></tr>`}</tbody>
+          </table>
+        </div>`;
+      document.getElementById("preview").classList.remove("hidden");
+      document.getElementById("preview").scrollIntoView({ behavior: "smooth" });
+    }
+
+    document.getElementById("sideClose").addEventListener("click", () => {
+      document.getElementById("sideBar").classList.add("hidden");
+    });
+    document.getElementById("session").addEventListener("change", () => {
+      loadReport().catch((error) => setMsg(error.message, "error"));
+    });
+    document.getElementById("subjectType").addEventListener("change", () => {
+      loadReport().catch((error) => setMsg(error.message, "error"));
+    });
+    document.getElementById("reportBody").addEventListener("click", (event) => {
+      const button = event.target.closest(".print-btn");
+      if (!button) return;
+      const params = new URLSearchParams({
+        session_label: document.getElementById("session").value,
+        scheme,
+        exam_name: button.dataset.exam,
+        course_id: button.dataset.course,
+      });
+      api(`/api/faculty/obe/sheet?${params.toString()}`)
+        .then((sheet) => { if (sheet) renderPreview(sheet); })
+        .catch((error) => setMsg(error.message, "error"));
+    });
+    document.getElementById("printBtn").addEventListener("click", () => window.print());
+    document.getElementById("closePreview").addEventListener("click", () => {
+      document.getElementById("preview").classList.add("hidden");
+    });
+
+    api("/api/faculty/obe/meta").then((data) => {
+      if (!data) return;
+      meta = data;
+      scheme = data.schemes?.[0] || "";
+      const session = document.getElementById("session");
+      session.innerHTML = (data.report_sessions || []).map((item) => `<option value="${escapeHTML(item)}">${escapeHTML(item)}</option>`).join("");
+      return loadReport();
+    }).catch((error) => setMsg(error.message, "error"));
+  </script>
+</body>
+</html>

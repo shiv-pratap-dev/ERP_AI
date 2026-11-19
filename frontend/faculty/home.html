@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Faculty Home</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
+    .card { background: white; border: 1px solid #e5e7eb; border-radius: 13px; overflow: hidden; }
+    .card-title { padding: 15px; border-bottom: 1px solid #e5e7eb; font-size: 15px; font-weight: 500; color: #374151; }
+    .stat-card { border: 1px solid #dedfe3; border-radius: 10px; padding: 17px; min-height: 110px; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 4px; font-size: 12px; font-weight: bold; color: #374151; }
+    .empty-row { background: #e0f2fe; color: #334155; text-align: center; padding: 14px; font-size: 13px; }
+    .notice-date { background: #14b8a6; color: white; border-radius: 12px; min-width: 52px; padding: 8px 6px; text-align: center; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; box-shadow: 0 2px 8px #0002; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <main class="p-4 sm:p-6 flex-1">
+    <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+      <div class="card p-4">
+        <div class="stat-card">
+          <p class="text-gray-500 text-sm">Biometric Attendance</p>
+          <p class="text-2xl text-red-600 mt-2" id="biometricValue">57.14%</p>
+        </div>
+      </div>
+      <div class="card p-4">
+        <div class="stat-card">
+          <p class="text-gray-500 text-sm">Casual Leave Balance</p>
+          <p class="text-2xl text-gray-800 mt-2" id="leaveBalance">0.00</p>
+        </div>
+      </div>
+      <div class="card p-4">
+        <div class="stat-card">
+          <p class="text-gray-500 text-sm">Upcoming Holidays (Nov)</p>
+          <p class="text-2xl text-emerald-600 mt-2" id="holidayCount">2</p>
+        </div>
+      </div>
+      <div class="card p-4">
+        <div class="stat-card">
+          <p class="text-gray-500 text-sm">Pending Assignment Checks</p>
+          <p class="text-2xl text-indigo-600 mt-2" id="pendingChecks">0</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-[1.2fr_1fr_1.1fr] gap-4 mb-4">
+      <div class="card">
+        <div class="card-title">My Courses</div>
+        <div class="p-4" id="coursesBox">
+          <div class="empty-row rounded">Loading courses...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Quick Actions</div>
+        <div class="p-4 space-y-3">
+          <a href="/faculty/Academic/teaching-plan.html" class="block border rounded-lg px-4 py-3 hover:bg-indigo-50 text-sm">Teaching Plan Entry</a>
+          <a href="/faculty/Academic/attendance.html" class="block border rounded-lg px-4 py-3 hover:bg-indigo-50 text-sm">Attendance By Faculty</a>
+          <a href="/faculty/Academic/extra-class.html" class="block border rounded-lg px-4 py-3 hover:bg-indigo-50 text-sm">Extra Class Time Table</a>
+          <a href="/faculty/Academic/attendance-register.html" class="block border rounded-lg px-4 py-3 hover:bg-indigo-50 text-sm">Attendance Register Report</a>
+          <a href="/faculty/Examination/mark-entry.html" class="block border rounded-lg px-4 py-3 hover:bg-indigo-50 text-sm">Mark Entry</a>
+          <a href="/faculty/LMS/select-course.html" class="block border rounded-lg px-4 py-3 hover:bg-indigo-50 text-sm">Select Course</a>
+          <a href="/faculty/LMS/create-assignment.html" class="block border rounded-lg px-4 py-3 hover:bg-indigo-50 text-sm">Create Assignment</a>
+          <a href="/faculty/LMS/check-assignment.html" class="block border rounded-lg px-4 py-3 hover:bg-indigo-50 text-sm">Check Student Assignment</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Active Notice / News</div>
+        <div class="p-4 space-y-3" id="noticesBox"></div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
+      <div class="card">
+        <div class="card-title">Today's Time Table</div>
+        <div class="p-3">
+          <table class="w-full text-sm">
+            <thead>
+              <tr>
+                <th class="table-head text-left">Slot</th>
+                <th class="table-head text-left">Subject</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="2" class="empty-row">No records to display..</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Invigilation Schedule</div>
+        <div class="p-3">
+          <table class="w-full text-sm">
+            <thead>
+              <tr>
+                <th class="table-head text-left">Exam Date</th>
+                <th class="table-head text-left">Slot</th>
+                <th class="table-head text-left">Room</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="3" class="empty-row">No records to display..</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="text-center text-xs text-gray-500 py-4">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    async function loadDashboard() {
+      const response = await fetch(`${API}/api/faculty/dashboard`, { credentials: "include" });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+      const data = await response.json();
+      const stats = data.stats || {};
+      document.getElementById("biometricValue").textContent = `${stats.biometric_attendance ?? 57.14}%`;
+      document.getElementById("leaveBalance").textContent = Number(stats.casual_leave_balance || 0).toFixed(2);
+      document.getElementById("holidayCount").textContent = stats.upcoming_holidays ?? 2;
+      document.getElementById("pendingChecks").textContent = stats.pending_checks ?? 0;
+
+      const notices = data.notices || [];
+      document.getElementById("noticesBox").innerHTML = notices.map((item) => `
+        <div class="flex items-start gap-3">
+          <div class="notice-date text-xs">
+            <div class="font-semibold">${escapeHTML(item.month)}</div>
+            <div>${escapeHTML(item.day)}</div>
+          </div>
+          <p class="text-sm text-sky-700">${escapeHTML(item.title)}</p>
+        </div>
+      `).join("") || `<div class="empty-row rounded">No notices</div>`;
+    }
+
+    async function loadCourses() {
+      const response = await fetch(`${API}/api/faculty/courses`, { credentials: "include" });
+      if (!response.ok) return;
+      const data = await response.json();
+      const courses = data.courses || [];
+      const box = document.getElementById("coursesBox");
+      if (!courses.length) {
+        box.innerHTML = `<div class="empty-row rounded">No courses assigned.</div>`;
+        return;
+      }
+      box.innerHTML = `
+        <div class="space-y-2">
+          ${courses.map((c) => `
+            <button type="button"
+              class="w-full text-left border rounded-lg px-3 py-2 hover:border-indigo-300 hover:bg-indigo-50"
+              data-course='${escapeHTML(JSON.stringify(c))}'>
+              <div class="font-medium text-sm text-gray-800">${escapeHTML(c.course_code)} · ${escapeHTML(c.course_name)}</div>
+              <div class="text-xs text-gray-500 mt-1">Sem ${escapeHTML(c.semester)} · ${escapeHTML(c.student_count)} students · ${escapeHTML(c.assignment_count)} assignments</div>
+            </button>
+          `).join("")}
+        </div>
+      `;
+      box.querySelectorAll("button[data-course]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          localStorage.setItem("facultySelectedCourse", btn.dataset.course);
+          window.location.href = "/faculty/LMS/check-assignment.html";
+        });
+      });
+    }
+
+    loadDashboard().catch(() => {
+      window.location.href = LOGIN_URL;
+    });
+    loadCourses().catch(() => {});
+  </script>
+</body>
+</html>

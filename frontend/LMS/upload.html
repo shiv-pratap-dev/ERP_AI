@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JECRC ERP | Upload Assignment</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=3">
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=4">
+  <link rel="stylesheet" href="/frontend/shared/erp-assistant.css?v=7">
   <style>
     *{box-sizing:border-box}
     body{font-family:Arial,Helvetica,sans-serif;background:#f3f4f6;margin:0}
@@ -86,10 +87,10 @@
             <div class="w-20 h-20 rounded-full bg-yellow-400 mx-auto mb-3 flex items-center justify-center text-white text-3xl font-bold">S</div>
             <p id="welcomeMessage" class="font-medium text-gray-800">Welcome!</p>
           </div>
-          <a href="#" data-page="User Profile" class="block px-4 py-3 hover:bg-gray-100 text-sm">👤 &nbsp; User Profile</a>
+          <a href="/Academic/student-detail.html" class="block px-4 py-3 hover:bg-gray-100 text-sm">👤 &nbsp; User Profile</a>
           <a href="/home" class="block px-4 py-3 hover:bg-gray-100 text-sm">🏠 &nbsp; Home</a>
           <div class="flex justify-around border-t p-4">
-            <button title="Change Password" onclick="showNotice('Change Password')" class="utility-btn" type="button">🔑</button>
+            <button id="changePasswordBtn" title="Change Password" class="utility-btn" type="button">🔑</button>
             <button title="Logout" onclick="logout()" class="bg-red-600 text-white rounded-lg w-11 h-11" type="button">⏻</button>
           </div>
         </div>
@@ -108,7 +109,8 @@
   </div>
 </div>
 
-  <script src="/frontend/shared/navbar.js?v=3"></script>
+  <script src="/frontend/shared/navbar.js?v=5"></script>
+  <script src="/frontend/shared/erp-assistant.js?v=7"></script>
 
 
 <div class="flex flex-1 min-h-0">
@@ -201,7 +203,7 @@
   async function logout(){
     if(loggingOut) return; loggingOut = true;
     try { await fetch(`${API}/logout`, {method:"POST", credentials:"include"}); }
-    finally { sessionStorage.clear(); window.location.href = "http://127.0.0.1:5500/frontend/index.html"; }
+    finally { sessionStorage.clear(); window.location.href = "http://127.0.0.1:8000/signin"; }
   }
   const INACTIVITY_LIMIT = 15 * 60 * 1000;
   let inactivityTimer;
@@ -255,7 +257,7 @@
   async function loadDetails(){
     try{
       const response=await fetch(`${API}/api/assignments/${encodeURIComponent(selectedAssignment.id)}`,{credentials:"include"});
-      if(response.status===401){window.location.href="http://127.0.0.1:5500/frontend/index.html";return;}
+      if(response.status===401){window.location.href="http://127.0.0.1:8000/signin";return;}
       const data=await response.json();
       if(!response.ok) throw new Error(data.detail || "Could not load assignment.");
       assignmentDetails=data;
@@ -291,7 +293,7 @@
         method:"POST",body:formData,credentials:"include"
       });
       const data=await response.json();
-      if(response.status===401){window.location.href="http://127.0.0.1:5500/frontend/index.html";return;}
+      if(response.status===401){window.location.href="http://127.0.0.1:8000/signin";return;}
       if(!response.ok) throw new Error(data.detail || "Upload failed.");
       showMessage(data.message,"success");
       fileInput.value="";
@@ -304,7 +306,7 @@
   fetch(`${API}/session-user`,{credentials:"include"})
     .then(r=>{if(!r.ok) throw new Error("Not logged in");return r.json();})
     .then(data=>document.getElementById("welcomeMessage").textContent=`Welcome ${data.user.email}`)
-    .catch(()=>{window.location.href="http://127.0.0.1:5500/frontend/index.html";});
+    .catch(()=>{window.location.href="http://127.0.0.1:8000/signin";});
   loadDetails();
 </script>
 </body>

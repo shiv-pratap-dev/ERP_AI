@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Attendance By Faculty</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
+    .side-link { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; font-size: 13px; color: #4b5563; }
+    .side-link.active { color: #4f46e5; background: #eef2ff; border-left: 3px solid #4f46e5; }
+    .outline-btn { border: 1px solid #6366f1; color: #4f46e5; background: #fff; border-radius: 6px; padding: 6px 12px; font-size: 13px; }
+    .outline-btn:hover { background: #eef2ff; }
+    .outline-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .cancel-btn { border: 1px solid #f87171; color: #dc2626; background: #fff; border-radius: 6px; padding: 6px 12px; font-size: 13px; }
+    .cancel-btn:hover { background: #fef2f2; }
+    .field { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #fff; }
+    .field:disabled { background: #f3f4f6; color: #6b7280; }
+    .req { color: #dc2626; margin-right: 2px; }
+    .month-bar { display: grid; grid-template-columns: 140px 1fr 140px; background: #fff; border: 1px solid #e5e7eb; border-bottom: none; }
+    .month-title { background: #1d4f91; color: #fff; text-align: center; font-weight: 700; padding: 10px; }
+    .month-nav { background: #f8fafc; color: #64748b; text-align: center; padding: 10px; font-size: 14px; }
+    .month-nav button { color: #64748b; }
+    .month-nav button:hover { color: #1d4f91; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-left: 1px solid #e5e7eb; }
+    .cal-head, .cal-day { border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+    .cal-head { background: #f8fafc; text-align: center; font-size: 13px; color: #4b5563; padding: 8px 4px; }
+    .cal-day { min-height: 92px; background: #fff; padding: 4px 6px 8px; position: relative; }
+    .cal-day.today { background: #d9f5df; }
+    .cal-day.outside { background: #fafafa; }
+    .cal-date { font-size: 13px; color: #6b7280; }
+    .cal-day.outside .cal-date { color: #d1d5db; }
+    .lock { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); color: #c4b5fd; }
+    .course-btn { display: block; width: 100%; text-align: center; font-size: 12px; font-weight: 700; line-height: 1.25; background: transparent; margin-top: 2px; }
+    .course-btn.green { color: #16a34a; }
+    .course-btn.orange { color: #ea580c; }
+    .course-btn:hover { text-decoration: underline; }
+    .notation { display: grid; grid-template-columns: 180px 1fr 180px 1fr; border: 1px solid #e5e7eb; border-top: 3px solid #fb923c; margin-top: 8px; background: #fff; }
+    .notation div { padding: 8px 10px; font-size: 12px; color: #6b7280; border-right: 1px solid #f3f4f6; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 6px; font-size: 12px; font-weight: 700; color: #374151; text-align: left; white-space: nowrap; }
+    .mark-table td { padding: 7px 6px; font-size: 13px; border-bottom: 1px solid #f3f4f6; white-space: nowrap; }
+    .mark-table tr:hover td { background: #f8fafc; }
+    .roll { color: #2563eb; font-weight: 600; }
+    .rrno.blue { color: #2563eb; font-weight: 700; }
+    .rrno.green { color: #15803d; font-weight: 700; }
+    .rrno.red { color: #dc2626; font-weight: 700; }
+    .late { width: 74px; border: 1px solid #e5e7eb; border-radius: 4px; padding: 4px 6px; font-size: 12px; background: #f3f4f6; }
+    .late:disabled { color: #9ca3af; }
+    .late:not(:disabled) { background: #fff; }
+    .hist-p { color: #16a34a; font-weight: 700; }
+    .hist-a { color: #dc2626; font-weight: 700; }
+    .hist-od { color: #15803d; font-weight: 700; }
+    .count-box { min-width: 150px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+    .count-row { display: flex; justify-content: space-between; gap: 16px; padding: 6px 10px; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
+    .count-row:last-child { border-bottom: none; }
+    .status-pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.03em; }
+    .status-pill.complete { color: #15803d; background: #ecfdf3; border: 1px solid #86efac; }
+    .status-pill.pending { color: #b45309; background: #fffbeb; border: 1px solid #fcd34d; }
+    .subject-link { color: #2563eb; text-align: left; font-size: 13px; }
+    .subject-link:hover { text-decoration: underline; }
+    .legend { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: #4b5563; margin-top: 10px; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+    .mini { width: 72px; text-align: center; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <aside class="w-60 bg-white border-r hidden md:flex md:flex-col shrink-0">
+      <div class="px-4 py-3 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
+        Faculty Related
+        <span class="text-gray-400">×</span>
+      </div>
+      <a href="/faculty/Academic/teaching-plan.html" class="side-link">Teaching Plan Entry <span>☆</span></a>
+      <a href="/faculty/Academic/attendance.html" class="side-link active">Attendance By Faculty <span>☆</span></a>
+      <a href="/faculty/Academic/extra-class.html" class="side-link">Extra Class Time Table <span>☆</span></a>
+      <a href="/faculty/Academic/attendance-register.html" class="side-link">Attendance Register Report <span>☆</span></a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <section id="calendarView" class="bg-white rounded-xl border shadow-sm p-3 md:p-4">
+        <div class="month-bar rounded-t-lg overflow-hidden">
+          <div class="month-nav"><button type="button" id="prevMonth"></button></div>
+          <div class="month-title" id="monthTitle">Loading...</div>
+          <div class="month-nav"><button type="button" id="nextMonth"></button></div>
+        </div>
+        <div class="cal-grid" id="calHead"></div>
+        <div class="cal-grid" id="calBody"></div>
+        <div class="notation">
+          <div>Notation</div>
+          <div>Description</div>
+          <div>Notation</div>
+          <div>Description</div>
+          <div class="text-green-600 font-semibold">Course code</div>
+          <div>Lecture on or before today</div>
+          <div class="text-orange-600 font-semibold">Course code</div>
+          <div>Upcoming lecture</div>
+          <div class="text-violet-400">Lock</div>
+          <div>No lecture scheduled</div>
+          <div></div>
+          <div></div>
+        </div>
+        <p id="calMsg" class="text-sm text-red-600 mt-3 hidden"></p>
+      </section>
+
+      <section id="sheetView" class="bg-white rounded-xl border shadow-sm p-4 md:p-5 hidden">
+        <div class="flex flex-col xl:flex-row xl:items-start gap-4 mb-4">
+          <div class="flex-1 text-sm text-gray-700 space-y-2">
+            <div class="grid grid-cols-[90px_1fr] gap-2">
+              <div class="font-semibold">Date</div>
+              <div id="sheetDate"></div>
+            </div>
+            <div class="grid grid-cols-[90px_1fr] gap-2">
+              <div class="font-semibold">Course</div>
+              <div id="sheetCourse" class="leading-5"></div>
+            </div>
+            <p id="submittedLine" class="text-xs text-gray-500"></p>
+          </div>
+          <div class="count-box">
+            <div class="count-row"><span>Total</span><strong id="countTotal">0</strong></div>
+            <div class="count-row"><span>Present</span><strong id="countPresent">0</strong></div>
+            <div class="count-row"><span>Absent</span><strong id="countAbsent">0</strong></div>
+            <div class="count-row"><span>OD</span><strong id="countOd">0</strong></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-3 items-end">
+          <div>
+            <label class="block text-sm mb-1" for="classType"><span class="req">*</span>Class Type</label>
+            <select id="classType" class="field"></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="attendanceStatus"><span class="req">*</span>Attendance Status</label>
+            <select id="attendanceStatus" class="field"></select>
+          </div>
+          <div class="lg:col-span-2">
+            <label class="block text-sm mb-1" for="topicCovered"><span class="req">*</span>Topic Covered</label>
+            <select id="topicCovered" class="field"></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="topicStatus"><span class="req">*</span>Topic Covered Status</label>
+            <select id="topicStatus" class="field"></select>
+          </div>
+          <div class="hidden lg:block"></div>
+          <div>
+            <label class="block text-sm mb-1">Absent</label>
+            <input id="absentBox" class="field mini" readonly>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">OD</label>
+            <input id="odBox" class="field mini" readonly>
+          </div>
+        </div>
+
+        <p id="sheetMsg" class="text-sm mt-3 hidden"></p>
+        <div class="flex flex-wrap gap-2 justify-center mt-4">
+          <button type="button" id="submitBtn" class="outline-btn">Submit</button>
+          <button type="button" id="unlockBtn" class="cancel-btn hidden">Unlock</button>
+          <button type="button" id="registerBtn" class="outline-btn">Attendance Register</button>
+          <button type="button" id="backBtn" class="outline-btn">Back</button>
+          <button type="button" id="cancelBtn" class="cancel-btn">Cancel</button>
+        </div>
+
+        <div class="mt-4">
+          <input id="studentSearch" class="field max-w-xs" placeholder="Search" autocomplete="off">
+        </div>
+        <div class="overflow-x-auto border rounded-lg mt-3">
+          <table class="w-full mark-table">
+            <thead>
+              <tr>
+                <th class="table-head"><input id="checkAll" type="checkbox"></th>
+                <th class="table-head">RRNO</th>
+                <th class="table-head">Roll No.</th>
+                <th class="table-head">Name</th>
+                <th class="table-head">Late by Time (MM:SS)</th>
+                <th class="table-head" id="historyHead"></th>
+              </tr>
+            </thead>
+            <tbody id="studentBody"></tbody>
+          </table>
+        </div>
+        <p id="showing" class="text-xs text-gray-500 mt-2"></p>
+        <div class="legend">
+          <span aria-hidden="true">🔔</span>
+          <div>
+            <div>• [Checked = Present, Unchecked = Absent, RRNO (Green)= OD Approved, RRNO (Red)= Absent]</div>
+            <div>• RRNO(Red) &amp; Check Box Disabled = Disciplinary Action Taken</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="text-center text-xs text-gray-500 py-4">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <div id="subjectModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-[10000] p-4">
+    <div class="bg-white rounded-xl shadow-xl w-[min(1100px,96vw)] max-h-[80vh] overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between px-4 py-3 border-b">
+        <h3 class="font-semibold text-gray-800">Subjects details for Attendance</h3>
+        <button type="button" id="closeSubjects" class="text-xl text-gray-500" aria-label="Close">×</button>
+      </div>
+      <div class="overflow-auto p-4">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="table-head">Subject</th>
+              <th class="table-head">Course Type</th>
+              <th class="table-head">Section</th>
+              <th class="table-head">LectureType</th>
+              <th class="table-head">Status</th>
+              <th class="table-head">Submitted By</th>
+              <th class="table-head">Submitted Date</th>
+              <th class="table-head">Lock/Unlock</th>
+            </tr>
+          </thead>
+          <tbody id="subjectBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="registerModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-[10000] p-4">
+    <div class="bg-white rounded-xl shadow-xl w-[min(860px,96vw)] max-h-[80vh] overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between px-4 py-3 border-b">
+        <h3 class="font-semibold text-gray-800">Attendance Register</h3>
+        <button type="button" id="closeRegister" class="text-xl text-gray-500" aria-label="Close">×</button>
+      </div>
+      <div class="px-4 py-2 text-sm text-gray-600" id="registerMeta"></div>
+      <div class="overflow-auto px-4 pb-4">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="table-head">Roll No.</th>
+              <th class="table-head">Name</th>
+              <th class="table-head">Status</th>
+              <th class="table-head">Late by Time</th>
+            </tr>
+          </thead>
+          <tbody id="registerBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+    let calendar = null;
+    let sheet = null;
+    let snapshot = "";
+    let modalSessions = [];
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    async function api(path, opts) {
+      const response = await fetch(`${API}${path}`, {
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...(opts && opts.headers) },
+        ...opts,
+      });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        throw new Error("auth");
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = data.detail;
+        throw new Error(typeof detail === "string" ? detail : "Request failed");
+      }
+      return data;
+    }
+
+    function setSheetMsg(text, ok) {
+      const el = document.getElementById("sheetMsg");
+      el.textContent = text;
+      el.className = `text-sm mt-3 ${ok ? "text-green-600" : "text-red-600"}`;
+      el.classList.remove("hidden");
+    }
+
+    function hide(el) { el.classList.add("hidden"); el.classList.remove("flex"); }
+    function showFlex(el) { el.classList.remove("hidden"); el.classList.add("flex"); }
+
+    function fillSelect(id, values, selected) {
+      const el = document.getElementById(id);
+      el.innerHTML = values.map((value) => {
+        const on = value === selected ? " selected" : "";
+        return `<option value="${escapeHTML(value)}"${on}>${escapeHTML(value)}</option>`;
+      }).join("");
+    }
+
+    async function loadCalendar(year, month) {
+      const query = year ? `?year=${year}&month=${month}` : "";
+      calendar = await api(`/api/faculty/attendance/calendar${query}`);
+      document.getElementById("prevMonth").textContent = calendar.prev.name;
+      document.getElementById("nextMonth").textContent = calendar.next.name;
+      document.getElementById("monthTitle").textContent = `${calendar.month_name} ${calendar.year}`;
+      document.getElementById("calHead").innerHTML = WEEKDAYS
+        .map((day) => `<div class="cal-head">${day}</div>`)
+        .join("");
+
+      const first = new Date(calendar.year, calendar.month - 1, 1);
+      const startOffset = (first.getDay() + 6) % 7;
+      const cursor = new Date(calendar.year, calendar.month - 1, 1 - startOffset);
+      let html = "";
+      for (let cell = 0; cell < 42; cell += 1) {
+        const iso = [
+          cursor.getFullYear(),
+          String(cursor.getMonth() + 1).padStart(2, "0"),
+          String(cursor.getDate()).padStart(2, "0"),
+        ].join("-");
+        const outside = cursor.getMonth() !== calendar.month - 1;
+        const today = iso === calendar.today;
+        const sessions = calendar.days[iso] || [];
+        const codes = sessions.map((session) => `
+          <button type="button" class="course-btn ${session.tone}" data-open="${session.id}">
+            ${escapeHTML(session.course_code)}
+          </button>
+        `).join("");
+        const lock = !outside && !sessions.length
+          ? `<span class="lock" title="No lecture">🔒</span>`
+          : "";
+        html += `
+          <div class="cal-day${today ? " today" : ""}${outside ? " outside" : ""}">
+            <div class="cal-date">${cursor.getDate()}</div>
+            ${lock}
+            <div class="${sessions.length ? "mt-4" : ""}">${codes}</div>
+          </div>
+        `;
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      document.getElementById("calBody").innerHTML = html;
+    }
+
+    function sessionsFor(id) {
+      for (const list of Object.values(calendar.days)) {
+        const found = list.find((session) => session.id === id);
+        if (found) return list;
+      }
+      return [];
+    }
+
+    function openSubjects(sessionId) {
+      modalSessions = sessionsFor(sessionId);
+      renderSubjects();
+      showFlex(document.getElementById("subjectModal"));
+    }
+
+    function renderSubjects() {
+      document.getElementById("subjectBody").innerHTML = modalSessions.map((session) => {
+        const pill = session.status === "COMPLETE" ? "complete" : "pending";
+        const lockLabel = session.locked ? "Unlock" : (session.submitted ? "Lock" : "");
+        const lockBtn = lockLabel
+          ? `<button type="button" class="cancel-btn" data-lock="${session.id}" data-locked="${session.locked}">${lockLabel}</button>`
+          : "";
+        return `
+          <tr>
+            <td class="py-2 pr-3">
+              <button type="button" class="subject-link" data-sheet="${session.id}">${escapeHTML(session.subject_line)}</button>
+            </td>
+            <td>${escapeHTML(session.course_type)}</td>
+            <td>${escapeHTML(session.section)}</td>
+            <td>${escapeHTML(session.lecture_type)}</td>
+            <td><span class="status-pill ${pill}">${escapeHTML(session.status)}</span></td>
+            <td>${escapeHTML(session.submitted_by)}</td>
+            <td>${escapeHTML(session.submitted_date)}</td>
+            <td>${lockBtn}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function toneOf(student) {
+      if (student.disciplinary || student.mark === "A") return "red";
+      if (student.mark === "OD") return "green";
+      return "blue";
+    }
+
+    function statusWord(mark) {
+      if (mark === "A") return "Absent";
+      if (mark === "OD") return "OD Approved";
+      return "Present";
+    }
+
+    function recount() {
+      const marks = sheet.students.map((student) => student.mark);
+      const counts = {
+        total: marks.length,
+        present: marks.filter((mark) => mark === "P").length,
+        absent: marks.filter((mark) => mark === "A").length,
+        od: marks.filter((mark) => mark === "OD").length,
+      };
+      document.getElementById("countTotal").textContent = counts.total;
+      document.getElementById("countPresent").textContent = counts.present;
+      document.getElementById("countAbsent").textContent = counts.absent;
+      document.getElementById("countOd").textContent = counts.od;
+      document.getElementById("absentBox").value = counts.absent;
+      document.getElementById("odBox").value = counts.od;
+      const enabled = sheet.students.filter((student) => !student.disciplinary);
+      document.getElementById("checkAll").checked = enabled.length > 0 && enabled.every((student) => student.mark !== "A");
+      document.getElementById("checkAll").disabled = sheet.session.locked || enabled.length === 0;
+    }
+
+    function historyCells(student) {
+      return sheet.history.map((item) => {
+        const mark = student.history[item.id] || "";
+        const cls = mark === "A" ? "hist-a" : mark === "OD" ? "hist-od" : mark === "P" ? "hist-p" : "";
+        return `<td class="${cls}">${escapeHTML(mark || "—")}</td>`;
+      }).join("");
+    }
+
+    function visibleStudents() {
+      const query = document.getElementById("studentSearch").value.trim().toLowerCase();
+      if (!query) return sheet.students;
+      return sheet.students.filter((student) =>
+        student.full_name.toLowerCase().includes(query) ||
+        student.roll_number.toLowerCase().includes(query) ||
+        student.rrno.toLowerCase().includes(query)
+      );
+    }
+
+    function renderStudents() {
+      const rows = visibleStudents();
+      const locked = sheet.session.locked;
+      document.getElementById("studentBody").innerHTML = rows.map((student) => {
+        const checked = student.mark !== "A" ? "checked" : "";
+        const disabled = locked || student.disciplinary ? "disabled" : "";
+        const lateDisabled = locked || student.mark !== "P" ? "disabled" : "";
+        const title = student.disciplinary ? ' title="Disciplinary action taken"' : "";
+        return `
+          <tr data-id="${student.id}">
+            <td><input class="mark-box" type="checkbox" ${checked} ${disabled}${title}></td>
+            <td class="rrno ${toneOf(student)}"${title}>${escapeHTML(student.rrno)}</td>
+            <td class="roll">${escapeHTML(student.roll_number)}</td>
+            <td>${escapeHTML(student.full_name)}</td>
+            <td><input class="late" value="${escapeHTML(student.late_time)}" placeholder="MM:SS" maxlength="5" ${lateDisabled}></td>
+            ${historyCells(student)}
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="${5 + sheet.history.length}" class="p-4 text-center text-gray-500">No students match this search.</td></tr>`;
+      const shown = rows.length;
+      const total = sheet.students.length;
+      document.getElementById("showing").textContent = shown
+        ? `Showing 1 to ${shown} of ${total} entries`
+        : `Showing 0 to 0 of ${total} entries`;
+      recount();
+    }
+
+    function applyLockState() {
+      const locked = sheet.session.locked;
+      ["classType", "attendanceStatus", "topicCovered", "topicStatus"].forEach((id) => {
+        document.getElementById(id).disabled = locked;
+      });
+      document.getElementById("submitBtn").disabled = locked;
+      document.getElementById("unlockBtn").classList.toggle("hidden", !locked);
+      const line = document.getElementById("submittedLine");
+      if (sheet.session.submitted_by) {
+        line.textContent = `Submitted by ${sheet.session.submitted_by} on ${sheet.session.submitted_date}` +
+          (locked ? " · Locked. Unlock this lecture to change it." : "");
+      } else {
+        line.textContent = "";
+      }
+    }
+
+    function rememberSnapshot() {
+      snapshot = JSON.stringify({
+        class_type: sheet.session.class_type,
+        attendance_status: sheet.session.attendance_status,
+        topic_key: sheet.session.topic_key,
+        topic_covered_status: sheet.session.topic_covered_status,
+        students: sheet.students.map((student) => ({
+          id: student.id,
+          mark: student.mark,
+          late_time: student.late_time,
+        })),
+      });
+    }
+
+    async function openSheet(sessionId) {
+      sheet = await api(`/api/faculty/attendance/sessions/${sessionId}`);
+      sheet.students.forEach((student) => {
+        student.wasOd = student.mark === "OD";
+      });
+      hide(document.getElementById("subjectModal"));
+      document.getElementById("calendarView").classList.add("hidden");
+      document.getElementById("sheetView").classList.remove("hidden");
+      document.getElementById("sheetDate").textContent = sheet.session.date_label;
+      document.getElementById("sheetCourse").textContent = sheet.session.subject_line;
+      document.getElementById("sheetMsg").classList.add("hidden");
+      document.getElementById("studentSearch").value = "";
+      fillSelect("classType", sheet.class_types, sheet.session.class_type);
+      fillSelect("attendanceStatus", sheet.attendance_statuses, sheet.session.attendance_status);
+      fillSelect("topicStatus", sheet.topic_statuses, sheet.session.topic_covered_status);
+      const topic = document.getElementById("topicCovered");
+      topic.innerHTML = `<option value="">Please Select</option>` + sheet.topics.map((item) => {
+        const on = item.key === sheet.session.topic_key ? " selected" : "";
+        return `<option value="${escapeHTML(item.key)}"${on}>${escapeHTML(item.label)}</option>`;
+      }).join("");
+      const headRow = document.querySelector("#sheetView thead tr");
+      headRow.innerHTML = `
+        <th class="table-head"><input id="checkAll" type="checkbox"></th>
+        <th class="table-head">RRNO</th>
+        <th class="table-head">Roll No.</th>
+        <th class="table-head">Name</th>
+        <th class="table-head">Late by Time (MM:SS)</th>
+      ` + sheet.history.map((item) => `<th class="table-head">${escapeHTML(item.label)}</th>`).join("");
+      applyLockState();
+      renderStudents();
+      rememberSnapshot();
+      document.getElementById("checkAll").addEventListener("change", onCheckAll);
+    }
+
+    function onCheckAll(event) {
+      if (sheet.session.locked) return;
+      const present = event.target.checked;
+      sheet.students.forEach((student) => {
+        if (student.disciplinary) return;
+        if (present) student.mark = student.wasOd ? "OD" : "P";
+        else {
+          student.mark = "A";
+          student.late_time = "";
+        }
+      });
+      renderStudents();
+    }
+
+    function currentPayload() {
+      return {
+        class_type: document.getElementById("classType").value,
+        attendance_status: document.getElementById("attendanceStatus").value,
+        topic_key: document.getElementById("topicCovered").value,
+        topic_covered_status: document.getElementById("topicStatus").value,
+        marks: sheet.students.map((student) => ({
+          student_id: student.id,
+          mark: student.mark,
+          late_time: student.mark === "P" ? student.late_time : "",
+        })),
+      };
+    }
+
+    async function submitSheet() {
+      if (!document.getElementById("topicCovered").value) {
+        setSheetMsg("Select the topic covered.", false);
+        return;
+      }
+      const badLate = sheet.students.find((student) => student.mark === "P" && student.late_time && !/^\d{1,2}:\d{2}$/.test(student.late_time));
+      if (badLate) {
+        setSheetMsg(`Late by time for ${badLate.full_name} must look like MM:SS.`, false);
+        return;
+      }
+      document.getElementById("submitBtn").disabled = true;
+      try {
+        const data = await api(`/api/faculty/attendance/sessions/${sheet.session.id}`, {
+          method: "POST",
+          body: JSON.stringify(currentPayload()),
+        });
+        data.students.forEach((student) => {
+          student.wasOd = student.mark === "OD";
+        });
+        sheet = data;
+        applyLockState();
+        renderStudents();
+        rememberSnapshot();
+        setSheetMsg(data.message || "Attendance submitted.", true);
+        await loadCalendar(calendar.year, calendar.month);
+      } catch (error) {
+        if (error.message !== "auth") setSheetMsg(error.message, false);
+        document.getElementById("submitBtn").disabled = sheet.session.locked;
+      }
+    }
+
+    function openRegister() {
+      const present = sheet.students.filter((student) => student.mark === "P").length;
+      const absent = sheet.students.filter((student) => student.mark === "A").length;
+      const od = sheet.students.filter((student) => student.mark === "OD").length;
+      document.getElementById("registerMeta").textContent =
+        `${sheet.session.date_label} · ${sheet.session.subject_line} · Present ${present} · Absent ${absent} · OD ${od}`;
+      document.getElementById("registerBody").innerHTML = sheet.students.map((student) => `
+        <tr>
+          <td class="py-2 roll">${escapeHTML(student.roll_number)}</td>
+          <td>${escapeHTML(student.full_name)}</td>
+          <td class="${student.mark === "A" ? "hist-a" : "hist-p"}">${statusWord(student.mark)}</td>
+          <td>${escapeHTML(student.mark === "P" ? (student.late_time || "—") : "—")}</td>
+        </tr>
+      `).join("");
+      showFlex(document.getElementById("registerModal"));
+    }
+
+    function cancelSheet() {
+      if (!snapshot) return;
+      const saved = JSON.parse(snapshot);
+      sheet.session.class_type = saved.class_type;
+      sheet.session.attendance_status = saved.attendance_status;
+      sheet.session.topic_key = saved.topic_key;
+      sheet.session.topic_covered_status = saved.topic_covered_status;
+      const byId = Object.fromEntries(saved.students.map((student) => [student.id, student]));
+      sheet.students.forEach((student) => {
+        const item = byId[student.id];
+        if (!item) return;
+        student.mark = item.mark;
+        student.late_time = item.late_time;
+      });
+      document.getElementById("classType").value = saved.class_type;
+      document.getElementById("attendanceStatus").value = saved.attendance_status;
+      document.getElementById("topicCovered").value = saved.topic_key;
+      document.getElementById("topicStatus").value = saved.topic_covered_status;
+      renderStudents();
+      setSheetMsg("Changes cancelled.", true);
+    }
+
+    function showCalendar() {
+      document.getElementById("sheetView").classList.add("hidden");
+      document.getElementById("calendarView").classList.remove("hidden");
+    }
+
+    document.getElementById("prevMonth").addEventListener("click", () => {
+      loadCalendar(calendar.prev.year, calendar.prev.month).catch(showCalError);
+    });
+    document.getElementById("nextMonth").addEventListener("click", () => {
+      loadCalendar(calendar.next.year, calendar.next.month).catch(showCalError);
+    });
+
+    document.getElementById("calBody").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-open]");
+      if (!button) return;
+      openSubjects(button.dataset.open);
+    });
+
+    document.getElementById("subjectBody").addEventListener("click", async (event) => {
+      const sheetBtn = event.target.closest("[data-sheet]");
+      if (sheetBtn) {
+        try {
+          await openSheet(sheetBtn.dataset.sheet);
+        } catch (error) {
+          if (error.message !== "auth") alert(error.message);
+        }
+        return;
+      }
+      const lockBtn = event.target.closest("[data-lock]");
+      if (!lockBtn) return;
+      const locked = lockBtn.dataset.locked === "true";
+      try {
+        const data = await api(
+          `/api/faculty/attendance/sessions/${lockBtn.dataset.lock}/${locked ? "unlock" : "lock"}`,
+          { method: "POST" }
+        );
+        const session = modalSessions.find((item) => item.id === data.session.id);
+        if (session) Object.assign(session, data.session);
+        for (const list of Object.values(calendar.days)) {
+          const match = list.find((item) => item.id === data.session.id);
+          if (match) Object.assign(match, data.session);
+        }
+        renderSubjects();
+        loadCalendar(calendar.year, calendar.month).catch(() => {});
+      } catch (error) {
+        if (error.message !== "auth") alert(error.message);
+      }
+    });
+
+    document.getElementById("closeSubjects").addEventListener("click", () => {
+      hide(document.getElementById("subjectModal"));
+    });
+    document.getElementById("subjectModal").addEventListener("click", (event) => {
+      if (event.target.id === "subjectModal") hide(document.getElementById("subjectModal"));
+    });
+    document.getElementById("closeRegister").addEventListener("click", () => {
+      hide(document.getElementById("registerModal"));
+    });
+    document.getElementById("registerModal").addEventListener("click", (event) => {
+      if (event.target.id === "registerModal") hide(document.getElementById("registerModal"));
+    });
+
+    document.getElementById("studentBody").addEventListener("input", onStudentEdit);
+    document.getElementById("studentBody").addEventListener("change", (event) => {
+      const row = event.target.closest("tr");
+      if (!row || !sheet) return;
+      const student = sheet.students.find((item) => item.id === row.dataset.id);
+      if (!student || student.disciplinary || sheet.session.locked) return;
+      if (event.target.classList.contains("mark-box")) {
+        if (event.target.checked) student.mark = student.wasOd ? "OD" : "P";
+        else {
+          student.mark = "A";
+          student.late_time = "";
+        }
+        renderStudents();
+      } else if (event.target.classList.contains("late")) {
+        student.late_time = event.target.value.trim();
+      }
+    });
+
+    function onStudentEdit(event) {
+      if (!event.target.classList.contains("late") || !sheet) return;
+      const row = event.target.closest("tr");
+      const student = sheet.students.find((item) => item.id === row.dataset.id);
+      if (student) student.late_time = event.target.value.trim();
+    }
+
+    document.getElementById("studentSearch").addEventListener("input", () => {
+      if (sheet) renderStudents();
+    });
+    document.getElementById("submitBtn").addEventListener("click", () => {
+      submitSheet();
+    });
+    document.getElementById("unlockBtn").addEventListener("click", async () => {
+      try {
+        const data = await api(`/api/faculty/attendance/sessions/${sheet.session.id}/unlock`, { method: "POST" });
+        sheet = data.sheet;
+        sheet.students.forEach((student) => {
+          student.wasOd = student.mark === "OD";
+        });
+        document.getElementById("classType").value = sheet.session.class_type;
+        document.getElementById("attendanceStatus").value = sheet.session.attendance_status;
+        document.getElementById("topicCovered").value = sheet.session.topic_key;
+        document.getElementById("topicStatus").value = sheet.session.topic_covered_status;
+        applyLockState();
+        renderStudents();
+        rememberSnapshot();
+        setSheetMsg("Attendance unlocked. Update the sheet and submit.", true);
+      } catch (error) {
+        if (error.message !== "auth") setSheetMsg(error.message, false);
+      }
+    });
+    document.getElementById("registerBtn").addEventListener("click", openRegister);
+    document.getElementById("backBtn").addEventListener("click", showCalendar);
+    document.getElementById("cancelBtn").addEventListener("click", cancelSheet);
+
+    document.querySelectorAll("[data-soon]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (window.showNotice) window.showNotice(link.dataset.soon);
+      });
+    });
+
+    function showCalError(error) {
+      if (error.message === "auth") return;
+      const el = document.getElementById("calMsg");
+      el.textContent = error.message;
+      el.classList.remove("hidden");
+    }
+
+    loadCalendar().catch(showCalError);
+  </script>
+</body>
+</html>

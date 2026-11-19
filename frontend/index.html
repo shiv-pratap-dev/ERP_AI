@@ -321,7 +321,10 @@
 
             sessionStorage.setItem("user", JSON.stringify(data.user));
             sessionStorage.setItem("lastActivity", Date.now().toString());
-            window.location.href = "http://127.0.0.1:8000/home";
+            const role = data.user && data.user.role;
+            window.location.href = role === "teacher"
+                ? "http://127.0.0.1:8000/faculty/home"
+                : "http://127.0.0.1:8000/home";
 
         } catch (error) {
             loginMessage.textContent =

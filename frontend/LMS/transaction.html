@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JECRC ERP | Transactions</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=3">
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=4">
+  <link rel="stylesheet" href="/frontend/shared/erp-assistant.css?v=7">
 
   <style>
     body {
@@ -186,10 +187,10 @@
             <div class="w-20 h-20 rounded-full bg-yellow-400 mx-auto mb-3 flex items-center justify-center text-white text-3xl font-bold">S</div>
             <p id="welcomeMessage" class="font-medium text-gray-800">Welcome!</p>
           </div>
-          <a href="#" data-page="User Profile" class="block px-4 py-3 hover:bg-gray-100 text-sm">👤 &nbsp; User Profile</a>
+          <a href="/Academic/student-detail.html" class="block px-4 py-3 hover:bg-gray-100 text-sm">👤 &nbsp; User Profile</a>
           <a href="/home" class="block px-4 py-3 hover:bg-gray-100 text-sm">🏠 &nbsp; Home</a>
           <div class="flex justify-around border-t p-4">
-            <button title="Change Password" onclick="showNotice('Change Password')" class="utility-btn" type="button">🔑</button>
+            <button id="changePasswordBtn" title="Change Password" class="utility-btn" type="button">🔑</button>
             <button title="Logout" onclick="logout()" class="bg-red-600 text-white rounded-lg w-11 h-11" type="button">⏻</button>
           </div>
         </div>
@@ -208,7 +209,8 @@
   </div>
 </div>
 
-  <script src="/frontend/shared/navbar.js?v=3"></script>
+  <script src="/frontend/shared/navbar.js?v=5"></script>
+  <script src="/frontend/shared/erp-assistant.js?v=7"></script>
 
 
   <div class="flex flex-1 min-h-0">
@@ -273,6 +275,7 @@
             <option value="4">Jan-June 2024-2025 - School of Engineering and Technology (Sem - IV)</option>
             <option value="3">July-Dec 2024-2025 - School of Engineering and Technology (Sem - III)</option>
             <option value="2">Jan-June 2023-2024 - School of Engineering and Technology (Sem - II)</option>
+            <option value="1">July-Dec 2022-2023 - School of Engineering and Technology (Sem - I)</option>
           </select>
         </div>
 
@@ -323,7 +326,7 @@
   })
   .then(response => {
     if (!response.ok) {
-      window.location.href = "http://127.0.0.1:5500/frontend/index.html";
+      window.location.href = "http://127.0.0.1:8000/signin";
       return null;
     }
     return response.json();
@@ -335,7 +338,7 @@
     }
   })
   .catch(() => {
-    window.location.href = "http://127.0.0.1:5500/frontend/index.html";
+    window.location.href = "http://127.0.0.1:8000/signin";
   });
 
   // Top navbar chrome is owned by /frontend/shared/navbar.js
@@ -357,7 +360,7 @@
     } finally {
       sessionStorage.clear();
       window.location.href =
-        "http://127.0.0.1:5500/frontend/index.html";
+        "http://127.0.0.1:8000/signin";
     }
   }
 
@@ -414,7 +417,7 @@
 
       if (response.status === 401) {
         window.location.href =
-          "http://127.0.0.1:5500/frontend/index.html";
+          "http://127.0.0.1:8000/signin";
         return;
       }
 

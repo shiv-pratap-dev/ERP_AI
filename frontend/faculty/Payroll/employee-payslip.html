@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Employee PaySlip</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; color: #374151; }
+    .side-link { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; font-size: 13px; color: #4b5563; }
+    .side-link.active { color: #4f46e5; background: #eef2ff; border-left: 3px solid #4f46e5; }
+    .panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px 18px 18px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .field { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #fff; }
+    .req { color: #dc2626; margin-right: 2px; }
+    .outline-btn { border: 1px solid #818cf8; color: #4f46e5; background: #fff; border-radius: 6px; padding: 6px 14px; font-size: 13px; }
+    .outline-btn:hover { background: #eef2ff; }
+    .cancel-btn { border: 1px solid #f87171; color: #dc2626; background: #fff; border-radius: 6px; padding: 6px 14px; font-size: 13px; }
+    .cancel-btn:hover { background: #fef2f2; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+    .slip { border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; margin-bottom: 16px; background: #fff; }
+    .slip-head { background: #eff6ff; border-bottom: 1px solid #dbeafe; padding: 12px 14px; }
+    .slip table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .slip th, .slip td { border: 1px solid #e5e7eb; padding: 7px 8px; vertical-align: top; }
+    .slip th { background: #f8fafc; text-align: left; font-size: 12px; }
+    .money { text-align: right; white-space: nowrap; }
+    .foot { text-align: center; font-size: 12px; color: #6b7280; padding: 16px 8px 20px; }
+    @media print {
+      body { background: #fff; }
+      #facultyNavbar, aside, footer, .side-rail, #filterCard, .no-print { display: none !important; }
+      main { padding: 0 !important; }
+      #reportPanel { display: block !important; }
+      .slip { break-inside: avoid; box-shadow: none; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <aside class="w-60 bg-white border-r hidden md:flex md:flex-col shrink-0">
+      <div class="px-4 py-3 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
+        Reports
+        <button type="button" id="sideClose" class="text-gray-400 text-lg leading-none" aria-label="Close">×</button>
+      </div>
+      <a href="/faculty/Payroll/employee-payslip.html" class="side-link active">Employee PaySlip <span>☆</span></a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <section id="filterCard" class="panel mb-4">
+        <h1 class="text-base font-semibold text-gray-800 mb-4">Employee PaySlip</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-sm mb-1" for="monthYear"><span class="req">*</span>Month / Year</label>
+            <select id="monthYear" class="field"><option value="">Please Select</option></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="college">College</label>
+            <select id="college" class="field"></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="scheme">Scheme/Staff</label>
+            <select id="scheme" class="field"></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="employee">Employee</label>
+            <select id="employee" class="field"></select>
+          </div>
+          <div class="md:col-span-2 xl:col-span-4">
+            <label class="block text-sm mb-1" for="issuedTo">Salary Certificate Issued to</label>
+            <input id="issuedTo" class="field" type="text" placeholder="">
+          </div>
+        </div>
+
+        <p id="formMsg" class="text-sm mt-3 hidden"></p>
+        <div class="flex flex-wrap gap-2 justify-center mt-4">
+          <button type="button" id="showBtn" class="outline-btn">Show</button>
+          <button type="button" id="threeBtn" class="outline-btn">Three Month Salary Statement</button>
+          <button type="button" id="sixBtn" class="outline-btn">Six Month Salary Statement</button>
+          <button type="button" id="incrementBtn" class="outline-btn">Increment Payslip</button>
+          <button type="button" id="cancelBtn" class="cancel-btn">Cancel</button>
+        </div>
+      </section>
+
+      <section id="reportPanel" class="hidden">
+        <div class="panel mb-3 no-print flex items-center justify-between gap-3">
+          <div>
+            <div id="reportTitle" class="font-semibold text-gray-800"></div>
+            <div id="reportMeta" class="text-sm text-gray-500 mt-1"></div>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" id="printBtn" class="outline-btn">Print / Save PDF</button>
+            <button type="button" id="closeReport" class="cancel-btn">Close</button>
+          </div>
+        </div>
+        <div id="reportBody"></div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="foot">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail no-print">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    let meta = null;
+    let lastReport = null;
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function money(value) {
+      return Number(value || 0).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
+
+    function setMsg(text, ok) {
+      const el = document.getElementById("formMsg");
+      if (!text) {
+        el.classList.add("hidden");
+        el.textContent = "";
+        return;
+      }
+      el.textContent = text;
+      el.className = `text-sm mt-3 ${ok ? "text-green-600" : "text-red-600"}`;
+    }
+
+    function fillSelect(id, options, selected, useObjects) {
+      const el = document.getElementById(id);
+      el.innerHTML = options.map((item) => {
+        const value = useObjects ? item.value : item;
+        const label = useObjects ? item.label : item;
+        return `<option value="${escapeHTML(value)}"${value === selected ? " selected" : ""}>${escapeHTML(label)}</option>`;
+      }).join("");
+    }
+
+    function payload(mode) {
+      return {
+        month_year: document.getElementById("monthYear").value,
+        college: document.getElementById("college").value,
+        scheme: document.getElementById("scheme").value,
+        employee_id: document.getElementById("employee").value,
+        issued_to: document.getElementById("issuedTo").value.trim(),
+        mode,
+      };
+    }
+
+    function renderSlip(slip, mode) {
+      const earnRows = slip.earnings.map((item) => `
+        <tr><td>${escapeHTML(item.head)}</td><td class="money">${money(item.amount)}</td></tr>
+      `).join("");
+      const dedRows = slip.deductions.map((item) => `
+        <tr><td>${escapeHTML(item.head)}</td><td class="money">${money(item.amount)}</td></tr>
+      `).join("");
+      const incrementNote = mode === "increment" && slip.increment_note
+        ? `<div class="text-sm text-emerald-700 mt-2">${escapeHTML(slip.increment_note)}</div>`
+        : "";
+      return `
+        <article class="slip">
+          <div class="slip-head">
+            <div class="flex flex-wrap justify-between gap-2">
+              <div>
+                <div class="font-semibold text-gray-800">JECRC University</div>
+                <div class="text-sm text-gray-600">${escapeHTML(document.getElementById("college").value)}</div>
+              </div>
+              <div class="text-right text-sm">
+                <div class="font-semibold">${escapeHTML(slip.month_label)}</div>
+                <div>Paid Days: ${escapeHTML(slip.paid_days)} / ${escapeHTML(slip.working_days)}</div>
+              </div>
+            </div>
+          </div>
+          <div class="p-3">
+            <table class="mb-3">
+              <tbody>
+                <tr>
+                  <th>Employee</th>
+                  <td>[${escapeHTML(slip.employee_id)}] ${escapeHTML(slip.employee_name)}</td>
+                  <th>Designation</th>
+                  <td>${escapeHTML(slip.designation)}</td>
+                </tr>
+                <tr>
+                  <th>Department</th>
+                  <td>${escapeHTML(slip.department)}</td>
+                  <th>Scheme/Staff</th>
+                  <td>${escapeHTML(document.getElementById("scheme").value)}</td>
+                </tr>
+                <tr>
+                  <th>Bank A/C</th>
+                  <td>${escapeHTML(slip.bank_account)}</td>
+                  <th>PAN / UAN</th>
+                  <td>${escapeHTML(slip.pan)} / ${escapeHTML(slip.uan)}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <table>
+                <thead><tr><th>Earnings</th><th class="money">Amount (₹)</th></tr></thead>
+                <tbody>${earnRows}</tbody>
+                <tfoot><tr><th>Gross Earnings</th><th class="money">${money(slip.gross)}</th></tr></tfoot>
+              </table>
+              <table>
+                <thead><tr><th>Deductions</th><th class="money">Amount (₹)</th></tr></thead>
+                <tbody>${dedRows}</tbody>
+                <tfoot><tr><th>Total Deductions</th><th class="money">${money(slip.total_deduction)}</th></tr></tfoot>
+              </table>
+            </div>
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+              <div class="text-sm">Net Pay in words: <strong>${escapeHTML(slip.net_in_words)}</strong></div>
+              <div class="text-base font-semibold">Net Pay: ₹ ${money(slip.net)}</div>
+            </div>
+            ${incrementNote}
+          </div>
+        </article>
+      `;
+    }
+
+    function renderReport(data) {
+      lastReport = data;
+      document.getElementById("reportPanel").classList.remove("hidden");
+      document.getElementById("reportTitle").textContent = data.title;
+      const issued = data.issued_to ? ` · Certificate issued to ${data.issued_to}` : "";
+      document.getElementById("reportMeta").textContent =
+        `${data.employee.label} · ${data.scheme} · Generated ${data.generated_on}${issued}`;
+      let body = data.slips.map((slip) => renderSlip(slip, data.mode)).join("");
+      if (data.slips.length > 1) {
+        body += `
+          <div class="panel">
+            <div class="font-semibold mb-2">Statement Summary</div>
+            <table class="w-full text-sm border-collapse">
+              <thead>
+                <tr>
+                  <th class="border p-2 text-left">Month</th>
+                  <th class="border p-2 money">Gross</th>
+                  <th class="border p-2 money">Deductions</th>
+                  <th class="border p-2 money">Net Pay</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.slips.map((slip) => `
+                  <tr>
+                    <td class="border p-2">${escapeHTML(slip.month_label)}</td>
+                    <td class="border p-2 money">${money(slip.gross)}</td>
+                    <td class="border p-2 money">${money(slip.total_deduction)}</td>
+                    <td class="border p-2 money">${money(slip.net)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th class="border p-2 text-left">Total</th>
+                  <th class="border p-2 money">${money(data.summary.gross_total)}</th>
+                  <th class="border p-2 money">${money(data.summary.deduction_total)}</th>
+                  <th class="border p-2 money">${money(data.summary.net_total)}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        `;
+      }
+      document.getElementById("reportBody").innerHTML = body;
+      document.getElementById("reportPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function runReport(mode) {
+      const data = payload(mode);
+      if (!data.month_year) {
+        setMsg("Select Month / Year.", false);
+        return;
+      }
+      setMsg("", true);
+      const response = await fetch(`${API}/api/faculty/payroll/payslip`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setMsg(result.detail || "Could not generate payslip.", false);
+        return;
+      }
+      renderReport(result);
+    }
+
+    function resetForm() {
+      document.getElementById("monthYear").value = "";
+      if (meta) {
+        document.getElementById("college").value = meta.default_college;
+        document.getElementById("scheme").value = meta.default_scheme;
+        document.getElementById("employee").value = meta.default_employee_id;
+      }
+      document.getElementById("issuedTo").value = "";
+      document.getElementById("reportPanel").classList.add("hidden");
+      document.getElementById("reportBody").innerHTML = "";
+      setMsg("", true);
+    }
+
+    async function loadMeta() {
+      const response = await fetch(`${API}/api/faculty/payroll/meta`, { credentials: "include" });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+      meta = await response.json();
+      fillSelect("monthYear", [{ value: "", label: "Please Select" }, ...meta.months], "", true);
+      fillSelect("college", meta.colleges, meta.default_college, false);
+      fillSelect("scheme", meta.schemes, meta.default_scheme, false);
+      fillSelect(
+        "employee",
+        meta.employees.map((item) => ({ value: item.employee_id, label: item.label })),
+        meta.default_employee_id,
+        true
+      );
+    }
+
+    document.getElementById("showBtn").addEventListener("click", () => runReport("payslip"));
+    document.getElementById("threeBtn").addEventListener("click", () => runReport("three_month"));
+    document.getElementById("sixBtn").addEventListener("click", () => runReport("six_month"));
+    document.getElementById("incrementBtn").addEventListener("click", () => runReport("increment"));
+    document.getElementById("cancelBtn").addEventListener("click", resetForm);
+    document.getElementById("closeReport").addEventListener("click", () => {
+      document.getElementById("reportPanel").classList.add("hidden");
+    });
+    document.getElementById("printBtn").addEventListener("click", () => window.print());
+    document.getElementById("sideClose").addEventListener("click", () => {
+      document.querySelector("aside").style.display = "none";
+    });
+
+    loadMeta().catch(() => { window.location.href = LOGIN_URL; });
+  </script>
+</body>
+</html>

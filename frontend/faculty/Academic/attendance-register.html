@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Attendance Register Report</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
+    .side-link { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; font-size: 13px; color: #4b5563; }
+    .side-link.active { color: #4f46e5; background: #eef2ff; border-left: 3px solid #4f46e5; }
+    .field { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #fff; }
+    .field:disabled { background: #f3f4f6; color: #6b7280; }
+    .req { color: #dc2626; margin-right: 2px; }
+    .tab { border: 1px solid #e5e7eb; background: #f9fafb; color: #6b7280; border-radius: 8px 8px 0 0; padding: 7px 16px; font-size: 13px; }
+    .tab.active { background: #fff; color: #4f46e5; border-color: #c7d2fe; font-weight: 600; }
+    .outline-btn { border: 1px solid #6366f1; color: #4f46e5; background: #fff; border-radius: 6px; padding: 6px 12px; font-size: 13px; }
+    .outline-btn:hover { background: #eef2ff; }
+    .cancel-btn { border: 1px solid #f87171; color: #dc2626; background: #fff; border-radius: 6px; padding: 6px 12px; font-size: 13px; }
+    .cancel-btn:hover { background: #fef2f2; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 6px; font-size: 12px; font-weight: 700; color: #374151; text-align: left; white-space: nowrap; }
+    .mark-p { color: #2563eb; font-weight: 600; }
+    .mark-a { color: #dc2626; font-weight: 600; }
+    .mark-od { color: #16a34a; font-weight: 600; }
+    tbody tr { border-bottom: 1px solid #f3f4f6; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+    @media print {
+      body { background: #fff; }
+      #faculty-navbar, aside, footer, .side-rail, #filterCard, .no-print { display: none !important; }
+      #reportPanel, #summaryPanel { display: block !important; }
+      main { padding: 0; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <aside class="w-60 bg-white border-r hidden md:flex md:flex-col shrink-0">
+      <div class="px-4 py-3 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
+        Faculty Related
+        <span class="text-gray-400">×</span>
+      </div>
+      <a href="/faculty/Academic/teaching-plan.html" class="side-link">Teaching Plan Entry <span>☆</span></a>
+      <a href="/faculty/Academic/attendance.html" class="side-link">Attendance By Faculty <span>☆</span></a>
+      <a href="/faculty/Academic/extra-class.html" class="side-link">Extra Class Time Table <span>☆</span></a>
+      <a href="/faculty/Academic/attendance-register.html" class="side-link active">Attendance Register Report <span>☆</span></a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <div id="filterCard" class="bg-white rounded-xl border shadow-sm p-4 md:p-5">
+        <h1 class="text-base font-semibold text-gray-800 mb-3">Attendance Register Report</h1>
+        <div class="flex gap-2 border-b mb-4">
+          <button type="button" class="tab active" id="coursesTab">Courses</button>
+          <button type="button" class="tab" id="electiveTab">Free / Global Elective</button>
+        </div>
+
+        <form id="registerForm">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-sm mb-1" for="session"><span class="req">*</span>Session</label>
+              <select id="session" class="field"><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="course"><span class="req">*</span>Course</label>
+              <select id="course" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="fromDate"><span class="req">*</span>From Date</label>
+              <input id="fromDate" type="date" class="field">
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="toDate"><span class="req">*</span>To Date</label>
+              <input id="toDate" type="date" class="field">
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="college">College</label>
+              <select id="college" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="semester">Semester</label>
+              <select id="semester" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="courseType">Course Type</label>
+              <select id="courseType" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="section">Section</label>
+              <select id="section" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+          </div>
+
+          <p id="formMsg" class="text-sm mt-3 hidden"></p>
+          <div class="flex flex-wrap gap-2 justify-center mt-4">
+            <button type="button" id="showBtn" class="outline-btn">Show</button>
+            <button type="button" id="reportBtn" class="outline-btn">Faculty Attendance Register Report</button>
+            <button type="button" id="resetBtn" class="cancel-btn">Cancel</button>
+          </div>
+        </form>
+      </div>
+
+      <section id="summaryPanel" class="bg-white rounded-xl border shadow-sm p-4 md:p-5 mt-4 hidden">
+        <h2 class="font-semibold text-gray-800 mb-1 border-l-4 border-indigo-500 pl-2">Attendance Summary</h2>
+        <p id="summaryMeta" class="text-sm text-gray-600 mb-3"></p>
+        <div class="overflow-x-auto border rounded-lg mb-4">
+          <table class="w-full text-sm">
+            <thead>
+              <tr>
+                <th class="table-head">Date</th>
+                <th class="table-head">Slot</th>
+                <th class="table-head">Section</th>
+                <th class="table-head">Class</th>
+                <th class="table-head">Present</th>
+                <th class="table-head">Absent</th>
+                <th class="table-head">OD</th>
+                <th class="table-head">Total</th>
+                <th class="table-head">%</th>
+              </tr>
+            </thead>
+            <tbody id="sessionRows"></tbody>
+          </table>
+        </div>
+        <h3 class="font-semibold text-gray-800 mb-2 border-l-4 border-indigo-500 pl-2">Student Attendance</h3>
+        <div class="overflow-x-auto border rounded-lg">
+          <table class="w-full text-sm">
+            <thead>
+              <tr>
+                <th class="table-head">Sr No.</th>
+                <th class="table-head">Roll No.</th>
+                <th class="table-head">Student Name</th>
+                <th class="table-head">Total</th>
+                <th class="table-head">Present</th>
+                <th class="table-head">Absent</th>
+                <th class="table-head">OD</th>
+                <th class="table-head">Percentage</th>
+              </tr>
+            </thead>
+            <tbody id="studentRows"></tbody>
+          </table>
+        </div>
+        <p id="showing" class="text-xs text-gray-500 mt-2"></p>
+      </section>
+
+      <section id="reportPanel" class="bg-white rounded-xl border shadow-sm p-4 md:p-5 mt-4 hidden">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <h2 class="font-semibold text-gray-800 border-l-4 border-indigo-500 pl-2">Faculty Attendance Register Report</h2>
+            <p id="reportMeta" class="text-sm text-gray-600 mt-2"></p>
+          </div>
+          <button type="button" id="printBtn" class="outline-btn no-print shrink-0">Print</button>
+        </div>
+        <div class="overflow-x-auto border rounded-lg">
+          <table class="w-full text-sm">
+            <thead>
+              <tr id="reportHead"></tr>
+            </thead>
+            <tbody id="reportBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="text-center text-xs text-gray-500 py-4">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+  <div class="side-rail no-print">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+
+    let options = null;
+    let tab = "courses";
+    let report = null;
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    async function api(path, opts) {
+      const response = await fetch(`${API}${path}`, {
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        ...opts,
+      });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        throw new Error("auth");
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = data.detail;
+        throw new Error(typeof detail === "string" ? detail : "Request failed");
+      }
+      return data;
+    }
+
+    function setMsg(text, ok) {
+      const el = document.getElementById("formMsg");
+      el.textContent = text;
+      el.className = `text-sm mt-3 ${ok ? "text-green-600" : "text-red-600"}`;
+      el.classList.remove("hidden");
+    }
+
+    function fillSelect(id, items, placeholder) {
+      const el = document.getElementById(id);
+      const html = items.map((item) => {
+        const value = typeof item === "object" ? item.value : item;
+        const label = typeof item === "object" ? item.label : item;
+        return `<option value="${escapeHTML(value)}">${escapeHTML(label)}</option>`;
+      }).join("");
+      el.innerHTML = `<option value="">${escapeHTML(placeholder || "Please Select")}</option>` + html;
+    }
+
+    function activeCourses() {
+      return tab === "elective" ? (options.elective_courses || []) : (options.courses || []);
+    }
+
+    function markClass(mark) {
+      if (mark === "A") return "mark-a";
+      if (mark === "OD") return "mark-od";
+      if (mark === "P") return "mark-p";
+      return "";
+    }
+
+    function hideResults() {
+      report = null;
+      document.getElementById("summaryPanel").classList.add("hidden");
+      document.getElementById("reportPanel").classList.add("hidden");
+    }
+
+    function fillCourses() {
+      const courses = activeCourses();
+      fillSelect("course", courses.map((course) => ({ value: course.id, label: course.label })));
+      document.getElementById("course").disabled = !document.getElementById("session").value;
+      fillSelect("semester", []);
+      document.getElementById("semester").disabled = true;
+      ["courseType", "section"].forEach((id) => {
+        document.getElementById(id).disabled = true;
+        document.getElementById(id).value = "";
+      });
+    }
+
+    function onCourse() {
+      const courseId = document.getElementById("course").value;
+      const course = activeCourses().find((item) => item.id === courseId);
+      const ready = Boolean(course);
+      const semester = document.getElementById("semester");
+      if (course) {
+        fillSelect("semester", [{ value: course.semester, label: course.semester_label }]);
+        semester.value = String(course.semester);
+      } else {
+        fillSelect("semester", []);
+      }
+      semester.disabled = !ready;
+      document.getElementById("courseType").disabled = !ready;
+      document.getElementById("section").disabled = !ready;
+      if (!ready) {
+        document.getElementById("courseType").value = "";
+        document.getElementById("section").value = "";
+      }
+    }
+
+    function currentPayload() {
+      return {
+        tab,
+        session_label: document.getElementById("session").value,
+        course_id: document.getElementById("course").value,
+        college_label: document.getElementById("college").value,
+        semester: document.getElementById("semester").value
+          ? Number(document.getElementById("semester").value)
+          : null,
+        course_type: document.getElementById("courseType").value,
+        section: document.getElementById("section").value,
+        from_date: document.getElementById("fromDate").value,
+        to_date: document.getElementById("toDate").value,
+      };
+    }
+
+    function validate() {
+      if (tab === "elective" && !activeCourses().length) {
+        return "No free or global elective course is assigned to you";
+      }
+      if (!document.getElementById("session").value) return "Select a session";
+      if (!document.getElementById("course").value) return "Select a course";
+      if (!document.getElementById("fromDate").value || !document.getElementById("toDate").value) {
+        return "Select the from and to dates";
+      }
+      if (document.getElementById("toDate").value < document.getElementById("fromDate").value) {
+        return "To Date cannot be before From Date";
+      }
+      return "";
+    }
+
+    function metaLine(header) {
+      return [
+        header.faculty_name,
+        header.session_label,
+        header.course_label,
+        `Semester ${header.semester_label}`,
+        `Section ${header.section}`,
+        header.course_type,
+        `${header.from_date} to ${header.to_date}`,
+      ].filter(Boolean).join(" · ");
+    }
+
+    function renderSummary() {
+      const sessions = report.sessions || [];
+      const students = report.students || [];
+      document.getElementById("summaryMeta").textContent = sessions.length
+        ? metaLine(report.header)
+        : "No attendance found for the selected filters.";
+      document.getElementById("sessionRows").innerHTML = sessions.map((row) => `
+        <tr>
+          <td class="px-2 py-2 whitespace-nowrap">${escapeHTML(row.date)}</td>
+          <td class="px-2 py-2 whitespace-nowrap mark-p">${escapeHTML(row.slot)}</td>
+          <td class="px-2 py-2">${escapeHTML(row.section)}</td>
+          <td class="px-2 py-2 whitespace-nowrap">${escapeHTML(row.class_type)}</td>
+          <td class="px-2 py-2 mark-p">${row.present}</td>
+          <td class="px-2 py-2 mark-a">${row.absent}</td>
+          <td class="px-2 py-2 mark-od">${row.od}</td>
+          <td class="px-2 py-2">${row.total}</td>
+          <td class="px-2 py-2">${row.percentage}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="9" class="p-4 text-center text-gray-500">No class was held in this range.</td></tr>`;
+      document.getElementById("studentRows").innerHTML = students.map((row, index) => `
+        <tr>
+          <td class="px-2 py-2">${index + 1}</td>
+          <td class="px-2 py-2 whitespace-nowrap">${escapeHTML(row.roll_number)}</td>
+          <td class="px-2 py-2 whitespace-nowrap">${escapeHTML(row.full_name)}</td>
+          <td class="px-2 py-2">${row.total}</td>
+          <td class="px-2 py-2 mark-p">${row.present}</td>
+          <td class="px-2 py-2 mark-a">${row.absent}</td>
+          <td class="px-2 py-2 mark-od">${row.od}</td>
+          <td class="px-2 py-2">${row.percentage}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="8" class="p-4 text-center text-gray-500">No students found.</td></tr>`;
+      document.getElementById("showing").textContent = students.length
+        ? `Showing 1 to ${students.length} of ${students.length} entries`
+        : "Showing 0 to 0 of 0 entries";
+      document.getElementById("summaryPanel").classList.remove("hidden");
+    }
+
+    function renderRegister() {
+      const sessions = report.sessions || [];
+      const students = report.students || [];
+      document.getElementById("reportMeta").textContent = metaLine(report.header);
+      document.getElementById("reportHead").innerHTML = `
+        <th class="table-head">Roll No.</th>
+        <th class="table-head">Student Name</th>
+        ${sessions.map((row) => `<th class="table-head">${escapeHTML(row.label)}<br>${escapeHTML(row.slot.split(" - ")[0])}</th>`).join("")}
+        <th class="table-head">Total</th>
+        <th class="table-head">%</th>
+      `;
+      document.getElementById("reportBody").innerHTML = students.map((row) => `
+        <tr>
+          <td class="px-2 py-2 whitespace-nowrap">${escapeHTML(row.roll_number)}</td>
+          <td class="px-2 py-2 whitespace-nowrap">${escapeHTML(row.full_name)}</td>
+          ${row.marks.map((mark) => `<td class="px-2 py-2 text-center ${markClass(mark)}">${escapeHTML(mark || "—")}</td>`).join("")}
+          <td class="px-2 py-2">${row.present + row.od}/${row.total}</td>
+          <td class="px-2 py-2">${row.percentage}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="${sessions.length + 4}" class="p-4 text-center text-gray-500">No attendance found for the selected filters.</td></tr>`;
+      document.getElementById("reportPanel").classList.remove("hidden");
+    }
+
+    async function loadReport() {
+      const problem = validate();
+      if (problem) {
+        setMsg(problem, false);
+        return null;
+      }
+      const data = await api("/api/faculty/attendance-register", {
+        method: "POST",
+        body: JSON.stringify(currentPayload()),
+      });
+      report = data;
+      document.getElementById("formMsg").classList.add("hidden");
+      return data;
+    }
+
+    function resetForm() {
+      document.getElementById("session").value = "";
+      document.getElementById("fromDate").value = "";
+      document.getElementById("toDate").value = "";
+      document.getElementById("college").value = "";
+      document.getElementById("college").disabled = true;
+      fillCourses();
+      hideResults();
+      document.getElementById("formMsg").classList.add("hidden");
+    }
+
+    function setTab(next) {
+      tab = next;
+      document.getElementById("coursesTab").classList.toggle("active", tab === "courses");
+      document.getElementById("electiveTab").classList.toggle("active", tab === "elective");
+      resetForm();
+    }
+
+    document.getElementById("coursesTab").addEventListener("click", () => setTab("courses"));
+    document.getElementById("electiveTab").addEventListener("click", () => setTab("elective"));
+    document.getElementById("session").addEventListener("change", () => {
+      const on = Boolean(document.getElementById("session").value);
+      document.getElementById("college").disabled = !on;
+      if (on && !document.getElementById("college").value && options.colleges.length) {
+        document.getElementById("college").value = options.colleges[0];
+      }
+      if (!on) document.getElementById("college").value = "";
+      fillCourses();
+    });
+    document.getElementById("course").addEventListener("change", onCourse);
+    document.getElementById("showBtn").addEventListener("click", async () => {
+      try {
+        if (!await loadReport()) return;
+        document.getElementById("reportPanel").classList.add("hidden");
+        renderSummary();
+        document.getElementById("summaryPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (error) {
+        if (error.message !== "auth") setMsg(error.message, false);
+      }
+    });
+    document.getElementById("reportBtn").addEventListener("click", async () => {
+      try {
+        if (!await loadReport()) return;
+        renderSummary();
+        renderRegister();
+        document.getElementById("reportPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (error) {
+        if (error.message !== "auth") setMsg(error.message, false);
+      }
+    });
+    document.getElementById("resetBtn").addEventListener("click", resetForm);
+    document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+    async function init() {
+      options = await api("/api/faculty/attendance-register/options");
+      fillSelect("session", options.sessions);
+      fillSelect("college", options.colleges);
+      fillSelect("courseType", options.course_types);
+      fillSelect("section", options.sections);
+      fillCourses();
+    }
+
+    init().catch((error) => {
+      if (error.message !== "auth") setMsg(error.message, false);
+    });
+  </script>
+</body>
+</html>

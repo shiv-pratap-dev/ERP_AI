@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | OBE Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; color: #374151; }
+    .side-link { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; font-size: 13px; color: #4b5563; }
+    .side-link.active { color: #4f46e5; background: #eef2ff; border-left: 3px solid #4f46e5; }
+    .card { display: block; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px 18px; }
+    .card:hover { border-color: #a5b4fc; background: #f5f7ff; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=10"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <aside id="sideBar" class="w-60 bg-white border-r hidden md:flex md:flex-col shrink-0">
+      <div class="px-4 py-3 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
+        OBE
+        <button type="button" id="sideClose" class="text-gray-400 text-lg leading-none" aria-label="Close">×</button>
+      </div>
+      <a href="/faculty/OBE/portal.html" class="side-link active">OBE Portal <span>☆</span></a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <section class="bg-white border rounded-xl p-5">
+        <h1 class="text-base font-semibold text-gray-800 mb-1">OBE Portal</h1>
+        <p class="text-sm text-gray-500 mb-4">Outcome Based Education tools for this session. Question maxima on the paper are the columns used for mark entry.</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <a class="card" href="/faculty/OBE/question-wise.html">
+            <div class="font-semibold text-gray-800 mb-1">Question Wise Mark Entry</div>
+            <p class="text-sm text-gray-500">Enter A-1, A-2, B and C marks, status codes 902 / 903 / 904, and lock the sheet.</p>
+          </a>
+          <a class="card" href="/faculty/OBE/question-paper.html">
+            <div class="font-semibold text-gray-800 mb-1">Exam Question Paper</div>
+            <p class="text-sm text-gray-500">View the question paper, course outcome, and maximum marks for an exam.</p>
+          </a>
+          <a class="card" href="/faculty/OBE/mark-report.html">
+            <div class="font-semibold text-gray-800 mb-1">Mark Entry Report</div>
+            <p class="text-sm text-gray-500">List every subject exam and print the question-wise mark sheet.</p>
+          </a>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="text-center text-xs text-gray-500 py-4">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+  <script>
+    document.getElementById("sideClose").addEventListener("click", () => {
+      document.getElementById("sideBar").classList.add("hidden");
+    });
+  </script>
+</body>
+</html>

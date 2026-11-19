@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | OD Application</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <link rel="stylesheet" href="/frontend/shared/establishment.css?v=1">
+  <style>.star { border:0; background:transparent; color:#d1d5db; } .star.on { color:#f59e0b; }</style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <div id="est-sidebar" data-active="OD Application"></div>
+    <script src="/frontend/shared/establishment-sidebar.js?v=1"></script>
+
+    <main class="flex-1 p-4 overflow-y-auto space-y-4">
+      <section class="panel">
+        <h1 class="text-base font-semibold text-gray-800">OD Application</h1>
+        <div class="text-sm text-gray-600 mt-1 mb-2">OD Duty Slip/Application Entry</div>
+        <p class="note">★Note: OD is applicable only on Outdoor duty, if you didn't mark a single punch.</p>
+        <div class="flex flex-wrap gap-2 justify-center">
+          <button type="button" id="newBtn" class="outline-btn">New OD Application</button>
+          <button type="button" id="statusBtn" class="outline-btn">OD Application Status</button>
+        </div>
+      </section>
+
+      <section id="formPanel" class="panel hidden">
+        <div class="section-label">New OD Application</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-sm mb-1" for="fromDate"><span class="req">*</span>From Date</label>
+            <input id="fromDate" type="date" class="field">
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="toDate"><span class="req">*</span>To Date</label>
+            <input id="toDate" type="date" class="field">
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="fromTime">From Time</label>
+            <input id="fromTime" type="time" value="09:00" class="field">
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="toTime">To Time</label>
+            <input id="toTime" type="time" value="17:00" class="field">
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm mb-1" for="place"><span class="req">*</span>Place</label>
+            <input id="place" class="field" placeholder="Outdoor duty location">
+          </div>
+          <div class="md:col-span-2 xl:col-span-4">
+            <label class="block text-sm mb-1" for="purpose"><span class="req">*</span>Purpose</label>
+            <textarea id="purpose" rows="3" class="field"></textarea>
+          </div>
+        </div>
+        <p id="formMsg" class="text-sm mt-3 hidden"></p>
+        <div class="flex gap-2 justify-center mt-3">
+          <button type="button" id="submitBtn" class="outline-btn">Submit</button>
+          <button type="button" id="cancelBtn" class="cancel-btn">Cancel</button>
+        </div>
+      </section>
+
+      <section id="statusPanel" class="panel hidden">
+        <div class="flex items-center justify-between gap-3 mb-2">
+          <div class="section-label">OD Application Status</div>
+          <button type="button" id="closeStatus" class="cancel-btn">Close</button>
+        </div>
+        <div class="tool-row">
+          <label class="search-label">Search: <input id="search" type="search"></label>
+          <button type="button" id="exportBtn" class="outline-btn">Export</button>
+        </div>
+        <div class="table-wrap">
+          <table class="est-table">
+            <thead>
+              <tr>
+                <th>From Date</th>
+                <th>To Date</th>
+                <th>From Time</th>
+                <th>To Time</th>
+                <th>Place</th>
+                <th>Purpose</th>
+                <th>Status</th>
+                <th>Applied At</th>
+              </tr>
+            </thead>
+            <tbody id="listBody"></tbody>
+          </table>
+        </div>
+        <div id="pager" class="pager"></div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="foot">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    let rows = [];
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function statusClass(status) {
+      const value = String(status || "").toLowerCase();
+      if (value.includes("approved")) return "approved";
+      if (value.includes("reject") || value.includes("cancel")) return "cancelled";
+      return "pending";
+    }
+    function setMsg(text, ok) {
+      const el = document.getElementById("formMsg");
+      if (!text) {
+        el.classList.add("hidden");
+        el.textContent = "";
+        return;
+      }
+      el.textContent = text;
+      el.className = `text-sm mt-3 ${ok ? "text-green-600" : "text-red-600"}`;
+    }
+    function visibleRows() {
+      const query = document.getElementById("search").value.trim().toLowerCase();
+      return rows.filter((row) => !query || [
+        row.place, row.purpose, row.status, row.from_date, row.to_date
+      ].join(" ").toLowerCase().includes(query));
+    }
+    function render() {
+      const list = visibleRows();
+      const body = document.getElementById("listBody");
+      if (!list.length) {
+        body.innerHTML = `<tr><td colspan="8" class="text-center text-gray-500">No OD applications.</td></tr>`;
+      } else {
+        body.innerHTML = list.map((row) => `
+          <tr>
+            <td>${escapeHTML(row.from_date)}</td>
+            <td>${escapeHTML(row.to_date)}</td>
+            <td>${escapeHTML(row.from_time)}</td>
+            <td>${escapeHTML(row.to_time)}</td>
+            <td>${escapeHTML(row.place)}</td>
+            <td>${escapeHTML(row.purpose)}</td>
+            <td><span class="status-pill ${statusClass(row.status)}">${escapeHTML(row.status)}</span></td>
+            <td>${escapeHTML(row.applied_at)}</td>
+          </tr>
+        `).join("");
+      }
+      document.getElementById("pager").textContent =
+        `Showing ${list.length ? 1 : 0} to ${list.length} of ${rows.length} entries`;
+    }
+
+    async function loadStatus(show) {
+      const response = await fetch(`${API}/api/faculty/establishment/od-applications`, { credentials: "include" });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+      const data = await response.json();
+      rows = data.applications || [];
+      render();
+      if (show) {
+        document.getElementById("statusPanel").classList.remove("hidden");
+        document.getElementById("statusPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+
+    document.getElementById("newBtn").addEventListener("click", () => {
+      document.getElementById("formPanel").classList.remove("hidden");
+      setMsg("", true);
+      document.getElementById("formPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    document.getElementById("statusBtn").addEventListener("click", () => loadStatus(true));
+    document.getElementById("closeStatus").addEventListener("click", () => {
+      document.getElementById("statusPanel").classList.add("hidden");
+    });
+    document.getElementById("cancelBtn").addEventListener("click", () => {
+      document.getElementById("formPanel").classList.add("hidden");
+      ["fromDate", "toDate", "place", "purpose"].forEach((id) => {
+        document.getElementById(id).value = "";
+      });
+      document.getElementById("fromTime").value = "09:00";
+      document.getElementById("toTime").value = "17:00";
+      setMsg("", true);
+    });
+    document.getElementById("search").addEventListener("input", render);
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const lines = [["From Date", "To Date", "From Time", "To Time", "Place", "Purpose", "Status", "Applied At"].join(",")];
+      visibleRows().forEach((row) => {
+        lines.push([row.from_date, row.to_date, row.from_time, row.to_time, row.place, row.purpose, row.status, row.applied_at]
+          .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","));
+      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+      link.download = "od-applications.csv";
+      link.click();
+    });
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const payload = {
+        from_date: document.getElementById("fromDate").value,
+        to_date: document.getElementById("toDate").value,
+        from_time: document.getElementById("fromTime").value,
+        to_time: document.getElementById("toTime").value,
+        place: document.getElementById("place").value.trim(),
+        purpose: document.getElementById("purpose").value.trim(),
+      };
+      if (!payload.from_date || !payload.to_date) return setMsg("Select from and to dates.", false);
+      if (!payload.place) return setMsg("Place is required.", false);
+      if (!payload.purpose) return setMsg("Purpose is required.", false);
+      const response = await fetch(`${API}/api/faculty/establishment/od-applications`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return setMsg(data.detail || "Could not submit OD application.", false);
+      setMsg("OD application submitted.", true);
+      document.getElementById("cancelBtn").click();
+      await loadStatus(true);
+    });
+
+    loadStatus(false).catch(() => { window.location.href = LOGIN_URL; });
+  </script>
+</body>
+</html>

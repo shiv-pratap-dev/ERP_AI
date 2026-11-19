@@ -725,10 +725,10 @@ def main() -> int:
         )
 
         say("\n[5/5] Next steps:")
-        say("1. Start the backend from the backend directory:")
-        say("   cd backend")
-        say("   python -m uvicorn main:app --reload")
-        say("2. Open frontend/index.html with VS Code Live Server.")
+        say("Start the app from the project folder:")
+        say("   python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000")
+        say("Then open http://127.0.0.1:8000 in your browser.")
+        say("Windows: double-click start.bat. macOS/Linux: ./start.sh")
 
         return 0
 

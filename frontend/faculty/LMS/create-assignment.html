@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Create Assignment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <link rel="stylesheet" href="/frontend/shared/lms.css?v=1">
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <div id="lms-sidebar" data-active="Create Assignment"></div>
+    <script src="/frontend/shared/lms-sidebar.js?v=1"></script>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <section class="panel space-y-4">
+        <div>
+          <div id="sessionLine" class="green-line"></div>
+          <div id="courseLine" class="green-line font-semibold"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="md:col-span-2">
+            <label class="block text-sm mb-1" for="title"><span class="req">*</span>Assignment Topic</label>
+            <input id="title" class="field" placeholder="Assignment-1">
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="dueDate"><span class="req">*</span>Submission Date Time</label>
+            <input id="dueDate" type="datetime-local" class="field">
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="maxMarks"><span class="req">*</span>Total Marks</label>
+            <input id="maxMarks" type="number" min="1" step="0.5" value="20" class="field">
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm mb-1" for="description">Description</label>
+            <textarea id="description" rows="2" class="field" placeholder="Assignment instructions"></textarea>
+          </div>
+        </div>
+
+        <div class="file-note">
+          Allowed File Extensions: .doc, .docx, .jpeg, .jpg, .pdf<br>
+          Max Size: 10 MB
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="file" type="file" accept=".doc,.docx,.jpeg,.jpg,.pdf,application/pdf" class="text-sm">
+          <button type="button" id="attachBtn" class="outline-btn">Attach File</button>
+          <span id="attachName" class="text-sm text-gray-600"></span>
+        </div>
+
+        <div class="max-w-sm">
+          <label class="block text-sm mb-1" for="section"><span class="req">*</span>Select Section</label>
+          <select id="section" class="field">
+            <option value="">None Selected</option>
+          </select>
+        </div>
+        <button type="button" id="showBtn" class="outline-btn">Show</button>
+
+        <div>
+          <div class="section-label">Student List</div>
+          <div class="tool-row">
+            <label class="search-label">Search: <input id="studentSearch" type="search"></label>
+            <div class="flex items-center gap-2">
+              <div class="menu">
+                <button type="button" id="colBtn" class="outline-btn">Column Visibility ▾</button>
+                <div id="colMenu" class="menu-panel hidden text-sm space-y-1"></div>
+              </div>
+              <button type="button" id="exportBtn" class="outline-btn">Export</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="lms-table">
+              <thead>
+                <tr>
+                  <th data-col="pick"><input type="checkbox" id="selectAll"></th>
+                  <th data-col="rrn">RRN</th>
+                  <th data-col="name">Student Name</th>
+                  <th data-col="section">Section</th>
+                  <th data-col="mobile">Mobile Number</th>
+                  <th data-col="email">Email Id</th>
+                </tr>
+              </thead>
+              <tbody id="studentBody">
+                <tr><td colspan="6" class="text-center text-gray-500">Select a section and click Show.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="studentPager" class="pager"></div>
+        </div>
+
+        <p id="formMsg" class="text-sm hidden"></p>
+        <div class="flex flex-wrap gap-2 justify-center">
+          <button type="button" id="submitBtn" class="outline-btn">Submit</button>
+          <button type="button" id="pdfBtn" class="outline-btn">Assignment PDF Report</button>
+          <button type="button" id="cancelBtn" class="cancel-btn">Cancel</button>
+        </div>
+
+        <div>
+          <div class="section-label">Assignment List</div>
+          <div class="table-wrap">
+            <table class="lms-table">
+              <thead>
+                <tr>
+                  <th>Subject</th>
+                  <th>Created Date</th>
+                  <th>Submission Date Time</th>
+                  <th>Status</th>
+                  <th>Student Reply</th>
+                </tr>
+              </thead>
+              <tbody id="assignmentBody">
+                <tr><td colspan="5" class="text-center text-gray-500">Loading assignments...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="foot">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const COLUMNS = [
+      ["pick", "Select"],
+      ["rrn", "RRN"],
+      ["name", "Student Name"],
+      ["section", "Section"],
+      ["mobile", "Mobile Number"],
+      ["email", "Email Id"],
+    ];
+    let selectedCourse = null;
+    let students = [];
+    let shownSection = "";
+    let attachedFile = null;
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function pad(n) { return String(n).padStart(2, "0"); }
+    function formatDay(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "-";
+      return `${pad(date.getDate())}-${MONTHS[date.getMonth()]}-${date.getFullYear()}`;
+    }
+    function formatStamp(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "-";
+      let hours = date.getHours();
+      const suffix = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12 || 12;
+      return `${formatDay(value)} - ${pad(hours)}:${pad(date.getMinutes())}:${pad(date.getSeconds())} ${suffix}`;
+    }
+    function courseLine(course) {
+      const program = course.program || "B. Tech - CSE";
+      const section = course.section || "S";
+      return `${course.course_code} - ${course.course_name} - [${program}] - [ ${section} ]`;
+    }
+    function setMsg(text, ok) {
+      const el = document.getElementById("formMsg");
+      el.textContent = text;
+      el.className = `text-sm ${ok ? "text-green-600" : "text-red-600"}`;
+    }
+    function defaultDue() {
+      const date = new Date();
+      date.setDate(date.getDate() + 7);
+      date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+      return date.toISOString().slice(0, 16);
+    }
+
+    function visibleStudents() {
+      if (!shownSection) return [];
+      const query = document.getElementById("studentSearch").value.trim().toLowerCase();
+      return students.filter((student) => {
+        if ((student.section || "S") !== shownSection) return false;
+        if (!query) return true;
+        return [student.roll_number, student.full_name, student.email, student.mobile, student.section]
+          .join(" ").toLowerCase().includes(query);
+      });
+    }
+
+    function renderStudents() {
+      const rows = visibleStudents();
+      const body = document.getElementById("studentBody");
+      const total = students.filter((student) => (student.section || "S") === shownSection).length;
+      if (!shownSection) {
+        body.innerHTML = `<tr><td colspan="6" class="text-center text-gray-500">Select a section and click Show.</td></tr>`;
+        document.getElementById("studentPager").textContent = "";
+        return;
+      }
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="6" class="text-center text-gray-500">No students match this search.</td></tr>`;
+      } else {
+        body.innerHTML = rows.map((student) => `
+          <tr>
+            <td data-col="pick"><input type="checkbox" class="student-check" value="${escapeHTML(student.id)}" checked></td>
+            <td data-col="rrn">${escapeHTML(student.roll_number)}</td>
+            <td data-col="name">${escapeHTML(student.full_name)}</td>
+            <td data-col="section">${escapeHTML(student.section || "S")}</td>
+            <td data-col="mobile">${escapeHTML(student.mobile || "—")}</td>
+            <td data-col="email">${escapeHTML(student.email || "—")}</td>
+          </tr>
+        `).join("");
+      }
+      document.getElementById("studentPager").textContent =
+        rows.length ? `Showing 1 to ${rows.length} of ${total} entries` : `Showing 0 to 0 of ${total} entries`;
+      document.getElementById("selectAll").checked = rows.length > 0;
+      applyColumns();
+    }
+
+    function applyColumns() {
+      document.querySelectorAll("#colMenu input[data-col]").forEach((box) => {
+        document.querySelectorAll(`[data-col="${box.dataset.col}"]`).forEach((cell) => {
+          cell.style.display = box.checked ? "" : "none";
+        });
+      });
+    }
+
+    async function loadStudents() {
+      const response = await fetch(`${API}/api/faculty/courses/${encodeURIComponent(selectedCourse.id)}/students`, {
+        credentials: "include",
+      });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+      const data = await response.json();
+      students = data.students || [];
+      const sections = Array.from(new Set(students.map((student) => student.section || "S")));
+      const select = document.getElementById("section");
+      select.innerHTML = `<option value="">None Selected</option>` +
+        sections.map((section) => `<option value="${escapeHTML(section)}">${escapeHTML(section)}</option>`).join("");
+    }
+
+    async function loadAssignments() {
+      const response = await fetch(`${API}/api/faculty/courses/${encodeURIComponent(selectedCourse.id)}/assignments`, {
+        credentials: "include",
+      });
+      const data = await response.json();
+      const rows = data.assignments || [];
+      const body = document.getElementById("assignmentBody");
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="5" class="text-center text-gray-500">No assignments yet.</td></tr>`;
+        return;
+      }
+      body.innerHTML = rows.map((item) => `
+        <tr>
+          <td>${escapeHTML(item.title)}</td>
+          <td>${escapeHTML(formatDay(item.created_at))}</td>
+          <td>${escapeHTML(formatStamp(item.due_date))}</td>
+          <td><span class="status-pill ${item.status === "Active" ? "active" : "expired"}">${escapeHTML(item.status)}</span></td>
+          <td><a class="text-indigo-600 hover:underline" href="/faculty/LMS/check-assignment.html?assignment=${encodeURIComponent(item.id)}">${escapeHTML(item.reply_count)}</a></td>
+        </tr>
+      `).join("");
+    }
+
+    function checkedIds() {
+      return Array.from(document.querySelectorAll(".student-check:checked")).map((box) => box.value);
+    }
+
+    document.getElementById("colMenu").innerHTML = COLUMNS.map(([key, label]) => `
+      <label class="flex items-center gap-2"><input type="checkbox" data-col="${key}" checked> ${label}</label>
+    `).join("");
+    document.getElementById("colBtn").addEventListener("click", () => {
+      document.getElementById("colMenu").classList.toggle("hidden");
+    });
+    document.getElementById("colMenu").addEventListener("change", applyColumns);
+    document.getElementById("studentSearch").addEventListener("input", renderStudents);
+    document.getElementById("selectAll").addEventListener("change", (event) => {
+      document.querySelectorAll(".student-check").forEach((box) => { box.checked = event.target.checked; });
+    });
+    document.getElementById("showBtn").addEventListener("click", () => {
+      const section = document.getElementById("section").value;
+      if (!section) {
+        shownSection = "";
+        setMsg("Select a section.", false);
+        renderStudents();
+        return;
+      }
+      shownSection = section;
+      setMsg("", true);
+      document.getElementById("formMsg").classList.add("hidden");
+      renderStudents();
+    });
+    document.getElementById("attachBtn").addEventListener("click", () => {
+      const file = document.getElementById("file").files[0];
+      if (!file) {
+        setMsg("Choose a file first.", false);
+        return;
+      }
+      const ext = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")).toLowerCase() : "";
+      if (![".doc", ".docx", ".jpeg", ".jpg", ".pdf"].includes(ext)) {
+        setMsg("Allowed file extensions: .doc, .docx, .jpeg, .jpg, .pdf", false);
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setMsg("Max size is 10 MB.", false);
+        return;
+      }
+      attachedFile = file;
+      document.getElementById("attachName").textContent = file.name;
+      setMsg(`Attached ${file.name}`, true);
+    });
+    document.getElementById("cancelBtn").addEventListener("click", () => {
+      document.getElementById("title").value = "";
+      document.getElementById("description").value = "";
+      document.getElementById("maxMarks").value = "20";
+      document.getElementById("dueDate").value = defaultDue();
+      document.getElementById("file").value = "";
+      document.getElementById("section").value = "";
+      attachedFile = null;
+      shownSection = "";
+      document.getElementById("attachName").textContent = "";
+      document.getElementById("formMsg").classList.add("hidden");
+      renderStudents();
+    });
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const rows = visibleStudents();
+      const header = ["RRN", "Student Name", "Section", "Mobile Number", "Email Id"];
+      const lines = [header.join(",")].concat(rows.map((student) =>
+        [student.roll_number, student.full_name, student.section || "S", student.mobile || "", student.email || ""]
+          .map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")
+      ));
+      const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "assignment-students.csv";
+      link.click();
+    });
+    document.getElementById("pdfBtn").addEventListener("click", () => {
+      const ids = new Set(checkedIds());
+      const rows = visibleStudents().filter((student) => ids.has(student.id));
+      if (!rows.length) {
+        setMsg("Show a section and select students for the report.", false);
+        return;
+      }
+      const popup = window.open("", "_blank");
+      if (!popup) return;
+      const body = rows.map((student) => `
+        <tr>
+          <td>${escapeHTML(student.roll_number)}</td>
+          <td>${escapeHTML(student.full_name)}</td>
+          <td>${escapeHTML(student.section || "S")}</td>
+          <td>${escapeHTML(student.email || "")}</td>
+        </tr>`).join("");
+      popup.document.write(`<!DOCTYPE html><html><head><title>Assignment PDF Report</title>
+        <style>body{font-family:Arial;padding:24px} table{border-collapse:collapse;width:100%} td,th{border:1px solid #ccc;padding:6px;font-size:13px}</style>
+        </head><body>
+        <h2>Assignment PDF Report</h2>
+        <p>${escapeHTML(document.getElementById("sessionLine").textContent)}</p>
+        <p>${escapeHTML(document.getElementById("courseLine").textContent)}</p>
+        <p>Topic: ${escapeHTML(document.getElementById("title").value || "—")}</p>
+        <table><thead><tr><th>RRN</th><th>Student Name</th><th>Section</th><th>Email Id</th></tr></thead><tbody>${body}</tbody></table>
+        </body></html>`);
+      popup.document.close();
+      popup.focus();
+      popup.print();
+    });
+
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const title = document.getElementById("title").value.trim();
+      const dueLocal = document.getElementById("dueDate").value;
+      const marks = Number(document.getElementById("maxMarks").value);
+      const ids = checkedIds();
+      if (!title) return setMsg("Assignment topic is required.", false);
+      if (!dueLocal) return setMsg("Submission date time is required.", false);
+      if (!marks || marks <= 0) return setMsg("Total marks must be greater than 0.", false);
+      if (!shownSection) return setMsg("Select a section and click Show.", false);
+      if (!ids.length) return setMsg("Select at least one student.", false);
+
+      const response = await fetch(`${API}/api/faculty/assignments`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          course_id: selectedCourse.id,
+          title,
+          description: document.getElementById("description").value.trim(),
+          due_date: new Date(dueLocal).toISOString(),
+          max_marks: marks,
+          student_ids: ids,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return setMsg(data.detail || "Could not create assignment.", false);
+
+      if (attachedFile && data.assignment?.id) {
+        const form = new FormData();
+        form.append("file", attachedFile);
+        const upload = await fetch(`${API}/api/faculty/assignments/${encodeURIComponent(data.assignment.id)}/attachment`, {
+          method: "POST",
+          credentials: "include",
+          body: form,
+        });
+        if (!upload.ok) {
+          const uploadData = await upload.json().catch(() => ({}));
+          setMsg(uploadData.detail || "Assignment saved, but the file was not attached.", false);
+          await loadAssignments();
+          return;
+        }
+      }
+      setMsg("Assignment submitted.", true);
+      document.getElementById("title").value = "";
+      document.getElementById("description").value = "";
+      document.getElementById("file").value = "";
+      attachedFile = null;
+      document.getElementById("attachName").textContent = "";
+      await loadAssignments();
+    });
+
+    try {
+      selectedCourse = JSON.parse(localStorage.getItem("facultySelectedCourse") || "null");
+    } catch (_) {
+      selectedCourse = null;
+    }
+    if (!selectedCourse?.id) {
+      window.location.href = "/faculty/LMS/select-course.html";
+    } else {
+      const session = selectedCourse.session || "July-Dec 2026-2027 - School of Engineering and Technology";
+      document.getElementById("sessionLine").textContent = `Session ${session}`;
+      document.getElementById("courseLine").textContent = `Course Name ${courseLine(selectedCourse)}`;
+      document.getElementById("dueDate").value = defaultDue();
+      Promise.all([loadStudents(), loadAssignments()]).catch(() => {
+        window.location.href = LOGIN_URL;
+      });
+    }
+  </script>
+</body>
+</html>

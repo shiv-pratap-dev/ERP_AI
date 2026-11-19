@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Question Wise Mark Entry</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; color: #374151; }
+    .side-link { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; font-size: 13px; color: #4b5563; }
+    .side-link.active { color: #4f46e5; background: #eef2ff; border-left: 3px solid #4f46e5; }
+    .panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px 18px 18px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .field { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #fff; }
+    .field:disabled, .field[readonly] { background: #f9fafb; color: #4b5563; }
+    .req { color: #dc2626; margin-right: 2px; }
+    .outline-btn { border: 1px solid #818cf8; color: #4f46e5; background: #fff; border-radius: 6px; padding: 6px 14px; font-size: 13px; }
+    .outline-btn:hover { background: #eef2ff; }
+    .outline-btn:disabled { opacity: .5; }
+    .back-btn { border: 1px solid #f87171; color: #e11d48; background: #fff; border-radius: 6px; padding: 6px 18px; font-size: 13px; }
+    .back-btn:hover { background: #fff1f2; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 6px; font-size: 12px; font-weight: 700; color: #374151; text-align: left; white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid #f3f4f6; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    #subjectBody tr { cursor: pointer; }
+    #subjectBody tr:hover { background: #eef2ff; }
+    .mark-input { width: 72px; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 6px; font-size: 13px; text-align: right; }
+    .mark-input:disabled { background: #f3f4f6; color: #6b7280; }
+    .status-note { background: #eef2ff; border: 1px solid #c7d2fe; color: #3730a3; }
+    .pending { background: #fef3c7; color: #a16207; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+    .done { background: #dcfce7; color: #166534; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+    .hidden-row { display: none; }
+    .q-legend { font-size: 12px; color: #4b5563; }
+    .q-legend b { color: #111827; font-weight: 600; }
+    details.cols > summary { list-style: none; }
+    details.cols > summary::-webkit-details-marker { display: none; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=10"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <aside id="sideBar" class="w-60 bg-white border-r hidden md:flex md:flex-col shrink-0">
+      <div class="px-4 py-3 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
+        OBE
+        <button type="button" id="sideClose" class="text-gray-400 text-lg leading-none" aria-label="Close">×</button>
+      </div>
+      <a href="/faculty/OBE/question-wise.html" class="side-link active">Question Wise Mark Entry <span>☆</span></a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <section id="picker" class="panel">
+        <h1 class="text-base font-semibold text-gray-800 mb-4">Question Wise Mark Entry</h1>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm mb-1" for="session"><span class="req">*</span>Session Name</label>
+            <select id="session" class="field"><option value="">Please Select</option></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="scheme"><span class="req">*</span>Assessment Scheme Name</label>
+            <select id="scheme" class="field" disabled><option value="">Please Select</option></select>
+          </div>
+        </div>
+        <p id="formMsg" class="text-sm mt-3 hidden"></p>
+
+        <div id="subjectBlock" class="mt-5 hidden">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <h2 class="text-sm font-semibold border-l-4 border-indigo-500 pl-2">Subject Details</h2>
+            <div class="flex items-center gap-2">
+              <details class="cols relative">
+                <summary class="outline-btn cursor-pointer">Column Visibility ▾</summary>
+                <div class="absolute right-0 mt-1 w-44 bg-white border rounded-lg shadow p-3 z-20 text-sm space-y-1">
+                  <label class="flex items-center gap-2"><input type="checkbox" class="col-toggle" data-col="scheme" checked> Scheme</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" class="col-toggle" data-col="semester" checked> Semester</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" class="col-toggle" data-col="section" checked> Section</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" class="col-toggle" data-col="batch" checked> Batch</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" class="col-toggle" data-col="internal" checked> Internal</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" class="col-toggle" data-col="external" checked> External</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" class="col-toggle" data-col="faculty" checked> Faculty Id</label>
+                </div>
+              </details>
+              <button type="button" id="exportBtn" class="outline-btn">Export</button>
+            </div>
+          </div>
+          <label class="text-sm text-gray-600 mb-2 inline-block">Search:
+            <input id="subjectSearch" class="field inline-block w-44 ml-1">
+          </label>
+          <div class="overflow-x-auto border rounded-lg">
+            <table class="w-full text-sm min-w-[980px]">
+              <thead>
+                <tr>
+                  <th class="table-head">SrNo</th>
+                  <th class="table-head">Subject Name</th>
+                  <th class="table-head" data-col="scheme">Scheme</th>
+                  <th class="table-head" data-col="semester">Semester</th>
+                  <th class="table-head" data-col="section">Section</th>
+                  <th class="table-head" data-col="batch">Batch</th>
+                  <th class="table-head" data-col="internal">Internal</th>
+                  <th class="table-head" data-col="external">External</th>
+                  <th class="table-head" data-col="faculty">Faculty Id</th>
+                </tr>
+              </thead>
+              <tbody id="subjectBody"></tbody>
+            </table>
+          </div>
+          <p id="subjectShowing" class="text-xs text-gray-500 mt-2"></p>
+        </div>
+      </section>
+
+      <section id="sheetCard" class="panel hidden">
+        <h1 class="text-base font-semibold text-gray-800 mb-4">Question Wise Mark Entry</h1>
+        <div class="grid grid-cols-1 lg:grid-cols-[1.4fr_0.9fr_160px] gap-3 items-end">
+          <div>
+            <label class="block text-sm mb-1" for="subjectLabel">Subject Name</label>
+            <input id="subjectLabel" class="field" readonly>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="sheetExam"><span class="req">*</span>Exam Name</label>
+            <select id="sheetExam" class="field"></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="maxMarks">Subject Max Marks</label>
+            <input id="maxMarks" class="field text-right" readonly>
+          </div>
+        </div>
+        <div class="flex justify-center my-4">
+          <button type="button" id="backBtn" class="back-btn">Back</button>
+        </div>
+
+        <div class="flex flex-col xl:flex-row gap-3 mb-4 xl:items-stretch">
+          <div class="text-sm">
+            <input id="excelFile" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+            <div class="text-xs text-red-500 mt-1">(.xls/.xlsx Format Only)</div>
+            <div class="flex gap-2 mt-2">
+              <button type="button" id="importBtn" class="outline-btn">Import From Excel</button>
+              <button type="button" id="downloadBtn" class="outline-btn">Download Excel</button>
+            </div>
+          </div>
+          <div class="status-note rounded-lg p-3 text-xs leading-5 flex-1 flex gap-3">
+            <div class="w-10 h-10 rounded-md bg-indigo-100 text-indigo-600 grid place-items-center shrink-0 text-lg">🔔</div>
+            <div>
+              <div class="font-semibold mb-1">Status Code</div>
+              <div>902 : for Absent ( Please check Status Code checkbox or enter status code in Total Marks)</div>
+              <div>903 : for UFM ( Please check Status Code checkbox or enter status code in Total Marks)</div>
+              <div>904 : for Detained ( Please check Status Code checkbox or enter status code in Total Marks)</div>
+              <div id="lockLine" class="mt-1 font-semibold"></div>
+            </div>
+          </div>
+          <div class="w-full xl:w-36">
+            <label class="block text-sm mb-1" for="studentCount">Student Count</label>
+            <input id="studentCount" class="field text-right" readonly>
+          </div>
+        </div>
+
+        <div id="questionLegend" class="q-legend mb-2"></div>
+        <div class="overflow-x-auto border rounded-lg">
+          <table class="w-full text-sm min-w-[980px]">
+            <thead>
+              <tr id="markHead"></tr>
+            </thead>
+            <tbody id="markBody"></tbody>
+          </table>
+        </div>
+        <p id="emptyNote" class="text-sm text-center text-gray-500 py-6 hidden">No records to display..</p>
+        <p id="sheetMsg" class="text-sm mt-3 hidden"></p>
+        <div class="flex flex-wrap gap-2 justify-center mt-4">
+          <button type="button" id="submitBtn" class="outline-btn">Submit</button>
+          <button type="button" id="lockBtn" class="outline-btn">Lock</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="text-center text-xs text-gray-500 py-4">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    const STATUS = new Set(["902", "903", "904"]);
+    let meta = null;
+    let subjects = [];
+    let sheet = null;
+    let courseId = "";
+    let dirty = false;
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function formatMark(value) {
+      if (value == null || value === "") return "";
+      const number = Number(value);
+      return Number.isNaN(number) ? "" : number.toFixed(2);
+    }
+
+    function setMsg(id, text, kind) {
+      const el = document.getElementById(id);
+      if (!text) {
+        el.classList.add("hidden");
+        el.textContent = "";
+        return;
+      }
+      el.textContent = text;
+      el.className = `text-sm mt-3 ${kind === "error" ? "text-red-600" : "text-green-700"}`;
+    }
+
+    function errorText(data) {
+      const detail = data?.detail;
+      if (Array.isArray(detail)) return detail.map((item) => item.msg || "Request failed").join(" ");
+      return detail || "Request failed";
+    }
+
+    async function api(path, opts) {
+      const response = await fetch(`${API}${path}`, {
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        ...opts,
+      });
+      if (response.status === 401) {
+        window.location.href = LOGIN_URL;
+        return null;
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(errorText(data));
+      return data;
+    }
+
+    function fillSelect(select, items, placeholder) {
+      select.innerHTML = `<option value="">${placeholder}</option>`;
+      items.forEach((item) => {
+        select.insertAdjacentHTML("beforeend", `<option value="${escapeHTML(item)}">${escapeHTML(item)}</option>`);
+      });
+    }
+
+    function badge(value) {
+      const kind = value === "DONE" ? "done" : "pending";
+      return `<span class="${kind}">${escapeHTML(value || "PENDING")}</span>`;
+    }
+
+    function renderSubjects() {
+      const query = document.getElementById("subjectSearch").value.trim().toLowerCase();
+      const body = document.getElementById("subjectBody");
+      const visible = subjects.filter((row) => {
+        const hay = `${row.label} ${row.scheme} ${row.section} ${row.faculty_id}`.toLowerCase();
+        return !query || hay.includes(query);
+      });
+      body.innerHTML = visible.map((row) => `
+        <tr data-id="${escapeHTML(row.course_id)}" role="button" tabindex="0" aria-label="Open ${escapeHTML(row.label)}">
+          <td class="py-2 px-2">${row.sr}</td>
+          <td class="py-2 px-2">${escapeHTML(row.label)}</td>
+          <td class="py-2 px-2 max-w-[280px] truncate" data-col="scheme" title="${escapeHTML(row.scheme)}">${escapeHTML(row.scheme)}</td>
+          <td class="py-2 px-2" data-col="semester">${escapeHTML(row.semester)}</td>
+          <td class="py-2 px-2" data-col="section">${escapeHTML(row.section)}</td>
+          <td class="py-2 px-2" data-col="batch">${escapeHTML(row.batch)}</td>
+          <td class="py-2 px-2" data-col="internal">${badge(row.internal)}</td>
+          <td class="py-2 px-2" data-col="external">${badge(row.external)}</td>
+          <td class="py-2 px-2" data-col="faculty">${escapeHTML(row.faculty_id)}</td>
+        </tr>`).join("");
+      document.getElementById("subjectShowing").textContent = subjects.length
+        ? `Showing ${visible.length ? 1 : 0} to ${visible.length} of ${subjects.length} entries`
+        : "No records to display..";
+      applyColumns();
+    }
+
+    function applyColumns() {
+      document.querySelectorAll(".col-toggle").forEach((box) => {
+        document.querySelectorAll(`[data-col="${box.dataset.col}"]`).forEach((cell) => {
+          cell.classList.toggle("hidden", !box.checked);
+        });
+      });
+    }
+
+    async function loadSubjects() {
+      const session = document.getElementById("session").value;
+      const scheme = document.getElementById("scheme").value;
+      document.getElementById("subjectBlock").classList.toggle("hidden", !(session && scheme));
+      if (!session || !scheme) {
+        subjects = [];
+        return;
+      }
+      setMsg("formMsg", "", "");
+      const params = new URLSearchParams({ session_label: session, scheme });
+      const data = await api(`/api/faculty/obe/subjects?${params.toString()}`);
+      if (!data) return;
+      subjects = data.subjects || [];
+      renderSubjects();
+    }
+
+    function questionHeader() {
+      const questions = sheet?.questions || [];
+      const legend = questions
+        .map((question) => `<b>${escapeHTML(question.code)}</b> / ${formatMark(question.max_marks)}(Q/M)`)
+        .join(" | ");
+      document.getElementById("questionLegend").innerHTML = questions.length
+        ? `Question Wise Mark : ${legend}`
+        : "";
+      const heads = [
+        "<th class=\"table-head\">Reg No. / Roll No.</th>",
+        "<th class=\"table-head\">Student Name</th>",
+        "<th class=\"table-head\">Status Code</th>",
+        ...questions.map((question) => `<th class="table-head">${escapeHTML(question.code)}<div class="font-normal text-gray-500">(${formatMark(question.max_marks)} M)</div></th>`),
+        "<th class=\"table-head\">Total Marks</th>",
+      ];
+      document.getElementById("markHead").innerHTML = heads.join("");
+    }
+
+    function renderSheet() {
+      const rows = sheet?.rows || [];
+      const locked = Boolean(sheet?.locked);
+      document.getElementById("subjectLabel").value = sheet?.course?.label || "";
+      document.getElementById("maxMarks").value = formatMark(sheet?.max_marks);
+      document.getElementById("studentCount").value = String(sheet?.student_count ?? rows.length);
+      document.getElementById("sheetExam").value = sheet?.exam_name || "";
+      document.getElementById("sheetExam").disabled = locked;
+      document.getElementById("lockLine").textContent = locked
+        ? `${sheet.lock_message} Marks are locked.`
+        : (sheet?.lock_message || "");
+      document.getElementById("submitBtn").disabled = locked;
+      document.getElementById("lockBtn").disabled = locked;
+      document.getElementById("importBtn").disabled = locked;
+      document.getElementById("emptyNote").classList.toggle("hidden", rows.length > 0);
+      questionHeader();
+      const questions = sheet?.questions || [];
+      document.getElementById("markBody").innerHTML = rows.map((row) => {
+        const status = row.status_code || "";
+        const checked = STATUS.has(status);
+        const inputs = questions.map((question) => {
+          const mark = row.marks?.[question.code];
+          const shown = checked ? "0.00" : mark == null ? "" : formatMark(mark);
+          return `<td class="py-2 px-2"><input class="mark-input q-input" data-code="${escapeHTML(question.code)}" data-max="${question.max_marks}" data-prev="${escapeHTML(shown)}" inputmode="decimal" value="${escapeHTML(shown)}" ${checked || locked ? "disabled" : ""}></td>`;
+        }).join("");
+        return `
+          <tr data-id="${escapeHTML(row.student_id)}">
+            <td class="py-2 px-2 whitespace-nowrap">${escapeHTML(row.roll_number)}</td>
+            <td class="py-2 px-2 whitespace-nowrap">${escapeHTML(row.name)}</td>
+            <td class="py-2 px-2">
+              <label class="inline-flex items-center gap-2">
+                <input type="checkbox" class="status-check" ${checked ? "checked" : ""} ${locked ? "disabled" : ""}>
+                <select class="status-pick field w-24 ${checked ? "" : "hidden"}" ${locked ? "disabled" : ""}>
+                  <option value="902" ${status === "902" ? "selected" : ""}>902</option>
+                  <option value="903" ${status === "903" ? "selected" : ""}>903</option>
+                  <option value="904" ${status === "904" ? "selected" : ""}>904</option>
+                </select>
+              </label>
+            </td>
+            ${inputs}
+            <td class="py-2 px-2 total-cell whitespace-nowrap ${checked ? "text-red-600 font-semibold" : ""}">${checked ? `${escapeHTML(status)}.00` : formatMark(row.total)}</td>
+          </tr>`;
+      }).join("");
+      dirty = false;
+    }
+
+    function paintRow(tr) {
+      const checked = tr.querySelector(".status-check").checked;
+      const pick = tr.querySelector(".status-pick");
+      pick.classList.toggle("hidden", !checked);
+      const status = pick.value || "902";
+      let total = 0;
+      let any = false;
+      tr.querySelectorAll(".q-input").forEach((input) => {
+        input.disabled = checked || Boolean(sheet?.locked);
+        if (checked) input.value = "0.00";
+        const value = Number(input.value);
+        if (!checked && input.value !== "" && !Number.isNaN(value)) {
+          total += value;
+          any = true;
+        }
+      });
+      const cell = tr.querySelector(".total-cell");
+      if (checked) {
+        cell.textContent = `${status}.00`;
+        cell.classList.add("text-red-600", "font-semibold");
+      } else {
+        cell.textContent = any ? total.toFixed(2) : "";
+        cell.classList.remove("text-red-600", "font-semibold");
+      }
+    }
+
+    function collectRows() {
+      const rows = [];
+      for (const tr of document.querySelectorAll("#markBody tr")) {
+        const checked = tr.querySelector(".status-check").checked;
+        const marks = {};
+        if (checked) {
+          rows.push({
+            student_id: tr.dataset.id,
+            status_code: tr.querySelector(".status-pick").value || "902",
+            marks: {},
+          });
+          continue;
+        }
+        for (const input of tr.querySelectorAll(".q-input")) {
+          const raw = input.value.trim();
+          if (!raw) continue;
+          if (STATUS.has(raw.replace(/\.00$/, ""))) {
+            rows.push({
+              student_id: tr.dataset.id,
+              status_code: raw.replace(/\.00$/, ""),
+              marks: {},
+            });
+            marks._stop = true;
+            break;
+          }
+          const value = Number(raw);
+          const max = Number(input.dataset.max);
+          if (Number.isNaN(value) || value < 0 || value > max) {
+            return { error: `${input.dataset.code} must be between 0 and ${max.toFixed(2)}`, rows: [] };
+          }
+          marks[input.dataset.code] = Math.round(value * 100) / 100;
+        }
+        if (marks._stop) continue;
+        rows.push({ student_id: tr.dataset.id, status_code: null, marks });
+      }
+      return { error: "", rows };
+    }
+
+    async function openSheet(nextCourseId, examName) {
+      courseId = nextCourseId;
+      const session = document.getElementById("session").value;
+      const scheme = document.getElementById("scheme").value;
+      const exam = examName || document.getElementById("sheetExam").value || "II-IN TERM-NEW";
+      const params = new URLSearchParams({
+        session_label: session,
+        scheme,
+        exam_name: exam,
+        course_id: courseId,
+      });
+      const data = await api(`/api/faculty/obe/sheet?${params.toString()}`);
+      if (!data) return;
+      sheet = data;
+      document.getElementById("picker").classList.add("hidden");
+      document.getElementById("sheetCard").classList.remove("hidden");
+      renderSheet();
+      setMsg("sheetMsg", "", "");
+    }
+
+    async function persist(lock) {
+      if (!sheet || sheet.locked) return;
+      const collected = collectRows();
+      if (collected.error) {
+        setMsg("sheetMsg", collected.error, "error");
+        return;
+      }
+      if (lock) {
+        const questions = sheet.questions || [];
+        const incomplete = collected.rows.some((row) => {
+          if (row.status_code) return false;
+          return questions.some((question) => row.marks[question.code] == null);
+        });
+        if (incomplete) {
+          setMsg("sheetMsg", "Enter marks or a status code for every question and student before locking.", "error");
+          return;
+        }
+        if (!window.confirm(meta?.lock_message || "You won't be able to modify the MARKS after it's been locked")) return;
+      }
+      const result = await api(lock ? "/api/faculty/obe/lock" : "/api/faculty/obe/save", {
+        method: "POST",
+        body: JSON.stringify({
+          session_label: document.getElementById("session").value,
+          scheme: document.getElementById("scheme").value,
+          exam_name: sheet.exam_name,
+          course_id: courseId,
+          rows: collected.rows,
+        }),
+      });
+      if (!result) return;
+      sheet = result;
+      renderSheet();
+      setMsg("sheetMsg", result.message || "Marks saved.", "ok");
+    }
+
+    document.getElementById("sideClose").addEventListener("click", () => {
+      document.getElementById("sideBar").classList.add("hidden");
+    });
+    document.getElementById("session").addEventListener("change", () => {
+      const ready = Boolean(document.getElementById("session").value);
+      document.getElementById("scheme").disabled = !ready;
+      if (!ready) document.getElementById("scheme").value = "";
+      loadSubjects().catch((error) => setMsg("formMsg", error.message, "error"));
+    });
+    document.getElementById("scheme").addEventListener("change", () => {
+      loadSubjects().catch((error) => setMsg("formMsg", error.message, "error"));
+    });
+    document.getElementById("subjectSearch").addEventListener("input", renderSubjects);
+    document.querySelectorAll(".col-toggle").forEach((box) => box.addEventListener("change", applyColumns));
+    document.getElementById("subjectBody").addEventListener("click", (event) => {
+      const tr = event.target.closest("tr");
+      if (!tr) return;
+      openSheet(tr.dataset.id, "II-IN TERM-NEW").catch((error) => setMsg("formMsg", error.message, "error"));
+    });
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const header = ["SrNo", "Subject Name", "Scheme", "Semester", "Section", "Batch", "Internal", "External", "Faculty Id"];
+      const lines = [header.join(",")];
+      subjects.forEach((row) => {
+        const cells = [row.sr, row.label, row.scheme, row.semester, row.section, row.batch, row.internal, row.external, row.faculty_id];
+        lines.push(cells.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","));
+      });
+      const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "obe-subjects.csv";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+    document.getElementById("backBtn").addEventListener("click", () => {
+      if (dirty && !window.confirm("Leave this sheet without saving?")) return;
+      document.getElementById("sheetCard").classList.add("hidden");
+      document.getElementById("picker").classList.remove("hidden");
+      dirty = false;
+      loadSubjects().catch((error) => setMsg("formMsg", error.message, "error"));
+    });
+    document.getElementById("sheetExam").addEventListener("change", () => {
+      const next = document.getElementById("sheetExam").value;
+      if (!next || next === sheet?.exam_name) return;
+      if (dirty && !window.confirm("Change exam without saving these marks?")) {
+        document.getElementById("sheetExam").value = sheet.exam_name;
+        return;
+      }
+      openSheet(courseId, next).catch((error) => setMsg("sheetMsg", error.message, "error"));
+    });
+    document.getElementById("markBody").addEventListener("input", (event) => {
+      const tr = event.target.closest("tr");
+      if (!tr || sheet?.locked) return;
+      dirty = true;
+      if (event.target.classList.contains("q-input")) {
+        const token = event.target.value.trim().replace(/\.00$/, "");
+        if (STATUS.has(token)) {
+          tr.querySelector(".status-check").checked = true;
+          tr.querySelector(".status-pick").value = token;
+        } else if (!tr.querySelector(".status-check").checked) {
+          event.target.dataset.prev = event.target.value;
+        }
+      }
+      paintRow(tr);
+    });
+    document.getElementById("markBody").addEventListener("change", (event) => {
+      const tr = event.target.closest("tr");
+      if (!tr || sheet?.locked) return;
+      dirty = true;
+      if (event.target.classList.contains("status-check") && !event.target.checked) {
+        tr.querySelectorAll(".q-input").forEach((input) => {
+          input.disabled = false;
+          input.value = input.dataset.prev && input.dataset.prev !== "0.00" ? input.dataset.prev : "";
+        });
+      }
+      paintRow(tr);
+    });
+    document.getElementById("submitBtn").addEventListener("click", () => {
+      persist(false).catch((error) => setMsg("sheetMsg", error.message, "error"));
+    });
+    document.getElementById("lockBtn").addEventListener("click", () => {
+      persist(true).catch((error) => setMsg("sheetMsg", error.message, "error"));
+    });
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      if (!sheet || !courseId) return;
+      const params = new URLSearchParams({
+        session_label: document.getElementById("session").value,
+        scheme: document.getElementById("scheme").value,
+        exam_name: sheet.exam_name,
+        course_id: courseId,
+      });
+      window.location.href = `${API}/api/faculty/obe/excel?${params.toString()}`;
+    });
+    document.getElementById("importBtn").addEventListener("click", async () => {
+      const file = document.getElementById("excelFile").files[0];
+      if (!file) {
+        setMsg("sheetMsg", "Choose an .xlsx file first.", "error");
+        return;
+      }
+      if (sheet?.locked) return;
+      const params = new URLSearchParams({
+        session_label: document.getElementById("session").value,
+        scheme: document.getElementById("scheme").value,
+        exam_name: sheet.exam_name,
+        course_id: courseId,
+      });
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch(`${API}/api/faculty/obe/import?${params.toString()}`, {
+        method: "POST",
+        credentials: "include",
+        body,
+      });
+      if (response.status === 401) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setMsg("sheetMsg", errorText(data), "error");
+        return;
+      }
+      sheet = data;
+      renderSheet();
+      setMsg("sheetMsg", data.message || "Imported.", "ok");
+    });
+
+    api("/api/faculty/obe/meta").then((data) => {
+      if (!data) return;
+      meta = data;
+      fillSelect(document.getElementById("session"), data.question_sessions, "Please Select");
+      fillSelect(document.getElementById("scheme"), data.schemes, "Please Select");
+      const exam = document.getElementById("sheetExam");
+      exam.innerHTML = "";
+      (data.exams || []).forEach((item) => {
+        exam.insertAdjacentHTML("beforeend", `<option value="${escapeHTML(item.name)}">${escapeHTML(item.name)}</option>`);
+      });
+    }).catch((error) => setMsg("formMsg", error.message, "error"));
+  </script>
+</body>
+</html>

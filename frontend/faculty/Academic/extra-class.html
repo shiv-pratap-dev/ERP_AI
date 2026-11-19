@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Extra Class Time Table</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
+    .side-link { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; font-size: 13px; color: #4b5563; }
+    .side-link.active { color: #4f46e5; background: #eef2ff; border-left: 3px solid #4f46e5; }
+    .field { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #fff; }
+    .field:disabled { background: #f3f4f6; color: #6b7280; }
+    .req { color: #dc2626; margin-right: 2px; }
+    .outline-btn { border: 1px solid #6366f1; color: #4f46e5; background: #fff; border-radius: 6px; padding: 6px 12px; font-size: 13px; }
+    .outline-btn:hover { background: #eef2ff; }
+    .cancel-btn { border: 1px solid #f87171; color: #dc2626; background: #fff; border-radius: 6px; padding: 6px 12px; font-size: 13px; }
+    .cancel-btn:hover { background: #fef2f2; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 6px; font-size: 12px; font-weight: 700; color: #374151; text-align: left; white-space: nowrap; }
+    .cell-course { color: #ea580c; }
+    .cell-slot { color: #2563eb; }
+    .cell-date { color: #16a34a; }
+    tbody tr { border-bottom: 1px solid #f3f4f6; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+    .col-menu { position: absolute; right: 0; top: 36px; z-index: 20; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.08); padding: 8px 12px; min-width: 180px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <aside class="w-60 bg-white border-r hidden md:flex md:flex-col shrink-0">
+      <div class="px-4 py-3 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
+        Faculty Related
+        <span class="text-gray-400">×</span>
+      </div>
+      <a href="/faculty/Academic/teaching-plan.html" class="side-link">Teaching Plan Entry <span>☆</span></a>
+      <a href="/faculty/Academic/attendance.html" class="side-link">Attendance By Faculty <span>☆</span></a>
+      <a href="/faculty/Academic/extra-class.html" class="side-link active">Extra Class Time Table <span>☆</span></a>
+      <a href="/faculty/Academic/attendance-register.html" class="side-link">Attendance Register Report <span>☆</span></a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <div class="bg-white rounded-xl border shadow-sm p-4 md:p-5">
+        <h1 class="text-base font-semibold text-gray-800 mb-4">Extra Class Time Table</h1>
+        <form id="extraForm">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-sm mb-1" for="planType"><span class="req">*</span>Course Type</label>
+              <select id="planType" class="field"><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="session"><span class="req">*</span>Session</label>
+              <select id="session" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm mb-1" for="details"><span class="req">*</span>Course Details</label>
+              <select id="details" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="college"><span class="req">*</span>College</label>
+              <select id="college" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="semester"><span class="req">*</span>Semester</label>
+              <select id="semester" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="course"><span class="req">*</span>Course</label>
+              <select id="course" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="teachingFor"><span class="req">*</span>Course Type</label>
+              <select id="teachingFor" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="section"><span class="req">*</span>Section</label>
+              <select id="section" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="batch">Batch</label>
+              <select id="batch" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="slotType"><span class="req">*</span>Slot Type</label>
+              <select id="slotType" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="slot"><span class="req">*</span>Slot</label>
+              <select id="slot" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="room">Room</label>
+              <select id="room" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div id="startWrap" class="hidden">
+              <label class="block text-sm mb-1" for="startDate"><span class="req">*</span>Time Table Start Date</label>
+              <input id="startDate" type="date" class="field">
+            </div>
+            <div id="endWrap" class="hidden">
+              <label class="block text-sm mb-1" for="endDate"><span class="req">*</span>Time Table End Date</label>
+              <input id="endDate" type="date" class="field">
+            </div>
+            <label class="flex items-end gap-2 text-sm text-gray-700 pb-2">
+              <input id="regularClass" type="checkbox" disabled>
+              RegularClass
+            </label>
+          </div>
+
+          <p id="formMsg" class="text-sm mt-3 hidden"></p>
+          <div class="flex flex-wrap gap-2 justify-center mt-4">
+            <button type="submit" class="outline-btn">Create Extra Class Time Table</button>
+            <button type="button" id="existingBtn" class="outline-btn">Existing Extra Class Time Table</button>
+            <button type="button" id="cancelRowsBtn" class="cancel-btn">Cancel Extra Class Time Table</button>
+            <button type="button" id="resetBtn" class="cancel-btn">Cancel</button>
+          </div>
+        </form>
+
+        <section id="listPanel" class="mt-6 hidden">
+          <h2 class="font-semibold text-gray-800 mb-3 border-l-4 border-indigo-500 pl-2">Extra Time Table</h2>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+            <label class="text-sm text-gray-600 flex items-center gap-2">
+              Search:
+              <input id="search" class="field w-56" placeholder="" autocomplete="off">
+            </label>
+            <div class="flex items-center gap-2 self-end">
+              <div class="relative">
+                <button type="button" id="colBtn" class="outline-btn">Column Visibility ▾</button>
+                <div id="colMenu" class="col-menu hidden"></div>
+              </div>
+              <button type="button" id="exportBtn" class="outline-btn">Export</button>
+            </div>
+          </div>
+          <div class="overflow-x-auto border rounded-lg">
+            <table class="w-full text-sm">
+              <thead>
+                <tr id="headRow"></tr>
+              </thead>
+              <tbody id="bodyRows"></tbody>
+            </table>
+          </div>
+          <p id="showing" class="text-xs text-gray-500 mt-2"></p>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <footer class="text-center text-xs text-gray-500 py-4">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    const COLUMNS = [
+      ["sr_no", "Sr No.", ""],
+      ["session_label", "Session", ""],
+      ["semester_label", "Semester", ""],
+      ["section", "Section", ""],
+      ["batch", "Batch", ""],
+      ["course_name", "Course Name", "cell-course"],
+      ["slot_type", "Slot Type", ""],
+      ["slot_label", "Slot", "cell-slot"],
+      ["start_date", "From Date", "cell-date"],
+      ["end_date", "To Date", "cell-date"],
+      ["class_label", "Class", ""],
+    ];
+
+    let options = null;
+    let rows = [];
+    let hiddenCols = new Set();
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    async function api(path, opts) {
+      const response = await fetch(`${API}${path}`, {
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        ...opts,
+      });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        throw new Error("auth");
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = data.detail;
+        throw new Error(typeof detail === "string" ? detail : "Request failed");
+      }
+      return data;
+    }
+
+    function setMsg(text, ok) {
+      const el = document.getElementById("formMsg");
+      el.textContent = text;
+      el.className = `text-sm mt-3 ${ok ? "text-green-600" : "text-red-600"}`;
+      el.classList.remove("hidden");
+    }
+
+    function fillSelect(id, items, placeholder, selected) {
+      const el = document.getElementById(id);
+      const optionsHtml = items.map((item) => {
+        const value = typeof item === "object" ? item.value : item;
+        const label = typeof item === "object" ? item.label : item;
+        const on = String(value) === String(selected ?? "") ? " selected" : "";
+        return `<option value="${escapeHTML(value)}"${on}>${escapeHTML(label)}</option>`;
+      }).join("");
+      el.innerHTML = `<option value="">${escapeHTML(placeholder || "Please Select")}</option>` + optionsHtml;
+    }
+
+    function needsDates() {
+      return (options.new_slot_types || []).includes(document.getElementById("slotType").value);
+    }
+
+    function syncDates() {
+      const show = needsDates();
+      document.getElementById("startWrap").classList.toggle("hidden", !show);
+      document.getElementById("endWrap").classList.toggle("hidden", !show);
+      if (!show) {
+        document.getElementById("startDate").value = "";
+        document.getElementById("endDate").value = "";
+      }
+    }
+
+    function enableAfterCourse() {
+      const ready = Boolean(document.getElementById("course").value);
+      ["teachingFor", "section", "slotType", "room"].forEach((id) => {
+        document.getElementById(id).disabled = !ready;
+      });
+      document.getElementById("regularClass").disabled = !ready;
+      if (!ready) {
+        document.getElementById("teachingFor").value = "";
+        document.getElementById("section").value = "";
+        document.getElementById("slotType").value = "";
+        document.getElementById("room").value = "";
+        document.getElementById("regularClass").checked = false;
+        fillBatches();
+        fillSlots();
+      }
+    }
+
+    function fillCourses() {
+      const semester = document.getElementById("semester").value;
+      const courses = (options.courses || []).filter((course) => String(course.semester) === String(semester));
+      fillSelect("course", courses.map((course) => ({ value: course.id, label: course.label })));
+      document.getElementById("course").disabled = !semester;
+      enableAfterCourse();
+    }
+
+    function fillBatches() {
+      const section = document.getElementById("section").value;
+      const batches = section ? (options.batches[section] || []) : [];
+      fillSelect("batch", batches);
+      document.getElementById("batch").disabled = !section;
+    }
+
+    function fillSlots() {
+      const type = document.getElementById("slotType").value;
+      fillSelect("slot", type ? (options.slots[type] || []) : []);
+      document.getElementById("slot").disabled = !type;
+      syncDates();
+    }
+
+    function visibleColumns() {
+      return COLUMNS.filter(([key]) => !hiddenCols.has(key));
+    }
+
+    function filteredRows() {
+      const query = document.getElementById("search").value.trim().toLowerCase();
+      if (!query) return rows;
+      return rows.filter((row) =>
+        COLUMNS.some(([key]) => String(row[key] ?? "").toLowerCase().includes(query)) ||
+        String(row.course_code || "").toLowerCase().includes(query));
+    }
+
+    function renderColumnMenu() {
+      document.getElementById("colMenu").innerHTML = COLUMNS.map(([key, label]) => `
+        <label class="flex items-center gap-2 text-sm py-1">
+          <input type="checkbox" data-col="${key}" ${hiddenCols.has(key) ? "" : "checked"}>
+          ${escapeHTML(label)}
+        </label>
+      `).join("");
+    }
+
+    function renderTable() {
+      const cols = visibleColumns();
+      document.getElementById("headRow").innerHTML = `
+        <th class="table-head"><input id="checkAll" type="checkbox"></th>
+        ${cols.map(([, label]) => `<th class="table-head">${escapeHTML(label)}</th>`).join("")}
+      `;
+      const shown = filteredRows();
+      document.getElementById("bodyRows").innerHTML = shown.map((row) => `
+        <tr>
+          <td class="px-2 py-2"><input class="row-check" type="checkbox" value="${escapeHTML(row.id)}"></td>
+          ${cols.map(([key, , tone]) => `<td class="px-2 py-2 whitespace-nowrap ${tone}">${escapeHTML(row[key] || "—")}</td>`).join("")}
+        </tr>
+      `).join("") || `<tr><td colspan="${cols.length + 1}" class="p-4 text-center text-gray-500">No extra class time table found.</td></tr>`;
+      document.getElementById("showing").textContent = shown.length
+        ? `Showing 1 to ${shown.length} of ${rows.length} entries`
+        : `Showing 0 to 0 of ${rows.length} entries`;
+      const checkAll = document.getElementById("checkAll");
+      if (checkAll) {
+        checkAll.addEventListener("change", () => {
+          document.querySelectorAll(".row-check").forEach((box) => {
+            box.checked = checkAll.checked;
+          });
+        });
+      }
+    }
+
+    function showList(nextRows) {
+      rows = nextRows;
+      document.getElementById("listPanel").classList.remove("hidden");
+      renderTable();
+    }
+
+    function resetForm() {
+      ["planType", "session", "details", "college", "semester", "course", "teachingFor", "section", "batch", "slotType", "slot", "room"].forEach((id) => {
+        document.getElementById(id).value = "";
+      });
+      document.getElementById("regularClass").checked = false;
+      document.getElementById("startDate").value = "";
+      document.getElementById("endDate").value = "";
+      ["session", "details", "college", "semester", "course", "teachingFor", "section", "batch", "slotType", "slot", "room"].forEach((id) => {
+        document.getElementById(id).disabled = true;
+      });
+      document.getElementById("regularClass").disabled = true;
+      fillSelect("details", []);
+      fillSelect("semester", options.semesters.map((item) => ({ value: item.value, label: item.label })));
+      fillCourses();
+      syncDates();
+      document.getElementById("formMsg").classList.add("hidden");
+    }
+
+    function currentPayload() {
+      return {
+        plan_type: document.getElementById("planType").value,
+        session_label: document.getElementById("session").value,
+        course_details: document.getElementById("details").value,
+        college_label: document.getElementById("college").value,
+        course_id: document.getElementById("course").value,
+        teaching_for: document.getElementById("teachingFor").value,
+        section: document.getElementById("section").value,
+        batch: document.getElementById("batch").value,
+        slot_type: document.getElementById("slotType").value,
+        slot_label: document.getElementById("slot").value,
+        room: document.getElementById("room").value,
+        regular_class: document.getElementById("regularClass").checked,
+        start_date: needsDates() ? document.getElementById("startDate").value : "",
+        end_date: needsDates() ? document.getElementById("endDate").value : "",
+      };
+    }
+
+    function validate() {
+      const required = [
+        ["planType", "Select a course type"],
+        ["session", "Select a session"],
+        ["details", "Select course details"],
+        ["college", "Select a college"],
+        ["semester", "Select a semester"],
+        ["course", "Select a course"],
+        ["teachingFor", "Select a course type"],
+        ["section", "Select a section"],
+        ["slotType", "Select a slot type"],
+        ["slot", "Select a slot"],
+      ];
+      for (const [id, message] of required) {
+        if (!document.getElementById(id).value) return message;
+      }
+      if (needsDates()) {
+        if (!document.getElementById("startDate").value || !document.getElementById("endDate").value) {
+          return "Select the time table start and end dates";
+        }
+        if (document.getElementById("endDate").value < document.getElementById("startDate").value) {
+          return "Time table end date cannot be before the start date";
+        }
+      }
+      return "";
+    }
+
+    document.getElementById("planType").addEventListener("change", () => {
+      const on = Boolean(document.getElementById("planType").value);
+      document.getElementById("session").disabled = !on;
+      if (!on) resetForm();
+    });
+
+    document.getElementById("session").addEventListener("change", () => {
+      const session = document.getElementById("session").value;
+      const details = document.getElementById("details");
+      if (!session) {
+        fillSelect("details", []);
+        details.disabled = true;
+        document.getElementById("college").disabled = true;
+        document.getElementById("college").value = "";
+        return;
+      }
+      const label = `${session}-${options.teacher_name}-${options.employee_id}`;
+      fillSelect("details", [label], "Please Select", label);
+      details.disabled = false;
+      document.getElementById("college").disabled = false;
+    });
+
+    document.getElementById("college").addEventListener("change", () => {
+      const on = Boolean(document.getElementById("college").value);
+      document.getElementById("semester").disabled = !on;
+      if (!on) {
+        document.getElementById("semester").value = "";
+        fillCourses();
+      }
+    });
+
+    document.getElementById("semester").addEventListener("change", fillCourses);
+    document.getElementById("course").addEventListener("change", enableAfterCourse);
+    document.getElementById("section").addEventListener("change", fillBatches);
+    document.getElementById("slotType").addEventListener("change", fillSlots);
+
+    document.getElementById("extraForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const problem = validate();
+      if (problem) return setMsg(problem, false);
+      try {
+        const data = await api("/api/faculty/extra-class", {
+          method: "POST",
+          body: JSON.stringify(currentPayload()),
+        });
+        showList(data.rows);
+        setMsg(data.message, true);
+      } catch (error) {
+        if (error.message !== "auth") setMsg(error.message, false);
+      }
+    });
+
+    document.getElementById("existingBtn").addEventListener("click", async () => {
+      try {
+        const data = await api("/api/faculty/extra-class");
+        showList(data.rows);
+        setMsg(`Showing ${data.rows.length} extra class time table entr${data.rows.length === 1 ? "y" : "ies"}.`, true);
+      } catch (error) {
+        if (error.message !== "auth") setMsg(error.message, false);
+      }
+    });
+
+    document.getElementById("cancelRowsBtn").addEventListener("click", async () => {
+      if (document.getElementById("listPanel").classList.contains("hidden")) {
+        return setMsg("Open Existing Extra Class Time Table and select a row.", false);
+      }
+      const ids = [...document.querySelectorAll(".row-check:checked")].map((box) => box.value);
+      if (!ids.length) return setMsg("Select an extra class to cancel.", false);
+      try {
+        const data = await api("/api/faculty/extra-class/cancel", {
+          method: "POST",
+          body: JSON.stringify({ ids }),
+        });
+        showList(data.rows);
+        setMsg(data.message, true);
+      } catch (error) {
+        if (error.message !== "auth") setMsg(error.message, false);
+      }
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", resetForm);
+    document.getElementById("search").addEventListener("input", renderTable);
+    document.getElementById("colBtn").addEventListener("click", () => {
+      document.getElementById("colMenu").classList.toggle("hidden");
+    });
+    document.getElementById("colMenu").addEventListener("change", (event) => {
+      const key = event.target.dataset.col;
+      if (!key) return;
+      if (event.target.checked) hiddenCols.delete(key);
+      else hiddenCols.add(key);
+      renderTable();
+    });
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest("#colBtn") && !event.target.closest("#colMenu")) {
+        document.getElementById("colMenu").classList.add("hidden");
+      }
+    });
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const cols = visibleColumns();
+      const lines = [cols.map(([, label]) => label).join(",")];
+      filteredRows().forEach((row) => {
+        lines.push(cols.map(([key]) => `"${String(row[key] ?? "").replaceAll('"', '""')}"`).join(","));
+      });
+      const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "extra-class-timetable.csv";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    document.querySelectorAll("[data-soon]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (window.showNotice) window.showNotice(link.dataset.soon);
+      });
+    });
+
+    async function init() {
+      options = await api("/api/faculty/extra-class/options");
+      fillSelect("planType", options.plan_types);
+      fillSelect("session", options.sessions);
+      fillSelect("college", options.colleges);
+      fillSelect("semester", options.semesters.map((item) => ({ value: item.value, label: item.label })));
+      fillSelect("teachingFor", options.teaching_for);
+      fillSelect("section", options.sections);
+      fillSelect("slotType", options.slot_types);
+      fillSelect("room", options.rooms);
+      renderColumnMenu();
+    }
+
+    init().catch((error) => {
+      if (error.message !== "auth") setMsg(error.message, false);
+    });
+  </script>
+</body>
+</html>

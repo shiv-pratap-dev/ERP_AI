@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Mark Entry</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; }
+    .side-link { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; font-size: 13px; color: #4b5563; }
+    .side-link.active { color: #4f46e5; background: #eef2ff; border-left: 3px solid #4f46e5; }
+    .field { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #fff; }
+    .field:disabled, .field[readonly] { background: #f9fafb; color: #4b5563; }
+    .req { color: #dc2626; margin-right: 2px; }
+    .outline-btn { border: 1px solid #6366f1; color: #4f46e5; background: #fff; border-radius: 6px; padding: 6px 14px; font-size: 13px; }
+    .outline-btn:hover { background: #eef2ff; }
+    .cancel-btn, .back-btn { border: 1px solid #f87171; color: #e11d48; background: #fff; border-radius: 6px; padding: 6px 16px; font-size: 13px; }
+    .cancel-btn:hover, .back-btn:hover { background: #fff1f2; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 6px; font-size: 12px; font-weight: 700; color: #374151; text-align: left; white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid #f3f4f6; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    .mark-input { width: 92px; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 8px; font-size: 13px; text-align: right; }
+    .mark-input:disabled { background: #f3f4f6; color: #6b7280; }
+    .total-cell { font-variant-numeric: tabular-nums; min-width: 72px; }
+    .status-note { background: #eef2ff; border: 1px solid #c7d2fe; color: #3730a3; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+    .hidden-row { display: none; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <aside class="w-60 bg-white border-r hidden md:flex md:flex-col shrink-0">
+      <div class="px-4 py-3 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
+        Examination
+        <span class="text-gray-400">×</span>
+      </div>
+      <a href="/faculty/Examination/mark-entry.html" class="side-link active">Mark Entry <span>☆</span></a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <div class="bg-white rounded-xl border shadow-sm p-4 md:p-5">
+        <h1 class="text-base font-semibold text-gray-800 mb-4">Mark Entry</h1>
+        <form id="filterForm">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-sm mb-1" for="session"><span class="req">*</span>Session</label>
+              <select id="session" class="field"><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="examName"><span class="req">*</span>Exam Name</label>
+              <select id="examName" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="course"><span class="req">*</span>Course</label>
+              <select id="course" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="section">Section</label>
+              <select id="section" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="college">College</label>
+              <select id="college" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="semester">Semester</label>
+              <select id="semester" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1" for="courseType">Course Type</label>
+              <select id="courseType" class="field" disabled><option value="">Please Select</option></select>
+            </div>
+          </div>
+          <p id="formMsg" class="text-sm mt-3 hidden"></p>
+          <div class="flex flex-wrap gap-2 justify-center mt-4">
+            <button type="button" id="showBtn" class="outline-btn">Show</button>
+            <button type="button" id="resetBtn" class="cancel-btn">Cancel</button>
+          </div>
+        </form>
+      </div>
+
+      <section id="sheet" class="bg-white rounded-xl border shadow-sm p-4 md:p-5 mt-4 hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-[1.4fr_0.8fr_180px] gap-3 items-end">
+          <div>
+            <label class="block text-sm mb-1" for="subjectLabel">Subject Name</label>
+            <input id="subjectLabel" class="field" readonly>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="sheetExam"><span class="req">*</span>Exam Name</label>
+            <select id="sheetExam" class="field"></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="maxMarks">Subject Max Marks</label>
+            <input id="maxMarks" class="field text-right" readonly>
+          </div>
+        </div>
+
+        <div class="flex justify-center my-4">
+          <button type="button" id="backBtn" class="back-btn">Back</button>
+        </div>
+
+        <div id="lockBanner" class="status-note rounded-lg px-4 py-3 text-sm mb-3 hidden"></div>
+
+        <div class="flex flex-col lg:flex-row gap-3 lg:items-stretch mb-4">
+          <div class="status-note rounded-lg p-3 text-xs leading-5 flex-1">
+            <div class="font-semibold mb-1">Status Code</div>
+            <div>902 : for Absent (Please check Status Code checkbox or enter status code in Marks)</div>
+            <div>903 : for UFM (Please check Status Code checkbox or enter status code in Marks)</div>
+            <div>904 : for Detained (Please check Status Code checkbox or enter status code in Marks)</div>
+          </div>
+          <div class="w-full lg:w-36">
+            <label class="block text-sm mb-1" for="studentCount">Student Count</label>
+            <input id="studentCount" class="field text-right" readonly>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3 mb-2">
+          <label class="text-sm text-gray-600">Search:
+            <input id="searchBox" class="field inline-block w-44 ml-1" placeholder="">
+          </label>
+          <span id="showing" class="text-xs text-gray-500"></span>
+        </div>
+
+        <div class="overflow-x-auto border rounded-lg">
+          <table class="w-full text-sm min-w-[760px]">
+            <thead>
+              <tr>
+                <th class="table-head">Reg No. / Roll No.</th>
+                <th class="table-head">Student Name</th>
+                <th class="table-head">Status Code</th>
+                <th class="table-head">Marks Obtained</th>
+                <th class="table-head">Total Marks</th>
+              </tr>
+            </thead>
+            <tbody id="markBody"></tbody>
+          </table>
+        </div>
+        <p id="emptyNote" class="text-sm text-center text-gray-500 py-6 hidden">No records to display..</p>
+
+        <p id="sheetMsg" class="text-sm mt-3 hidden"></p>
+        <div class="flex flex-wrap gap-2 justify-center mt-4">
+          <button type="button" id="submitBtn" class="outline-btn">Submit</button>
+          <button type="button" id="lockBtn" class="outline-btn">Lock</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="text-center text-xs text-gray-500 py-4">
+    © 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.
+  </footer>
+
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    const STATUS = new Set(["902", "903", "904"]);
+
+    let meta = null;
+    let sheet = null;
+    let dirty = false;
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function setMsg(id, text, kind) {
+      const el = document.getElementById(id);
+      if (!text) {
+        el.classList.add("hidden");
+        el.textContent = "";
+        return;
+      }
+      el.textContent = text;
+      el.className = `text-sm mt-3 ${kind === "error" ? "text-red-600" : "text-green-700"}`;
+    }
+
+    async function api(path, opts) {
+      const response = await fetch(`${API}${path}`, {
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        ...opts,
+      });
+      if (response.status === 401) {
+        window.location.href = LOGIN_URL;
+        return null;
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || "Request failed");
+      return data;
+    }
+
+    function fillSelect(select, items, placeholder, getValue, getLabel) {
+      const current = select.value;
+      select.innerHTML = `<option value="">${placeholder}</option>`;
+      items.forEach((item) => {
+        const value = getValue(item);
+        const label = getLabel(item);
+        select.insertAdjacentHTML(
+          "beforeend",
+          `<option value="${escapeHTML(value)}">${escapeHTML(label)}</option>`,
+        );
+      });
+      if ([...select.options].some((opt) => opt.value === current)) select.value = current;
+    }
+
+    function selectedCourse() {
+      return (meta?.courses || []).find((course) => course.id === document.getElementById("course").value) || null;
+    }
+
+    function enableAfterSession() {
+      const ready = Boolean(document.getElementById("session").value);
+      document.getElementById("examName").disabled = !ready;
+      document.getElementById("course").disabled = !ready;
+      const college = document.getElementById("college");
+      college.disabled = true;
+      college.value = ready && meta?.colleges?.length ? meta.colleges[1] || meta.colleges[0] : "";
+      if (!ready) {
+        document.getElementById("examName").value = "";
+        document.getElementById("course").value = "";
+        applyCourse();
+      }
+    }
+
+    function applyCourse() {
+      const course = selectedCourse();
+      const section = document.getElementById("section");
+      const semester = document.getElementById("semester");
+      const courseType = document.getElementById("courseType");
+      section.disabled = !course;
+      if (!course) {
+        section.value = "";
+        semester.innerHTML = `<option value="">Please Select</option>`;
+        courseType.innerHTML = `<option value="">Please Select</option>`;
+        return;
+      }
+      semester.innerHTML = `<option value="${escapeHTML(course.semester_label)}">${escapeHTML(course.semester_label)}</option>`;
+      courseType.innerHTML = `<option value="${escapeHTML(course.course_type)}">${escapeHTML(course.course_type)}</option>`;
+      if (!section.value) section.value = course.section || "S";
+    }
+
+    function formatMark(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return "";
+      return number.toFixed(2);
+    }
+
+    function parseCell(raw) {
+      const text = String(raw ?? "").trim();
+      if (!text) return { marks: null, status_code: null, error: "" };
+      const code = text.replace(/\.0+$/, "").replace(/\.00$/, "");
+      if (STATUS.has(code)) return { marks: null, status_code: code, error: "" };
+      const marks = Number(text);
+      if (!Number.isFinite(marks)) return { marks: null, status_code: null, error: "Enter a number or status code 902, 903, or 904." };
+      return { marks, status_code: null, error: "" };
+    }
+
+    function rowPayload(tr) {
+      const statusOn = tr.querySelector(".status-check").checked;
+      const statusCode = tr.querySelector(".status-pick").value;
+      if (statusOn) return { student_id: tr.dataset.id, marks: null, status_code: statusCode, error: "" };
+      const parsed = parseCell(tr.querySelector(".mark-input").value);
+      return { student_id: tr.dataset.id, marks: parsed.marks, status_code: parsed.status_code, error: parsed.error };
+    }
+
+    function paintTotal(tr) {
+      const payload = rowPayload(tr);
+      const total = tr.querySelector(".total-cell");
+      const input = tr.querySelector(".mark-input");
+      const pick = tr.querySelector(".status-pick");
+      const checked = tr.querySelector(".status-check").checked || Boolean(payload.status_code);
+      if (payload.status_code) {
+        tr.querySelector(".status-check").checked = true;
+        pick.value = payload.status_code;
+        pick.classList.remove("hidden");
+        input.value = "0.00";
+        input.disabled = true;
+        total.textContent = `${payload.status_code}.00`;
+        total.classList.add("text-red-600", "font-semibold");
+        return;
+      }
+      pick.classList.add("hidden");
+      input.disabled = Boolean(sheet?.locked);
+      total.classList.remove("text-red-600", "font-semibold");
+      total.textContent = payload.marks == null ? "" : formatMark(payload.marks);
+    }
+
+    function renderSheet() {
+      const body = document.getElementById("markBody");
+      const rows = sheet?.rows || [];
+      document.getElementById("subjectLabel").value = sheet?.course?.label || "";
+      document.getElementById("maxMarks").value = formatMark(sheet?.max_marks);
+      document.getElementById("studentCount").value = String(sheet?.student_count ?? rows.length);
+      document.getElementById("sheetExam").value = sheet?.exam_name || "";
+      const locked = Boolean(sheet?.locked);
+      document.getElementById("lockBanner").classList.toggle("hidden", !locked);
+      document.getElementById("lockBanner").textContent = locked ? sheet.lock_message : "";
+      document.getElementById("submitBtn").disabled = locked;
+      document.getElementById("lockBtn").disabled = locked;
+      document.getElementById("submitBtn").classList.toggle("opacity-50", locked);
+      document.getElementById("lockBtn").classList.toggle("opacity-50", locked);
+      document.getElementById("emptyNote").classList.toggle("hidden", rows.length > 0);
+
+      body.innerHTML = rows.map((row) => {
+        const status = row.status_code || "";
+        const checked = STATUS.has(status);
+        return `
+          <tr data-id="${escapeHTML(row.student_id)}" data-prev="${checked || row.marks == null ? "" : formatMark(row.marks)}" data-search="${escapeHTML(`${row.roll_number} ${row.name}`.toLowerCase())}">
+            <td class="py-2 px-2">${escapeHTML(row.roll_number)}</td>
+            <td class="py-2 px-2">${escapeHTML(row.name)}</td>
+            <td class="py-2 px-2">
+              <label class="inline-flex items-center gap-2">
+                <input type="checkbox" class="status-check" ${checked ? "checked" : ""} ${locked ? "disabled" : ""}>
+                <select class="status-pick field w-24 ${checked ? "" : "hidden"}" ${locked ? "disabled" : ""}>
+                  <option value="902" ${status === "902" ? "selected" : ""}>902</option>
+                  <option value="903" ${status === "903" ? "selected" : ""}>903</option>
+                  <option value="904" ${status === "904" ? "selected" : ""}>904</option>
+                </select>
+              </label>
+            </td>
+            <td class="py-2 px-2">
+              <input class="mark-input" inputmode="decimal" value="${checked ? "0.00" : row.marks == null ? "" : formatMark(row.marks)}" ${checked || locked ? "disabled" : ""}>
+            </td>
+            <td class="py-2 px-2 total-cell ${checked ? "text-red-600 font-semibold" : ""}">${checked ? `${escapeHTML(status)}.00` : row.marks == null ? "" : formatMark(row.marks)}</td>
+          </tr>`;
+      }).join("");
+      dirty = false;
+      applySearch();
+    }
+
+    function applySearch() {
+      const query = document.getElementById("searchBox").value.trim().toLowerCase();
+      const rows = [...document.querySelectorAll("#markBody tr")];
+      let visible = 0;
+      rows.forEach((row) => {
+        const match = !query || row.dataset.search.includes(query);
+        row.classList.toggle("hidden-row", !match);
+        if (match) visible += 1;
+      });
+      const total = rows.length;
+      document.getElementById("showing").textContent = total
+        ? `Showing ${visible ? 1 : 0} to ${visible} of ${total} entries`
+        : "";
+    }
+
+    function collectRows() {
+      const rows = [];
+      for (const tr of document.querySelectorAll("#markBody tr")) {
+        const payload = rowPayload(tr);
+        if (payload.error) return { error: payload.error, rows: [] };
+        rows.push({
+          student_id: payload.student_id,
+          marks: payload.status_code ? null : payload.marks,
+          status_code: payload.status_code,
+        });
+      }
+      return { error: "", rows };
+    }
+
+    async function showSheet() {
+      const session = document.getElementById("session").value;
+      const examName = document.getElementById("examName").value;
+      const course = document.getElementById("course").value;
+      const section = document.getElementById("section").value;
+      if (!session || !examName || !course || !section) {
+        setMsg("formMsg", "Select Session, Exam Name, Course, and Section.", "error");
+        return;
+      }
+      setMsg("formMsg", "", "");
+      setMsg("sheetMsg", "", "");
+      const params = new URLSearchParams({
+        session_label: session,
+        exam_name: examName,
+        course_id: course,
+        section,
+      });
+      sheet = await api(`/api/faculty/mark-entry/sheet?${params.toString()}`);
+      if (!sheet) return;
+      document.getElementById("sheet").classList.remove("hidden");
+      renderSheet();
+      if (!sheet.rows.length) {
+        setMsg("sheetMsg", "No students in this section.", "error");
+      }
+    }
+
+    async function persist(lock) {
+      if (!sheet || sheet.locked) return;
+      const collected = collectRows();
+      if (collected.error) {
+        setMsg("sheetMsg", collected.error, "error");
+        return;
+      }
+      if (lock) {
+        const incomplete = collected.rows.some((row) => row.marks == null && !row.status_code);
+        if (incomplete) {
+          setMsg("sheetMsg", "Enter marks or a status code for every student before locking.", "error");
+          return;
+        }
+        const warning = meta?.lock_message || "You won't be able to modify the MARKS after it's been locked";
+        if (!window.confirm(warning)) return;
+      }
+      const path = lock ? "/api/faculty/mark-entry/lock" : "/api/faculty/mark-entry/save";
+      const result = await api(path, {
+        method: "POST",
+        body: JSON.stringify({
+          session_label: document.getElementById("session").value,
+          exam_name: sheet.exam_name,
+          course_id: document.getElementById("course").value,
+          section: document.getElementById("section").value,
+          rows: collected.rows,
+        }),
+      });
+      if (!result) return;
+      await showSheet();
+      setMsg("sheetMsg", result.message || (lock ? "Marks locked." : "Marks saved."), "ok");
+    }
+
+    function resetForm() {
+      document.getElementById("filterForm").reset();
+      document.getElementById("college").innerHTML = `<option value="">Please Select</option>`;
+      (meta?.colleges || []).forEach((label) => {
+        document.getElementById("college").insertAdjacentHTML(
+          "beforeend",
+          `<option value="${escapeHTML(label)}">${escapeHTML(label)}</option>`,
+        );
+      });
+      enableAfterSession();
+      document.getElementById("sheet").classList.add("hidden");
+      sheet = null;
+      dirty = false;
+      setMsg("formMsg", "", "");
+      setMsg("sheetMsg", "", "");
+    }
+
+    document.getElementById("session").addEventListener("change", () => {
+      enableAfterSession();
+      document.getElementById("sheet").classList.add("hidden");
+    });
+    document.getElementById("course").addEventListener("change", () => {
+      applyCourse();
+      document.getElementById("sheet").classList.add("hidden");
+    });
+    document.getElementById("examName").addEventListener("change", () => {
+      document.getElementById("sheet").classList.add("hidden");
+    });
+    document.getElementById("section").addEventListener("change", () => {
+      document.getElementById("sheet").classList.add("hidden");
+    });
+    document.getElementById("showBtn").addEventListener("click", () => {
+      showSheet().catch((error) => setMsg("formMsg", error.message, "error"));
+    });
+    document.getElementById("resetBtn").addEventListener("click", resetForm);
+    document.getElementById("backBtn").addEventListener("click", () => {
+      if (dirty && !window.confirm("Leave this sheet without saving?")) return;
+      document.getElementById("sheet").classList.add("hidden");
+      dirty = false;
+    });
+    document.getElementById("sheetExam").addEventListener("change", () => {
+      const next = document.getElementById("sheetExam").value;
+      if (!next || next === sheet?.exam_name) return;
+      if (dirty && !window.confirm("Change exam without saving these marks?")) {
+        document.getElementById("sheetExam").value = sheet.exam_name;
+        return;
+      }
+      document.getElementById("examName").value = next;
+      showSheet().catch((error) => setMsg("sheetMsg", error.message, "error"));
+    });
+    document.getElementById("searchBox").addEventListener("input", applySearch);
+    document.getElementById("markBody").addEventListener("input", (event) => {
+      const tr = event.target.closest("tr");
+      if (!tr || sheet?.locked) return;
+      dirty = true;
+      const parsed = parseCell(event.target.value);
+      if (event.target.classList.contains("mark-input") && parsed.marks != null && !tr.querySelector(".status-check").checked) {
+        tr.dataset.prev = formatMark(parsed.marks);
+      }
+      if (event.target.classList.contains("mark-input") && parsed.status_code) {
+        tr.querySelector(".status-check").checked = true;
+        tr.querySelector(".status-pick").value = parsed.status_code;
+      }
+      paintTotal(tr);
+    });
+    document.getElementById("markBody").addEventListener("change", (event) => {
+      const tr = event.target.closest("tr");
+      if (!tr || sheet?.locked) return;
+      dirty = true;
+      if (event.target.classList.contains("status-check") && event.target.checked) {
+        tr.querySelector(".status-pick").value = tr.querySelector(".status-pick").value || "902";
+      }
+      if (event.target.classList.contains("status-check") && !event.target.checked) {
+        const input = tr.querySelector(".mark-input");
+        input.disabled = false;
+        input.value = tr.dataset.prev || "";
+      }
+      paintTotal(tr);
+    });
+    document.getElementById("submitBtn").addEventListener("click", () => {
+      persist(false).catch((error) => setMsg("sheetMsg", error.message, "error"));
+    });
+    document.getElementById("lockBtn").addEventListener("click", () => {
+      persist(true).catch((error) => setMsg("sheetMsg", error.message, "error"));
+    });
+
+    api("/api/faculty/mark-entry/meta")
+      .then((data) => {
+        if (!data) return;
+        meta = data;
+        fillSelect(document.getElementById("session"), data.sessions, "Please Select", (item) => item, (item) => item);
+        fillSelect(document.getElementById("examName"), data.exams, "Please Select", (item) => item.name, (item) => item.name);
+        fillSelect(
+          document.getElementById("course"),
+          data.courses,
+          "Please Select",
+          (item) => item.id,
+          (item) => `${item.code} - ${item.name}`,
+        );
+        fillSelect(document.getElementById("section"), data.sections, "Please Select", (item) => item, (item) => item);
+        fillSelect(document.getElementById("college"), data.colleges, "Please Select", (item) => item, (item) => item);
+        fillSelect(document.getElementById("sheetExam"), data.exams, "Please Select", (item) => item.name, (item) => item.name);
+        document.getElementById("college").value = "";
+      })
+      .catch((error) => setMsg("formMsg", error.message, "error"));
+  </script>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Check Student Assignment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <link rel="stylesheet" href="/frontend/shared/lms.css?v=1">
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=9"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <div id="lms-sidebar" data-active="Check Student Assignment"></div>
+    <script src="/frontend/shared/lms-sidebar.js?v=1"></script>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <section class="panel">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <h1 class="text-lg font-semibold text-gray-800">Check Student Assignment</h1>
+          <a id="homeLink" href="/faculty/home" class="text-sm text-sky-700">Home</a>
+        </div>
+        <div class="flex items-start justify-between gap-4 mb-1">
+          <div id="sessionLine" class="green-line"></div>
+          <div id="dateLine" class="text-sm text-gray-700"></div>
+        </div>
+        <div id="courseLine" class="green-line font-semibold mb-3"></div>
+        <div id="topicLine" class="text-sm font-semibold text-gray-700 mb-3 hidden"></div>
+
+        <div id="listView">
+          <div class="section-label">Assignment List</div>
+          <div class="tool-row">
+            <label class="search-label">Search: <input id="assignmentSearch" type="search"></label>
+            <div class="flex items-center gap-2">
+              <button type="button" id="exportAssignments" class="outline-btn">Export</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="lms-table">
+              <thead>
+                <tr>
+                  <th>Subject</th>
+                  <th>Created Date</th>
+                  <th>Submission Date Time</th>
+                  <th>Status</th>
+                  <th>Student Reply</th>
+                </tr>
+              </thead>
+              <tbody id="assignmentBody"></tbody>
+            </table>
+          </div>
+          <div id="assignmentPager" class="pager"></div>
+        </div>
+
+        <div id="detailView" class="hidden">
+          <div id="gradeBox" class="hidden border border-gray-200 rounded-lg p-4 mb-4">
+            <div id="fileRow" class="text-sm text-gray-700 mb-4"></div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <div class="text-sm mb-1">Session</div>
+                <input id="sessionStamp" class="field" readonly>
+              </div>
+              <div>
+                <div class="text-sm mb-1">Total Marks</div>
+                <input id="totalMarks" class="field" readonly>
+              </div>
+              <div>
+                <label class="text-sm mb-1 block" for="marks"><span class="req">*</span>Marks Obtained</label>
+                <input id="marks" type="number" min="0" step="0.5" class="field">
+              </div>
+            </div>
+            <div class="mt-4">
+              <div class="flex flex-wrap items-center justify-between gap-3 mb-1 text-sm">
+                <span>Remark</span>
+                <label class="inline-flex items-center gap-2"><input id="checkedFlag" type="checkbox" checked> Checked</label>
+                <label class="inline-flex items-center gap-2"><input id="displayMarks" type="checkbox" checked> Display Marks To Student</label>
+              </div>
+              <textarea id="feedback" rows="3" class="field"></textarea>
+            </div>
+            <div class="flex justify-center gap-2 mt-3">
+              <button type="button" id="gradeSubmit" class="outline-btn">Submit</button>
+              <button type="button" id="gradeCancel" class="cancel-btn">Cancel</button>
+            </div>
+            <p id="gradeMsg" class="text-sm mt-2 hidden"></p>
+          </div>
+
+          <div class="section-label">Student List</div>
+          <div class="tool-row">
+            <label class="search-label">Search: <input id="studentSearch" type="search"></label>
+            <div class="flex items-center gap-2">
+              <button type="button" id="exportStudents" class="outline-btn">Export</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="lms-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Roll No.</th>
+                  <th>Student</th>
+                  <th>Reply Date</th>
+                  <th>Check Status</th>
+                </tr>
+              </thead>
+              <tbody id="submissionBody"></tbody>
+            </table>
+          </div>
+          <div id="studentPager" class="pager"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="foot">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    let selectedCourse = null;
+    let assignments = [];
+    let submissions = [];
+    let currentAssignment = null;
+    let activeSubmission = null;
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function pad(n) { return String(n).padStart(2, "0"); }
+    function formatDay(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "-";
+      return `${pad(date.getDate())}-${MONTHS[date.getMonth()]}-${date.getFullYear()}`;
+    }
+    function formatStamp(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "-";
+      let hours = date.getHours();
+      const suffix = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12 || 12;
+      return `${formatDay(value)} - ${pad(hours)}:${pad(date.getMinutes())}:${pad(date.getSeconds())} ${suffix}`;
+    }
+    function formatSession(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "-";
+      let hours = date.getHours();
+      const suffix = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12 || 12;
+      return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()} ${hours}:${pad(date.getMinutes())} ${suffix}`;
+    }
+    function courseLine(course) {
+      const program = course.program || "B. Tech - CSE";
+      const section = course.section || "S";
+      return `${course.course_code} - ${course.course_name} - [${program}] - [ ${section} ]`;
+    }
+    function dots(item) {
+      const tone = item.status === "Expired" ? "p" : "g";
+      return `<span class="dots" aria-hidden="true"><i></i><i class="${tone}"></i><i></i><i class="p"></i></span>`;
+    }
+    function sizeLabel(bytes) {
+      const value = Number(bytes || 0);
+      if (!value) return "";
+      return `(${Math.max(1, Math.round(value / 1024))} KB)`;
+    }
+
+    function visibleAssignments() {
+      const query = document.getElementById("assignmentSearch").value.trim().toLowerCase();
+      return assignments.filter((item) => !query || item.title.toLowerCase().includes(query) || item.status.toLowerCase().includes(query));
+    }
+
+    function renderAssignments() {
+      const rows = visibleAssignments();
+      const body = document.getElementById("assignmentBody");
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="5" class="text-center text-gray-500">No assignments for this course.</td></tr>`;
+        document.getElementById("assignmentPager").textContent = "Showing 0 to 0 of 0 entries";
+        return;
+      }
+      body.innerHTML = rows.map((item) => `
+        <tr>
+          <td><button type="button" class="text-indigo-600 hover:underline open-assignment" data-id="${escapeHTML(item.id)}">${escapeHTML(item.title)}</button></td>
+          <td>${escapeHTML(formatDay(item.created_at))}</td>
+          <td>${dots(item)}${escapeHTML(formatStamp(item.due_date))}</td>
+          <td><span class="status-pill ${item.status === "Active" ? "active" : "expired"}">${escapeHTML(item.status)}</span></td>
+          <td><button type="button" class="text-indigo-600 hover:underline open-assignment" data-id="${escapeHTML(item.id)}">${escapeHTML(item.reply_count || "")}</button></td>
+        </tr>
+      `).join("");
+      document.getElementById("assignmentPager").textContent = `Showing 1 to ${rows.length} of ${assignments.length} entries`;
+      body.querySelectorAll(".open-assignment").forEach((button) => {
+        button.addEventListener("click", () => openAssignment(button.dataset.id));
+      });
+    }
+
+    function visibleSubmissions() {
+      const query = document.getElementById("studentSearch").value.trim().toLowerCase();
+      return submissions.filter((item) => !query || `${item.roll_number} ${item.student_name}`.toLowerCase().includes(query));
+    }
+
+    function renderSubmissions() {
+      const rows = visibleSubmissions();
+      const body = document.getElementById("submissionBody");
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="5" class="text-center text-gray-500">No student replies yet.</td></tr>`;
+        document.getElementById("studentPager").textContent = `Showing 0 to 0 of ${submissions.length} entries`;
+        return;
+      }
+      body.innerHTML = rows.map((item) => `
+        <tr>
+          <td><button type="button" class="text-emerald-600 text-lg leading-none pick-sub" data-id="${escapeHTML(item.id)}" title="Check">✎</button></td>
+          <td>${escapeHTML(item.roll_number)}</td>
+          <td class="uppercase">${escapeHTML(item.student_name)}</td>
+          <td>${escapeHTML(formatDay(item.submitted_at))}</td>
+          <td>${item.checked ? '<span class="text-green-600 text-lg">✓</span>' : ""}</td>
+        </tr>
+      `).join("");
+      document.getElementById("studentPager").textContent = `Showing 1 to ${rows.length} of ${submissions.length} entries`;
+      body.querySelectorAll(".pick-sub").forEach((button) => {
+        button.addEventListener("click", () => openGrade(button.dataset.id));
+      });
+    }
+
+    async function loadAssignments() {
+      const response = await fetch(`${API}/api/faculty/courses/${encodeURIComponent(selectedCourse.id)}/assignments`, {
+        credentials: "include",
+      });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+      const data = await response.json();
+      assignments = data.assignments || [];
+      renderAssignments();
+    }
+
+    async function openAssignment(id) {
+      currentAssignment = assignments.find((item) => item.id === id) || { id };
+      const response = await fetch(`${API}/api/faculty/assignments/${encodeURIComponent(id)}/submissions`, {
+        credentials: "include",
+      });
+      const data = await response.json();
+      if (!response.ok) return;
+      currentAssignment = { ...currentAssignment, ...(data.assignment || {}) };
+      submissions = data.submissions || [];
+      document.getElementById("listView").classList.add("hidden");
+      document.getElementById("detailView").classList.remove("hidden");
+      const topic = document.getElementById("topicLine");
+      topic.textContent = `Assignment Topic ${currentAssignment.title || ""}`;
+      topic.classList.remove("hidden");
+      document.getElementById("gradeBox").classList.add("hidden");
+      renderSubmissions();
+    }
+
+    function openGrade(id) {
+      const item = submissions.find((row) => row.id === id);
+      if (!item) return;
+      activeSubmission = item;
+      const box = document.getElementById("gradeBox");
+      box.classList.remove("hidden");
+      const fileUrl = `${API}/api/faculty/submissions/${encodeURIComponent(item.id)}/file`;
+      document.getElementById("fileRow").innerHTML = item.file_name
+        ? `<div class="text-xs text-gray-500 mb-1">Attachment Files</div>
+           <a class="text-indigo-700 hover:underline" href="${fileUrl}" target="_blank" rel="noopener">📄 ${escapeHTML(item.file_name)}</a>
+           <span class="text-gray-500 ml-1">${escapeHTML(sizeLabel(item.file_size_bytes))}</span>`
+        : "No attachment";
+      document.getElementById("sessionStamp").value = formatSession(item.submitted_at);
+      document.getElementById("totalMarks").value = Number(currentAssignment.max_marks || 0).toFixed(2);
+      document.getElementById("marks").value = item.marks_obtained ?? "";
+      document.getElementById("feedback").value = item.feedback || "";
+      document.getElementById("checkedFlag").checked = Boolean(item.checked);
+      document.getElementById("displayMarks").checked = item.display_to_student !== false;
+      document.getElementById("gradeMsg").classList.add("hidden");
+      box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    document.getElementById("assignmentSearch").addEventListener("input", renderAssignments);
+    document.getElementById("studentSearch").addEventListener("input", renderSubmissions);
+    document.getElementById("gradeCancel").addEventListener("click", () => {
+      document.getElementById("gradeBox").classList.add("hidden");
+      activeSubmission = null;
+    });
+    document.getElementById("homeLink").addEventListener("click", (event) => {
+      if (!document.getElementById("detailView").classList.contains("hidden")) {
+        event.preventDefault();
+        document.getElementById("detailView").classList.add("hidden");
+        document.getElementById("topicLine").classList.add("hidden");
+        document.getElementById("listView").classList.remove("hidden");
+      }
+    });
+    document.getElementById("exportAssignments").addEventListener("click", () => {
+      const lines = [["Subject", "Created Date", "Submission Date Time", "Status", "Student Reply"].join(",")];
+      visibleAssignments().forEach((item) => {
+        lines.push([item.title, formatDay(item.created_at), formatStamp(item.due_date), item.status, item.reply_count]
+          .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","));
+      });
+      downloadCsv("assignments.csv", lines.join("\n"));
+    });
+    document.getElementById("exportStudents").addEventListener("click", () => {
+      const lines = [["Roll No.", "Student", "Reply Date", "Check Status"].join(",")];
+      visibleSubmissions().forEach((item) => {
+        lines.push([item.roll_number, item.student_name, formatDay(item.submitted_at), item.checked ? "Checked" : ""]
+          .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","));
+      });
+      downloadCsv("student-replies.csv", lines.join("\n"));
+    });
+    function downloadCsv(name, text) {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
+      link.download = name;
+      link.click();
+    }
+
+    document.getElementById("gradeSubmit").addEventListener("click", async () => {
+      const msg = document.getElementById("gradeMsg");
+      if (!activeSubmission) {
+        msg.textContent = "Select a student reply first.";
+        msg.className = "text-sm mt-2 text-red-600";
+        return;
+      }
+      if (!document.getElementById("checkedFlag").checked) {
+        msg.textContent = "Tick Checked before submitting.";
+        msg.className = "text-sm mt-2 text-red-600";
+        return;
+      }
+      const marks = Number(document.getElementById("marks").value);
+      if (Number.isNaN(marks) || document.getElementById("marks").value === "") {
+        msg.textContent = "Marks obtained is required.";
+        msg.className = "text-sm mt-2 text-red-600";
+        return;
+      }
+      const response = await fetch(`${API}/api/faculty/submissions/${encodeURIComponent(activeSubmission.id)}/grade`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marks_obtained: marks,
+          feedback: document.getElementById("feedback").value.trim(),
+          display_to_student: document.getElementById("displayMarks").checked,
+          checked: true,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        msg.textContent = data.detail || "Could not save marks.";
+        msg.className = "text-sm mt-2 text-red-600";
+        return;
+      }
+      const savedId = activeSubmission.id;
+      await openAssignment(currentAssignment.id);
+      openGrade(savedId);
+      const saved = document.getElementById("gradeMsg");
+      saved.textContent = "Marks saved.";
+      saved.className = "text-sm mt-2 text-green-600";
+    });
+
+    try {
+      selectedCourse = JSON.parse(localStorage.getItem("facultySelectedCourse") || "null");
+    } catch (_) {
+      selectedCourse = null;
+    }
+    if (!selectedCourse?.id) {
+      window.location.href = "/faculty/LMS/select-course.html";
+    } else {
+      const today = new Date();
+      document.getElementById("dateLine").textContent =
+        `Current Date ${pad(today.getDate())}/${pad(today.getMonth() + 1)}/${today.getFullYear()}`;
+      document.getElementById("sessionLine").textContent =
+        `Session ${selectedCourse.session || "July-Dec 2026-2027 - School of Engineering and Technology"}`;
+      document.getElementById("courseLine").textContent = `Course Name ${courseLine(selectedCourse)}`;
+      const requested = new URLSearchParams(location.search).get("assignment");
+      loadAssignments().then(() => {
+        if (requested) openAssignment(requested);
+      }).catch(() => { window.location.href = LOGIN_URL; });
+    }
+  </script>
+</body>
+</html>

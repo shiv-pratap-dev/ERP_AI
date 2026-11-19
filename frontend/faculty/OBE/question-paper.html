@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JECRC ERP | Exam Question Paper</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/frontend/shared/navbar.css?v=5">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f3f4f6; color: #374151; }
+    .side-link { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; font-size: 13px; color: #4b5563; }
+    .side-link.active { color: #4f46e5; background: #eef2ff; border-left: 3px solid #4f46e5; }
+    .panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px 18px 18px; }
+    .field { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #fff; }
+    .field:disabled { background: #f9fafb; }
+    .req { color: #dc2626; margin-right: 2px; }
+    .outline-btn { border: 1px solid #818cf8; color: #4f46e5; background: #fff; border-radius: 6px; padding: 6px 14px; font-size: 13px; }
+    .table-head { border-bottom: 2px solid #3b82f6; padding: 8px 6px; font-size: 12px; font-weight: 700; text-align: left; }
+    tbody td { padding: 8px 6px; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+    .side-rail { position: fixed; right: 0; top: 42%; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+    .side-rail button { width: 40px; height: 40px; border-radius: 8px 0 0 8px; background: #7c83f5; color: white; }
+    @media print {
+      #facultyNavbar, aside, footer, .side-rail, #filterCard, .no-print { display: none !important; }
+      body { background: #fff; }
+      #paper { display: block !important; border: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="faculty-navbar"></div>
+  <script src="/frontend/shared/faculty-navbar.js?v=10"></script>
+
+  <div class="flex flex-1 min-h-0">
+    <aside id="sideBar" class="w-60 bg-white border-r hidden md:flex md:flex-col shrink-0">
+      <div class="px-4 py-3 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
+        OBE
+        <button type="button" id="sideClose" class="text-gray-400 text-lg leading-none" aria-label="Close">×</button>
+      </div>
+      <a href="/faculty/OBE/question-paper.html" class="side-link active">Exam Question Paper <span>☆</span></a>
+    </aside>
+
+    <main class="flex-1 p-4 overflow-y-auto">
+      <section id="filterCard" class="panel mb-4">
+        <h1 class="text-base font-semibold text-gray-800 mb-4">Exam Question Paper</h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm mb-1" for="session"><span class="req">*</span>Session Name</label>
+            <select id="session" class="field"><option value="">Please Select</option></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="scheme"><span class="req">*</span>Assessment Scheme Name</label>
+            <select id="scheme" class="field" disabled><option value="">Please Select</option></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="course"><span class="req">*</span>Subject</label>
+            <select id="course" class="field" disabled><option value="">Please Select</option></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="examName"><span class="req">*</span>Exam Name</label>
+            <select id="examName" class="field" disabled><option value="">Please Select</option></select>
+          </div>
+        </div>
+        <p id="formMsg" class="text-sm mt-3 hidden"></p>
+      </section>
+
+      <section id="paper" class="panel hidden">
+        <div class="flex items-center justify-between gap-3 mb-3 no-print">
+          <h2 class="font-semibold">Question Paper</h2>
+          <button type="button" id="printBtn" class="outline-btn">Print</button>
+        </div>
+        <div id="paperBody"></div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="text-center text-xs text-gray-500 py-4">© 2026 <strong class="text-sky-700">MasterSoft.</strong> All Rights Reserved.</footer>
+  <div class="side-rail no-print">
+    <button type="button" title="Calendar" onclick="showNotice('Calendar')">📅</button>
+    <button type="button" title="Settings" onclick="showNotice('Settings')">⚙</button>
+    <button type="button" title="Information" onclick="showNotice('Information')">ℹ</button>
+    <button type="button" title="Links" onclick="showNotice('Links')">🔗</button>
+  </div>
+
+  <script>
+    const API = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    const LOGIN_URL = "http://127.0.0.1:8000/signin";
+    let meta = null;
+
+    function escapeHTML(value) {
+      return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function setMsg(text, kind) {
+      const el = document.getElementById("formMsg");
+      if (!text) { el.classList.add("hidden"); el.textContent = ""; return; }
+      el.textContent = text;
+      el.className = `text-sm mt-3 ${kind === "error" ? "text-red-600" : "text-green-700"}`;
+    }
+    async function api(path) {
+      const response = await fetch(`${API}${path}`, { credentials: "include" });
+      if (response.status === 401) { window.location.href = LOGIN_URL; return null; }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || "Request failed");
+      return data;
+    }
+    function fill(select, items, placeholder) {
+      const current = select.value;
+      select.innerHTML = `<option value="">${placeholder}</option>`;
+      items.forEach((item) => {
+        const value = item.value ?? item;
+        const label = item.label ?? item;
+        select.insertAdjacentHTML("beforeend", `<option value="${escapeHTML(value)}">${escapeHTML(label)}</option>`);
+      });
+      if ([...select.options].some((opt) => opt.value === current)) select.value = current;
+    }
+    async function loadSubjects() {
+      const session = document.getElementById("session").value;
+      const scheme = document.getElementById("scheme").value;
+      const course = document.getElementById("course");
+      course.disabled = !(session && scheme);
+      if (!session || !scheme) {
+        fill(course, [], "Please Select");
+        return;
+      }
+      const params = new URLSearchParams({ session_label: session, scheme });
+      const data = await api(`/api/faculty/obe/subjects?${params.toString()}`);
+      if (!data) return;
+      fill(course, (data.subjects || []).map((row) => ({ value: row.course_id, label: row.label })), "Please Select");
+    }
+    async function loadPaper() {
+      const session = document.getElementById("session").value;
+      const scheme = document.getElementById("scheme").value;
+      const course = document.getElementById("course").value;
+      const examName = document.getElementById("examName").value;
+      if (!session || !scheme || !course || !examName) {
+        document.getElementById("paper").classList.add("hidden");
+        return;
+      }
+      const params = new URLSearchParams({ session_label: session, scheme, exam_name: examName, course_id: course });
+      const paper = await api(`/api/faculty/obe/paper?${params.toString()}`);
+      if (!paper) return;
+      const rows = (paper.questions || []).map((question, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHTML(question.code)}</td>
+          <td>${escapeHTML(question.text)}</td>
+          <td>${escapeHTML(question.co)}</td>
+          <td class="text-right">${Number(question.max_marks).toFixed(2)}</td>
+        </tr>`).join("");
+      document.getElementById("paperBody").innerHTML = `
+        <div class="text-center mb-3">
+          <div class="font-semibold">JECRC University</div>
+          <div class="text-sm">${escapeHTML(paper.exam_name)} — Question Paper</div>
+        </div>
+        <div class="text-sm mb-3">
+          <div>Subject: ${escapeHTML(paper.course?.label || "")}</div>
+          <div>Session: ${escapeHTML(paper.session_label)}</div>
+          <div>Scheme: ${escapeHTML(paper.scheme)}</div>
+          <div>Maximum Marks: ${Number(paper.max_marks).toFixed(2)}</div>
+        </div>
+        <table class="w-full">
+          <thead><tr>
+            <th class="table-head">Sr</th><th class="table-head">Q. No</th><th class="table-head">Question</th><th class="table-head">CO</th><th class="table-head text-right">Max Marks</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p class="text-xs text-gray-500 mt-3">These question codes and maxima are the columns on Question Wise Mark Entry.</p>`;
+      document.getElementById("paper").classList.remove("hidden");
+    }
+
+    document.getElementById("sideClose").addEventListener("click", () => document.getElementById("sideBar").classList.add("hidden"));
+    document.getElementById("session").addEventListener("change", () => {
+      const ready = Boolean(document.getElementById("session").value);
+      document.getElementById("scheme").disabled = !ready;
+      document.getElementById("examName").disabled = !ready;
+      if (!ready) document.getElementById("scheme").value = "";
+      loadSubjects().then(loadPaper).catch((error) => setMsg(error.message, "error"));
+    });
+    document.getElementById("scheme").addEventListener("change", () => {
+      loadSubjects().then(loadPaper).catch((error) => setMsg(error.message, "error"));
+    });
+    document.getElementById("course").addEventListener("change", () => loadPaper().catch((error) => setMsg(error.message, "error")));
+    document.getElementById("examName").addEventListener("change", () => loadPaper().catch((error) => setMsg(error.message, "error")));
+    document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+    api("/api/faculty/obe/meta").then((data) => {
+      if (!data) return;
+      meta = data;
+      fill(document.getElementById("session"), data.question_sessions, "Please Select");
+      fill(document.getElementById("scheme"), data.schemes, "Please Select");
+      fill(document.getElementById("examName"), (data.exams || []).map((item) => item.name), "Please Select");
+    }).catch((error) => setMsg(error.message, "error"));
+  </script>
+</body>
+</html>
