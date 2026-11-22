@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from database import get_connection
+from erp_ai.tools.academic_tools.attendance import build_attendance_summary
 
 
 def _roman(num: int) -> str:
@@ -153,26 +154,11 @@ def get_student_profile(student_id: str) -> dict[str, Any]:
                 "outstanding": 54000.0,
             },
         ],
-        "attendance_summary": {
-            "session": f"{session_label} ({_roman(semester)})",
-            "total_classes": 18,
-            "present": 16,
-            "absent": 2,
-            "od": 0,
-            "percent": 88.75,
-            "subjects": [
-                {
-                    "code": c[0],
-                    "name": c[1],
-                    "type": "Theory",
-                    "total": 10,
-                    "present": 9,
-                    "absent": 1,
-                    "percent": 90.0,
-                }
-                for c in courses[:2]
-            ],
-        },
+        "attendance_summary": build_attendance_summary(
+            str(_id),
+            semester=int(semester),
+            session_label=session_label,
+        ),
         "results": [
             {
                 "semester": "I",

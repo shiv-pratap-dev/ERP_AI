@@ -45,7 +45,7 @@
           <div class="stat-card">
             <div class="text-3xl text-blue-800 mb-2">👤</div>
             <p class="text-gray-500 text-sm">Attendance</p>
-            <p class="text-2xl text-gray-700 mt-1" id="attendanceValue">88.89 %</p>
+            <p class="text-2xl text-gray-700 mt-1" id="attendanceValue">—</p>
           </div>
           <a href="/LMS/transaction.html" class="stat-card block hover:border-indigo-300">
             <div class="text-3xl text-rose-600 mb-2">☰</div>
@@ -133,7 +133,7 @@
       <div class="card">
         <div class="card-title flex justify-between items-center">
           <span>Attendance</span>
-          <button onclick="renderAttendance()" class="border rounded p-2 text-indigo-500" type="button">⟳</button>
+          <button onclick="loadAttendance()" class="border rounded p-2 text-indigo-500" type="button" title="Refresh">⟳</button>
         </div>
         <div class="p-3">
           <table class="w-full text-sm">
@@ -147,7 +147,7 @@
             <tbody id="attendanceTable"></tbody>
           </table>
           <div class="mt-3 h-3 rounded-full bg-gray-100 overflow-hidden">
-            <div id="attendanceBar" class="h-full bg-blue-500" style="width:88.89%"></div>
+            <div id="attendanceBar" class="h-full bg-blue-500" style="width:0%"></div>
           </div>
         </div>
       </div>
@@ -259,7 +259,7 @@
     const LOGIN_URL = "http://127.0.0.1:8000/signin";
 
     const dashboardData = {
-      attendancePercent: 88.89,
+      attendancePercent: 0,
       announcements: 0,
       holidays: [
         { date: "25/12/2026", type: "Holiday", description: "Christmas Day" },
@@ -274,10 +274,7 @@
       classTimetable: [
         // No records currently — matches live ERP "No records to display"
       ],
-      attendanceSubjects: [
-        { code: "BCO248B", lectures: "9/10", percent: 90.0 },
-        { code: "BCO684A", lectures: "7/8", percent: 87.5 },
-      ],
+      attendanceSubjects: [],
       notices: [
         { month: "Oct", day: "31", title: "Disclaimer of Responsibility for Vehicles Parked Inside/Outside the University Campus." },
         { month: "Oct", day: "31", title: "Shift-4 Seating Plan Dated 02-11-2026" },
@@ -350,17 +347,41 @@
 
     function renderAttendance() {
       const body = document.getElementById("attendanceTable");
-      body.innerHTML = dashboardData.attendanceSubjects.map((row) => `
-        <tr class="border-b">
-          <td class="py-2 font-medium text-gray-800">${escapeHTML(row.code)}</td>
-          <td class="py-2 text-center">${escapeHTML(row.lectures)}</td>
-          <td class="py-2 text-center">${Number(row.percent).toFixed(2)}</td>
-        </tr>
-      `).join("");
+      if (!dashboardData.attendanceSubjects.length) {
+        body.innerHTML = emptyTableRow(3, "No attendance records yet..");
+      } else {
+        body.innerHTML = dashboardData.attendanceSubjects.map((row) => `
+          <tr class="border-b">
+            <td class="py-2 font-medium text-gray-800">${escapeHTML(row.code)}</td>
+            <td class="py-2 text-center">${escapeHTML(row.lectures)}</td>
+            <td class="py-2 text-center">${Number(row.percent).toFixed(2)}</td>
+          </tr>
+        `).join("");
+      }
       document.getElementById("attendanceValue").textContent =
-        `${dashboardData.attendancePercent.toFixed(2)} %`;
+        `${Number(dashboardData.attendancePercent || 0).toFixed(2)} %`;
       document.getElementById("attendanceBar").style.width =
-        `${dashboardData.attendancePercent}%`;
+        `${Math.max(0, Math.min(100, Number(dashboardData.attendancePercent || 0)))}%`;
+    }
+
+    async function loadAttendance() {
+      try {
+        const res = await fetch(`${API}/api/student/attendance`, {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const attendance = data.attendance || {};
+        dashboardData.attendancePercent = Number(attendance.percent || 0);
+        dashboardData.attendanceSubjects = (attendance.subjects || []).map((row) => ({
+          code: row.code,
+          lectures: row.lectures || `${Number(row.present || 0)}/${Number(row.total || 0)}`,
+          percent: Number(row.percent || 0),
+        }));
+        renderAttendance();
+      } catch (_) {
+        // Keep whatever was last rendered if the API is briefly unavailable.
+      }
     }
 
     function renderNotices() {
@@ -457,6 +478,7 @@
       renderPlacements();
       renderNotifications();
       loadAssignmentCount();
+      loadAttendance();
     }
 
     // ---- Auth / chrome ----

@@ -567,6 +567,38 @@ def get_student_profile(access_token: str | None = Cookie(default=None)):
     return {"profile": profile}
 
 
+@app.get("/api/student/attendance")
+def get_student_attendance(access_token: str | None = Cookie(default=None)):
+    """Live attendance for the logged-in student, mirrored from faculty marks."""
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    user = verify_token(access_token)
+    if user["role"] != "student":
+        raise HTTPException(
+            status_code=403,
+            detail="Only students can view attendance",
+        )
+
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT id FROM students WHERE user_id = %s",
+            (user["id"],),
+        ).fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+
+    from erp_ai.tools.academic_tools import get_attendance_summary
+
+    try:
+        summary = get_attendance_summary(str(row[0]))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return {"attendance": summary}
+
+
 
 def _require_student(access_token: str | None) -> dict:
     if not access_token:

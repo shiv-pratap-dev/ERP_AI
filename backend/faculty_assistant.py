@@ -206,10 +206,49 @@ def _guide_for(normalized: str) -> str | None:
     return None
 
 
+def _is_creative_ask(normalized: str) -> bool:
+    return _has_any(
+        normalized,
+        (
+            "plan",
+            "routine",
+            "schedule",
+            "invent",
+            "based on",
+            "recommend",
+            "suggest",
+            "advice",
+            "focus on",
+            "what should i",
+            "prioritize",
+            "priority",
+            "strategy",
+            "summarize my",
+            "help me decide",
+            "workload",
+            "day plan",
+        ),
+    )
+
+
 def resolve_faculty_message(message: str, teacher: dict[str, Any], teacher_id: str) -> dict[str, Any] | None:
     normalized = message.casefold().strip()
     if not normalized:
         return None
+
+    # Planning / advice prompts get an instant grounded plan from live data.
+    if _is_creative_ask(normalized):
+        from erp_ai.tools.academic_tools.quick_plans import build_faculty_focus_plan
+
+        return _answer(
+            build_faculty_focus_plan(
+                teacher,
+                teacher_courses(teacher_id),
+                teacher_assignments(teacher_id),
+            ),
+            title="Focus plan",
+            kind="help",
+        )
 
     if normalized in {"hi", "hello", "hey", "help"} or _has_any(
         normalized, ("what can you do", "how can you help", "help me")

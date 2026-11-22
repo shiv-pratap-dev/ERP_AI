@@ -298,18 +298,52 @@ def _resolve_academic(
         ),
     )
 
-    asks_attendance = _has_any_phrase(
+    # Keep this for direct attendance asks. Longer "plan around my attendance"
+    # questions should go to the fast Gemini context path instead.
+    creative_ask = _has_any_phrase(
         normalized,
         (
-            "my attendance",
-            "attendance summary",
-            "attendance details",
-            "attendance percentage",
-            "attendance %",
+            "plan",
+            "routine",
+            "schedule",
+            "invent",
+            "based on",
+            "recommend",
+            "suggest",
+            "advice",
+            "focus on",
+            "prioritize",
+            "strategy",
         ),
-    ) or (
-        _has_phrase(normalized, "attendance")
-        and _has_any_phrase(normalized, ("show", "list", "view", "what", "tell"))
+    )
+    asks_attendance = (
+        not creative_ask
+        and (
+            _has_any_phrase(
+                normalized,
+                (
+                    "my attendance",
+                    "attendance summary",
+                    "attendance details",
+                    "attendance percentage",
+                    "attendance %",
+                    "attendance percent",
+                    "how much attendance",
+                    "what is my attendance",
+                    "what's my attendance",
+                    "whats my attendance",
+                    "check attendance",
+                    "current attendance",
+                ),
+            )
+            or (
+                _has_phrase(normalized, "attendance")
+                and _has_any_phrase(
+                    normalized,
+                    ("show", "list", "view", "what", "tell", "how", "check", "my", "%"),
+                )
+            )
+        )
     )
 
     asks_results = _has_any_phrase(
@@ -498,12 +532,52 @@ def _resolve_examination(
     return None
 
 
+def _is_creative_ask(normalized: str) -> bool:
+    """Planning/advice prompts get an instant grounded live-data plan."""
+    return _has_any_phrase(
+        normalized,
+        (
+            "plan",
+            "routine",
+            "schedule",
+            "invent",
+            "based on",
+            "recommend",
+            "suggest",
+            "advice",
+            "focus on",
+            "focus this",
+            "what should i",
+            "what should i do",
+            "prioritize",
+            "priority",
+            "strategy",
+            "summarize my",
+            "help me decide",
+            "catch up",
+            "workload",
+        ),
+    )
+
+
 def _resolve_rule_based(
     message: str,
     student_id: str,
     semester: int,
 ) -> dict[str, Any] | None:
     """Return a structured answer for LMS/Academic/Exam intents, else None."""
+    normalized_early = message.casefold()
+    # Planning / advice prompts get an instant grounded plan from live ERP
+    # data so response time stays near chip-speed instead of a long model wait.
+    if _is_creative_ask(normalized_early):
+        from erp_ai.tools.academic_tools.quick_plans import build_student_focus_plan
+
+        return _answer(
+            build_student_focus_plan(student_id, semester),
+            kind="help",
+            title="Focus plan",
+        )
+
     examination = _resolve_examination(message, student_id)
     if examination is not None:
         return examination
@@ -513,7 +587,7 @@ def _resolve_rule_based(
         return academic
 
     assignments = list_current_assignments(student_id, semester)
-    normalized = message.casefold()
+    normalized = normalized_early
 
     asks_for_list = _has_any_phrase(
         normalized,
