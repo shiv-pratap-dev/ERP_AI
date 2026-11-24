@@ -78,10 +78,10 @@ def _fast_exit_text(role: str, intents: list[IntentCategory]) -> str | None:
 def _user_message_for_failure(exc: BaseException | None) -> str:
     text = f"{type(exc).__name__}: {exc}" if exc else ""
     lowered = text.casefold()
-    if "gemini_api_key" in lowered or "api key" in lowered:
+    if "gemini_api_key" in lowered or "llm_api_key" in lowered or "api key" in lowered:
         return (
             "The AI assistant is not configured yet. "
-            "Add GEMINI_API_KEY and retry."
+            "Add your LLM API key in .env and retry."
         )
     return AI_BUSY_MESSAGE
 

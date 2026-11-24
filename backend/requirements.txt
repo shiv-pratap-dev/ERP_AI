@@ -10,4 +10,5 @@ python-multipart
 auth
 langgraph
 langchain-google-genai
+langchain-openai
 langchain-core
