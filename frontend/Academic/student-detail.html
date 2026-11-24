@@ -37,7 +37,7 @@
 
   <div id="portal-navbar"></div>
   <script src="/frontend/shared/navbar.js?v=5"></script>
-  <script src="/frontend/shared/erp-assistant.js?v=7"></script>
+  <script src="/frontend/shared/erp-assistant.js?v=9"></script>
 
 
   <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
@@ -348,11 +348,16 @@
       document.getElementById("welcomeMessage").textContent = `Welcome ${p.email}`;
 
       const sessionSelect = document.getElementById("sessionSelect");
-      sessionSelect.innerHTML = `
-        <option>${escapeHTML(p.session)}</option>
-        <option>Jan-June 2025-2026</option>
-        <option>July-Dec 2024-2025</option>
-      `;
+      const sessions = (p.available_sessions && p.available_sessions.length)
+        ? p.available_sessions
+        : [
+            "Jul 2025 - Dec 2025 (1st Semester)",
+            "Jan 2026 - Jun 2026 (2nd Semester)",
+            "Jul 2026 - Dec 2026 (3rd Semester)",
+          ];
+      sessionSelect.innerHTML = sessions.map((session) => `
+        <option ${session === p.session ? "selected" : ""}>${escapeHTML(session)}</option>
+      `).join("");
     }
 
     function fillInformation(p) {

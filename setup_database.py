@@ -9,6 +9,7 @@ Expected files:
     database/schema.sql
     database/seed.sql
     database/seed2.py
+    database/seed3.py
 
 The script never drops an existing database or deletes existing records.
 It initializes an empty database and preserves existing data.
@@ -33,6 +34,7 @@ DB_DIR = ROOT / "database"
 SCHEMA_FILE = DB_DIR / "schema.sql"
 SEED_FILE = DB_DIR / "seed.sql"
 SEED2_FILE = DB_DIR / "seed2.py"
+SEED3_FILE = DB_DIR / "seed3.py"
 ENV_FILE = ROOT / ".env"
 
 DB_NAME = "erp_ai"
@@ -587,7 +589,7 @@ def main() -> int:
             table_names = {row[0] for row in table_rows}
 
         if not table_names:
-            say("\n[1/5] Initializing schema...")
+            say("\n[1/6] Initializing schema...")
 
             result = run(
                 [
@@ -606,7 +608,7 @@ def main() -> int:
                 say("ERROR: Schema initialization failed.")
                 return 1
 
-            say("\n[2/5] Loading initial seed data...")
+            say("\n[2/6] Loading initial seed data...")
 
             result = run(
                 [
@@ -637,6 +639,65 @@ def main() -> int:
             say("\nExisting schema detected; preserving current records.")
             say("Initial seed file skipped.")
 
+        term_iii_codes = [
+            "BCO011A",
+            "BCO005B",
+            "BCO002B",
+            "BAS007B",
+            "DEN003A",
+            "BCO008B",
+            "BCO014B",
+            "BCO235B",
+            "BCO280B",
+            "BCO232A",
+            "DIN003A",
+        ]
+        legacy_codes = [
+            "CS301",
+            "CS302",
+            "CS303",
+            "CS304",
+            "MA301",
+            "MA302",
+            "EC301",
+            "EC302",
+            "CS305",
+            "CS306",
+        ]
+
+        with psycopg.connect(**app_params) as conn:
+            term_iii_count = conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM courses
+                WHERE course_code = ANY(%s)
+                """,
+                (term_iii_codes,),
+            ).fetchone()[0]
+            legacy_count = conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM courses
+                WHERE course_code = ANY(%s)
+                """,
+                (legacy_codes,),
+            ).fetchone()[0]
+
+        if legacy_count or term_iii_count < 11:
+            say("\n[3/6] Migrating Term III registered courses...")
+            if not SEED3_FILE.exists():
+                say("ERROR: database/seed3.py is missing.")
+                return 1
+            result = run(
+                [sys.executable, str(SEED3_FILE)],
+                env=child_env,
+            )
+            if result is None or result.returncode != 0:
+                say("ERROR: seed3.py failed. Review its output.")
+                return 1
+        else:
+            say("\n[3/6] Term III course catalog already present.")
+
         with psycopg.connect(**app_params) as conn:
             course_count = conn.execute(
                 """
@@ -644,24 +705,11 @@ def main() -> int:
                 FROM courses
                 WHERE course_code = ANY(%s)
                 """,
-                (
-                    [
-                        "CS301",
-                        "CS302",
-                        "CS303",
-                        "CS304",
-                        "MA301",
-                        "MA302",
-                        "EC301",
-                        "EC302",
-                        "CS305",
-                        "CS306",
-                    ],
-                ),
+                (term_iii_codes,),
             ).fetchone()[0]
 
-        if course_count == 10:
-            say("\n[3/5] Applying course-specific assignment seed...")
+        if course_count == 11:
+            say("\n[4/6] Applying course-specific assignment seed...")
 
             result = run(
                 [sys.executable, str(SEED2_FILE)],
@@ -673,8 +721,8 @@ def main() -> int:
                 return 1
         else:
             say(
-                f"\n[3/5] Assignment customization skipped "
-                f"({course_count}/10 expected courses found)."
+                f"\n[4/6] Assignment customization skipped "
+                f"({course_count}/11 expected courses found)."
             )
 
         jwt_secret = existing_env.get("JWT_SECRET_KEY", "").strip()
@@ -713,7 +761,7 @@ def main() -> int:
                 for table in sorted(EXPECTED_TABLES)
             }
 
-        say("\n[4/5] Database verification complete.")
+        say("\n[5/6] Database verification complete.")
         say("SUCCESS — ERP_AI setup finished.")
         say(f"Database: {DB_NAME}")
         say(
@@ -724,9 +772,9 @@ def main() -> int:
             )
         )
 
-        say("\n[5/5] Next steps:")
+        say("\n[6/6] Next steps:")
         say("Start the app from the project folder:")
-        say("   python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000")
+        say("   python -m uvicorn --app-dir backend main:app --host 127.0.0.1 --port 8000")
         say("Then open http://127.0.0.1:8000 in your browser.")
         say("Windows: double-click start.bat. macOS/Linux: ./start.sh")
 

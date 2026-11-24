@@ -110,7 +110,7 @@
 </div>
 
   <script src="/frontend/shared/navbar.js?v=5"></script>
-  <script src="/frontend/shared/erp-assistant.js?v=7"></script>
+  <script src="/frontend/shared/erp-assistant.js?v=9"></script>
 
 
 <div class="flex flex-1 min-h-0">
@@ -175,14 +175,9 @@
   const selectedCourse = JSON.parse(localStorage.getItem("selectedCourse") || "null");
   const selectedAssignment = JSON.parse(sessionStorage.getItem("selectedAssignment") || "null");
   const sessionNames = {
-    1:"Semester I",
-    2:"Jan-June 2023-2024 - School of Engineering and Technology (Sem - II)",
-    3:"July-Dec 2024-2025 - School of Engineering and Technology (Sem - III)",
-    4:"Jan-June 2024-2025 - School of Engineering and Technology (Sem - IV)",
-    5:"July-Dec 2025-2026 - School of Engineering and Technology (Sem - V)",
-    6:"Jan-June 2025-2026 - School of Engineering and Technology (Sem - VI)",
-    7:"July-Dec 2026-2027 - School of Engineering and Technology (Sem - VII)",
-    8:"Semester VIII"
+    1:"Jul 2025 - Dec 2025 (1st Semester)",
+    2:"Jan 2026 - Jun 2026 (2nd Semester)",
+    3:"Jul 2026 - Dec 2026 (3rd Semester)"
   };
 
   function goBack(){ window.location.href = "/LMS/view.html"; }

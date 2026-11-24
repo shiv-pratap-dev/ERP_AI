@@ -6,14 +6,13 @@ from typing import Any
 
 from database import get_connection
 
-DEFAULT_SESSION = "July-Dec 2026-2027"
+DEFAULT_SESSION = "Jul 2026 - Dec 2026 (3rd Semester)"
 DEFAULT_EXAM_NAME = "END TERM"
 
 EXAM_SESSIONS = [
-    "July-Dec 2026-2027",
-    "Jan-June 2025-2026",
-    "July-Dec 2024-2025",
-    "Jan-June 2024-2025",
+    "Jul 2025 - Dec 2025 (1st Semester)",
+    "Jan 2026 - Jun 2026 (2nd Semester)",
+    "Jul 2026 - Dec 2026 (3rd Semester)",
 ]
 
 EXAM_NAMES = [
@@ -89,26 +88,3 @@ def get_exam_timetable(
         "rows": rows,
     }
 
-
-def format_exam_timetable(payload: dict[str, Any]) -> str:
-    """Markdown summary for chatbot answers."""
-    lines = [
-        "### Exam timetable\n",
-        f"- **Session:** {payload.get('session')}",
-        f"- **Exam:** {payload.get('exam_name')}",
-        "",
-        "#### Papers",
-    ]
-    rows = payload.get("rows") or []
-    if not rows:
-        lines.append(
-            "- No timetable rows for this session/exam combination."
-        )
-    else:
-        for row in rows:
-            lines.append(
-                f"- **{row.get('code')}** {row.get('course')} — "
-                f"{row.get('exam_date')}, {row.get('slot')} "
-                f"(Sem {row.get('semester')}, {row.get('type')})"
-            )
-    return "\n".join(lines) + "\n"

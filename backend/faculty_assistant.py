@@ -1,12 +1,33 @@
-"""Read-only answers for the faculty ERP assistant."""
+"""Pure-JSON faculty ERP data & action helpers for Stage 2/3 tool calling.
+
+Exposes only structured JSON functions (zero markdown builders or sequential
+regex routers):
+- `teacher_courses`
+- `teacher_assignments`
+- `teacher_leave`
+- `teacher_payslip`
+- `upcoming_holidays`
+- `get_faculty_navigation_guide`
+- `create_faculty_assignment`
+"""
 
 from __future__ import annotations
 
-import re
-from datetime import date
+from datetime import date, datetime, time, timezone
 from typing import Any
 
 from database import get_connection
+from erp_ai.chat.cache import invalidate_student_cache, invalidate_teacher_cache
+from erp_ai.chat.normalizer import (
+    IST,
+    expand_course_aliases,
+    format_ist_datetime,
+    has_phrase,
+    match_course_from_list,
+    normalize_alnum,
+    normalize_chat_text,
+    parse_iso_or_natural_date,
+)
 from establishment_api import (
     HOLIDAYS_2026,
     _balance_rows,
@@ -15,88 +36,218 @@ from establishment_api import (
 )
 from payroll_api import _salary_for
 
-
-def _has_phrase(text: str, phrase: str) -> bool:
-    return re.search(r"\b" + re.escape(phrase) + r"\b", text) is not None
-
-
-def _has_any(text: str, phrases: tuple[str, ...]) -> bool:
-    return any(_has_phrase(text, phrase) for phrase in phrases)
-
-
-def _answer(message: str, *, title: str, kind: str = "help") -> dict[str, Any]:
-    return {
-        "message": message,
-        "kind": kind,
-        "title": title,
-        "assignments": [],
-        "courses": [],
-        "action": None,
-    }
+FACULTY_SCREEN_GUIDES: dict[str, dict[str, str]] = {
+    "question_wise": {
+        "topic": "Question Wise Mark Entry",
+        "menu_path": "OBE -> Question Wise Mark Entry",
+        "url_path": "/faculty/OBE/question-wise.html",
+        "instructions": (
+            "Select the academic session and scheme, open the subject, "
+            "then enter Part A / B / C question-wise marks and save."
+        ),
+    },
+    "obe": {
+        "topic": "Outcome Based Education (OBE)",
+        "menu_path": "OBE -> Portal / Question Wise Mark Entry / Exam Question Paper / Mark Entry Report",
+        "url_path": "/faculty/OBE/portal.html",
+        "instructions": (
+            "Use the OBE menu to manage CO/PO mappings, Exam Question Papers, "
+            "Question Wise Mark Entry, and Mark Entry Reports."
+        ),
+    },
+    "mark_entry": {
+        "topic": "Examination Mark Entry",
+        "menu_path": "Examination -> Mark Entry",
+        "url_path": "/faculty/Examination/mark-entry.html",
+        "instructions": (
+            "Choose Session, Exam Name, Course, and Section, click Show, "
+            "then enter or lock student exam marks."
+        ),
+    },
+    "attendance_register": {
+        "topic": "Attendance Register Report",
+        "menu_path": "Academic -> Attendance Register Report",
+        "url_path": "/faculty/Academic/attendance-register.html",
+        "instructions": (
+            "Select course, section, and date range to view or export the "
+            "cumulative class attendance register."
+        ),
+    },
+    "attendance": {
+        "topic": "Attendance By Faculty",
+        "menu_path": "Academic -> Attendance By Faculty",
+        "url_path": "/faculty/Academic/attendance.html",
+        "instructions": (
+            "Pick the class session slot and date, mark students Present (P), "
+            "Absent (A), or On Duty (OD), and submit."
+        ),
+    },
+    "teaching_plan": {
+        "topic": "Teaching Plan Entry",
+        "menu_path": "Academic -> Teaching Plan Entry",
+        "url_path": "/faculty/Academic/teaching-plan.html",
+        "instructions": (
+            "Select Core or Elective plan type, course, and unit topics to "
+            "record proposed and conducted lecture dates."
+        ),
+    },
+    "extra_class": {
+        "topic": "Extra Class Time Table",
+        "menu_path": "Academic -> Extra Class Time Table",
+        "url_path": "/faculty/Academic/extra-class.html",
+        "instructions": (
+            "Schedule or manage makeup/extra class slots, rooms, and date ranges "
+            "for your assigned courses."
+        ),
+    },
+    "payslip": {
+        "topic": "Employee PaySlip",
+        "menu_path": "Payroll -> Reports -> Employee PaySlip",
+        "url_path": "/faculty/Payroll/employee-payslip.html",
+        "instructions": (
+            "Choose Month/Year and report mode (Single Payslip, 3-Month, 6-Month, "
+            "or Increment) to view or print your salary statement."
+        ),
+    },
+    "leave": {
+        "topic": "Employee Leave Card & Establishment",
+        "menu_path": "Establishment -> Transactions -> Employee Leave Card",
+        "url_path": "/faculty/Establishment/leave-card.html",
+        "instructions": (
+            "View Casual, Earned, Medical, and Vacation leave balances, apply for "
+            "leave, or navigate to OD Application, Comp-Off, and Service Book."
+        ),
+    },
+    "assignment": {
+        "topic": "LMS Assignment Management",
+        "menu_path": "LMS -> Select Course -> Create Assignment / Check Student Assignment",
+        "url_path": "/faculty/LMS/select-course.html",
+        "instructions": (
+            "Select a course to publish assignments with attachments or grade "
+            "student submissions in Check Student Assignment."
+        ),
+    },
+}
 
 
 def teacher_courses(teacher_id: str) -> list[dict[str, Any]]:
+    """Return courses taught by `teacher_id` with enrolled student and assignment counts."""
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT c.course_code, c.course_name, c.semester,
+            SELECT c.id, c.course_code, c.course_name, c.semester,
+                   COALESCE(c.subject_type, 'Theory') AS subject_type,
                    COUNT(DISTINCT e.student_id) AS student_count,
                    COUNT(DISTINCT a.id) AS assignment_count
             FROM courses c
             LEFT JOIN enrollments e ON e.course_id = c.id
             LEFT JOIN assignments a ON a.course_id = c.id
             WHERE c.teacher_id = %s
-            GROUP BY c.id, c.course_code, c.course_name, c.semester
+            GROUP BY c.id, c.course_code, c.course_name, c.semester, c.subject_type
             ORDER BY c.course_code
             """,
             (teacher_id,),
         ).fetchall()
     return [
         {
-            "course_code": row[0],
-            "course_name": row[1],
-            "semester": row[2],
-            "student_count": int(row[3] or 0),
-            "assignment_count": int(row[4] or 0),
+            "id": str(row[0]),
+            "course_code": row[1],
+            "course_name": row[2],
+            "semester": int(row[3]),
+            "subject_type": row[4],
+            "student_count": int(row[5] or 0),
+            "assignment_count": int(row[6] or 0),
         }
         for row in rows
     ]
 
 
-def teacher_assignments(teacher_id: str) -> list[dict[str, Any]]:
+def teacher_assignments(
+    teacher_id: str,
+    *,
+    unchecked_only: bool = False,
+    course_hint: str | None = None,
+    max_items: int = 25,
+) -> list[dict[str, Any]]:
+    """Return pure-JSON assignments for `teacher_id` with submission & unchecked counts."""
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT c.course_code, c.course_name, a.title, a.due_date, a.max_marks,
+            SELECT a.id, c.course_code, c.course_name, a.title, a.due_date, a.max_marks,
                    COUNT(s.id) AS replies,
                    COUNT(s.id) FILTER (WHERE s.marks_obtained IS NULL) AS unchecked
             FROM assignments a
             JOIN courses c ON c.id = a.course_id
             LEFT JOIN submissions s ON s.assignment_id = a.id
             WHERE c.teacher_id = %s
-            GROUP BY c.course_code, c.course_name, a.id, a.title, a.due_date, a.max_marks
-            ORDER BY a.due_date
+            GROUP BY a.id, c.course_code, c.course_name, a.title, a.due_date, a.max_marks
+            ORDER BY a.due_date ASC, c.course_code ASC
             """,
             (teacher_id,),
         ).fetchall()
-    items = []
+
+    now_ist = datetime.now(IST)
+    items: list[dict[str, Any]] = []
     for row in rows:
-        due = row[3]
+        due = row[4]
+        due_iso = due.isoformat() if due else None
+        due_ist = format_ist_datetime(due) if due else ""
+        due_aware = (
+            due.replace(tzinfo=timezone.utc).astimezone(IST)
+            if due and due.tzinfo is None
+            else (due.astimezone(IST) if due else None)
+        )
+        unchecked = int(row[7] or 0)
+        if unchecked_only and unchecked <= 0:
+            continue
         items.append(
             {
-                "course_code": row[0],
-                "course_name": row[1],
-                "title": row[2],
-                "due_date": due.strftime("%d %b %Y, %I:%M %p") if due else "",
-                "max_marks": float(row[4] or 0),
-                "replies": int(row[5] or 0),
-                "unchecked": int(row[6] or 0),
+                "id": str(row[0]),
+                "course_code": row[1],
+                "course_name": row[2],
+                "title": row[3],
+                "due_date_iso": due_iso,
+                "due_date_ist": due_ist,
+                "due_date": due_ist,
+                "is_active": bool(due_aware and due_aware > now_ist),
+                "max_marks": float(row[5] or 0),
+                "replies": int(row[6] or 0),
+                "unchecked": unchecked,
             }
         )
-    return items
+
+    if course_hint and course_hint.strip() and items:
+        hint = course_hint.strip()
+        best_course, _candidates = match_course_from_list(
+            hint,
+            items,
+            code_key="course_code",
+            name_key="course_name",
+        )
+        if best_course is not None:
+            target_code = best_course.get("course_code")
+            items = [item for item in items if item.get("course_code") == target_code]
+        else:
+            norm_hint = normalize_alnum(normalize_chat_text(hint))
+            expanded = expand_course_aliases(hint)
+            filtered = [
+                item
+                for item in items
+                if (
+                    has_phrase(norm_hint, normalize_alnum(str(item.get("course_code") or "")))
+                    or any(
+                        term in normalize_alnum(str(item.get("course_name") or ""))
+                        for term in expanded
+                    )
+                )
+            ]
+            items = filtered
+
+    return items[: max(1, max_items)]
 
 
 def teacher_leave(teacher: dict[str, Any], teacher_id: str) -> list[dict[str, Any]]:
+    """Return leave card balances for `teacher_id` as pure JSON."""
     with get_connection() as conn:
         ensure_establishment_schema(conn)
         _seed_teacher(conn, teacher_id, teacher.get("department") or "Computer Science")
@@ -106,6 +257,7 @@ def teacher_leave(teacher: dict[str, Any], teacher_id: str) -> list[dict[str, An
 
 
 def teacher_payslip(teacher: dict[str, Any]) -> dict[str, Any]:
+    """Return current-month salary summary for `teacher` without sensitive IDs (PAN/UAN/bank)."""
     month = date.today().replace(day=1)
     slip = _salary_for(
         teacher.get("employee_id") or "",
@@ -114,226 +266,241 @@ def teacher_payslip(teacher: dict[str, Any]) -> dict[str, Any]:
         month,
     )
     return {
+        "employee_id": slip["employee_id"],
+        "employee_name": slip["employee_name"],
+        "department": slip["department"],
+        "designation": slip["designation"],
         "month_label": slip["month_label"],
+        "month_value": slip["month_value"],
+        "working_days": slip["working_days"],
+        "paid_days": slip["paid_days"],
+        "earnings": slip["earnings"],
+        "deductions": slip["deductions"],
         "gross": slip["gross"],
         "total_deduction": slip["total_deduction"],
         "net": slip["net"],
     }
 
 
-def upcoming_holidays(limit: int = 4) -> list[dict[str, str]]:
+def upcoming_holidays(limit: int = 5) -> list[dict[str, str]]:
+    """Return upcoming academic calendar holidays as pure JSON."""
+    capped_limit = max(1, min(int(limit or 5), 25))
     today = date.today()
     rows = [
-        {"date": day.strftime("%d %b %Y"), "name": name}
+        {
+            "date_iso": day.isoformat(),
+            "date_ist": day.strftime("%d %b %Y"),
+            "date": day.strftime("%d %b %Y"),
+            "weekday": day.strftime("%A"),
+            "name": name,
+        }
         for day, name in HOLIDAYS_2026
         if day >= today
     ]
-    return rows[:limit]
+    return rows[:capped_limit]
 
 
-def _format_courses(courses: list[dict[str, Any]]) -> str:
+def get_faculty_navigation_guide(topic: str) -> dict[str, Any]:
+    """Resolve a faculty portal screen navigation guide by topic keyword."""
+    normalized = normalize_alnum(normalize_chat_text(topic or ""))
+    matched_key: str | None = None
+
+    if "question" in normalized and ("wise" in normalized or "mark" in normalized or "obe" in normalized):
+        matched_key = "question_wise"
+    elif "obe" in normalized or "outcome" in normalized or "question paper" in normalized:
+        matched_key = "obe"
+    elif "mark entry" in normalized or ("exam" in normalized and "mark" in normalized):
+        matched_key = "mark_entry"
+    elif "register" in normalized and "attendance" in normalized:
+        matched_key = "attendance_register"
+    elif "teaching plan" in normalized or "lecture plan" in normalized:
+        matched_key = "teaching_plan"
+    elif "extra class" in normalized or "makeup class" in normalized:
+        matched_key = "extra_class"
+    elif "attendance" in normalized:
+        matched_key = "attendance"
+    elif any(k in normalized for k in ("payslip", "salary", "payroll", "pay slip")):
+        matched_key = "payslip"
+    elif any(k in normalized for k in ("leave", "od", "comp off", "compoff", "service book", "establishment")):
+        matched_key = "leave"
+    elif any(k in normalized for k in ("assignment", "lms", "check student", "grading")):
+        matched_key = "assignment"
+
+    if matched_key is not None:
+        return {
+            "matched": True,
+            "query_topic": topic,
+            "guide": FACULTY_SCREEN_GUIDES[matched_key],
+        }
+
+    return {
+        "matched": False,
+        "query_topic": topic,
+        "available_screens": list(FACULTY_SCREEN_GUIDES.values()),
+    }
+
+
+def create_faculty_assignment(
+    teacher_id: str,
+    *,
+    course_code: str,
+    title: str,
+    due_date_iso: str,
+    max_marks: float = 20.0,
+    user_id: str | None = None,
+) -> dict[str, Any]:
+    """Create a new course assignment only when course & future due date are unambiguous.
+
+    Never guesses a course or past due date; returns structured `status` +
+    `candidates` so the LLM can ask the teacher to confirm when ambiguous.
+    """
+    from faculty_api import ensure_lms_schema
+
+    courses = teacher_courses(teacher_id)
     if not courses:
-        return "You have no courses assigned."
-    lines = [f"You teach **{len(courses)}** course(s):"]
-    for course in courses:
-        lines.append(
-            f"- **{course['course_code']}** {course['course_name']} "
-            f"(Sem {course['semester']}, {course['student_count']} students, "
-            f"{course['assignment_count']} assignments)"
+        return {
+            "created": False,
+            "status": "no_courses_assigned",
+            "reason": "Teacher has no assigned courses.",
+            "candidates": [],
+        }
+
+    raw_course = (course_code or "").strip()
+    if not raw_course:
+        return {
+            "created": False,
+            "status": "ambiguous_course",
+            "reason": "Course code or course name was not specified.",
+            "candidates": courses[:10],
+        }
+
+    matched_course: dict[str, Any] | None = None
+    exact_matches = [
+        c
+        for c in courses
+        if str(c.get("course_code") or "").strip().upper() == raw_course.upper()
+    ]
+    if len(exact_matches) == 1:
+        matched_course = exact_matches[0]
+        candidates = exact_matches
+    else:
+        matched_course, candidates = match_course_from_list(
+            raw_course,
+            courses,
+            code_key="course_code",
+            name_key="course_name",
         )
-    return "\n".join(lines)
 
-
-def _format_assignments(items: list[dict[str, Any]], pending_only: bool) -> str:
-    rows = [item for item in items if item["unchecked"] > 0] if pending_only else items
-    if not rows:
-        if pending_only:
-            return "No submissions are waiting for a check."
-        return "You have no assignments on your courses."
-    title = "Submissions waiting for a check:" if pending_only else "Your assignments:"
-    lines = [title]
-    for item in rows:
-        lines.append(
-            f"- **{item['course_code']}** {item['title']} — due {item['due_date']}, "
-            f"{item['replies']} replies, **{item['unchecked']} unchecked**"
-        )
-    lines.append("Open **LMS → Check Student Assignment** to enter marks.")
-    return "\n".join(lines)
-
-
-def _format_leave(balances: list[dict[str, Any]]) -> str:
-    if not balances:
-        return "No leave balances were found on your leave card."
-    lines = ["Leave balance:"]
-    for row in balances:
-        lines.append(
-            f"- **{row['leave_name']}**: {row['balance']:.2f} left "
-            f"({row['taken']:.2f} taken of {row['total']:.2f})"
-        )
-    lines.append("Open **Establishment → Employee Leave Card** for the full card.")
-    return "\n".join(lines)
-
-
-GUIDE = {
-    "question wise": "OBE → Question Wise Mark Entry. Pick the session and scheme, open the subject, then enter A/B/C marks.",
-    "obe": "Use the **OBE** menu: Question Wise Mark Entry, Exam Question Paper, or Mark Entry Report.",
-    "mark entry": "Examination → Mark Entry. Choose session, exam, course, and section, then Show.",
-    "attendance register": "Academic → Attendance Register Report.",
-    "attendance": "Academic → Attendance By Faculty.",
-    "teaching plan": "Academic → Teaching Plan Entry.",
-    "extra class": "Academic → Extra Class Time Table.",
-    "payslip": "Payroll → Reports → Employee PaySlip.",
-    "leave": "Establishment → Transactions → Employee Leave Card.",
-    "assignment": "LMS → Select Course, then Create Assignment or Check Student Assignment.",
-}
-
-
-def _guide_for(normalized: str) -> str | None:
-    if "question wise" in normalized or "obe" in normalized:
-        return GUIDE["question wise"] if "question" in normalized or "mark" in normalized else GUIDE["obe"]
-    for key in (
-        "mark entry",
-        "attendance register",
-        "attendance",
-        "teaching plan",
-        "extra class",
-        "payslip",
-        "leave",
-        "assignment",
-    ):
-        if key in normalized:
-            return GUIDE[key]
-    return None
-
-
-def _is_creative_ask(normalized: str) -> bool:
-    return _has_any(
-        normalized,
-        (
-            "plan",
-            "routine",
-            "schedule",
-            "invent",
-            "based on",
-            "recommend",
-            "suggest",
-            "advice",
-            "focus on",
-            "what should i",
-            "prioritize",
-            "priority",
-            "strategy",
-            "summarize my",
-            "help me decide",
-            "workload",
-            "day plan",
-        ),
-    )
-
-
-def resolve_faculty_message(message: str, teacher: dict[str, Any], teacher_id: str) -> dict[str, Any] | None:
-    normalized = message.casefold().strip()
-    if not normalized:
-        return None
-
-    # Planning / advice prompts get an instant grounded plan from live data.
-    if _is_creative_ask(normalized):
-        from erp_ai.tools.academic_tools.quick_plans import build_faculty_focus_plan
-
-        return _answer(
-            build_faculty_focus_plan(
-                teacher,
-                teacher_courses(teacher_id),
-                teacher_assignments(teacher_id),
+    if matched_course is None:
+        return {
+            "created": False,
+            "status": "ambiguous_course",
+            "reason": (
+                "Multiple courses matched that hint; ask the teacher to confirm the exact course code."
+                if candidates
+                else "No taught course matched that hint; ask the teacher to pick from their assigned courses."
             ),
-            title="Focus plan",
-            kind="help",
-        )
+            "requested_course": raw_course,
+            "candidates": (candidates or courses)[:10],
+        }
 
-    if normalized in {"hi", "hello", "hey", "help"} or _has_any(
-        normalized, ("what can you do", "how can you help", "help me")
-    ):
-        return _answer(
-            "I can look up **your courses**, **assignment checks**, **leave balance**, "
-            "**payslip**, and where a faculty screen lives. "
-            "Try: 'my courses', 'pending checks', 'leave balance', or 'my payslip'.",
-            title="Faculty assistant",
-        )
+    parsed_day = parse_iso_or_natural_date(due_date_iso or "")
+    today_ist = datetime.now(IST).date()
+    if parsed_day is None:
+        return {
+            "created": False,
+            "status": "missing_or_invalid_due_date",
+            "reason": "A valid due date is required (e.g., YYYY-MM-DD or '27 Nov 2026').",
+            "course": {
+                "course_code": matched_course["course_code"],
+                "course_name": matched_course["course_name"],
+                "semester": matched_course["semester"],
+            },
+        }
 
-    asks_nav = _has_any(normalized, ("where", "how do i", "how to", "open"))
-    guide = _guide_for(normalized) if asks_nav or _has_phrase(normalized, "where") else None
-    if asks_nav and guide:
-        return _answer(guide, title="Where to go")
+    if parsed_day < today_ist:
+        return {
+            "created": False,
+            "status": "past_due_date",
+            "reason": (
+                f"Due date {parsed_day.isoformat()} is in the past (today is {today_ist.isoformat()}). "
+                "Ask the teacher to confirm a current or future due date."
+            ),
+            "course": {
+                "course_code": matched_course["course_code"],
+                "course_name": matched_course["course_name"],
+                "semester": matched_course["semester"],
+            },
+            "requested_due_date_iso": parsed_day.isoformat(),
+        }
 
-    if _has_any(normalized, ("payslip", "salary", "net pay", "take home")):
-        slip = teacher_payslip(teacher)
-        return _answer(
-            f"**{slip['month_label']}** payslip for {teacher.get('full_name')}: "
-            f"gross ₹ {slip['gross']:,.2f}, deductions ₹ {slip['total_deduction']:,.2f}, "
-            f"**net ₹ {slip['net']:,.2f}**.\n\n"
-            "Open **Payroll → Employee PaySlip** for the full statement.",
-            title="Payslip",
-            kind="faculty_payslip",
-        )
+    clean_title = (title or "").strip()
+    if not clean_title:
+        clean_title = f"{matched_course['course_name']} Assignment"
+    clean_title = clean_title[:200]
 
-    if _has_any(normalized, ("holiday", "holidays")):
-        rows = upcoming_holidays()
-        if not rows:
-            return _answer("No upcoming holidays are listed.", title="Holidays", kind="empty")
-        lines = ["Upcoming holidays:"]
-        lines.extend(f"- **{row['date']}** {row['name']}" for row in rows)
-        return _answer("\n".join(lines), title="Holidays", kind="faculty_holidays")
+    safe_marks = float(max_marks if max_marks and max_marks > 0 else 20.0)
+    due_ist = datetime.combine(parsed_day, time(23, 59), tzinfo=IST)
+    due_utc = due_ist.astimezone(timezone.utc)
+    description = f"Created via ERP Assistant on {today_ist.isoformat()}."
 
-    if _has_any(normalized, ("leave balance", "casual leave", "leave card", "my leave")) or (
-        _has_phrase(normalized, "leave") and _has_any(normalized, ("balance", "show", "my", "how many"))
-    ):
-        return _answer(
-            _format_leave(teacher_leave(teacher, teacher_id)),
-            title="Leave balance",
-            kind="faculty_leave",
-        )
+    enrolled_student_ids: list[str] = []
+    with get_connection() as conn:
+        ensure_lms_schema(conn)
+        row = conn.execute(
+            """
+            INSERT INTO assignments
+                (course_id, created_by, title, description, due_date, max_marks)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id, title, due_date, max_marks, created_at
+            """,
+            (
+                matched_course["id"],
+                teacher_id,
+                clean_title,
+                description,
+                due_utc,
+                safe_marks,
+            ),
+        ).fetchone()
+        students = conn.execute(
+            """
+            SELECT s.id
+            FROM students s
+            JOIN enrollments e ON e.student_id = s.id
+            WHERE e.course_id = %s
+            """,
+            (matched_course["id"],),
+        ).fetchall()
+        for (student_id,) in students:
+            enrolled_student_ids.append(str(student_id))
+            conn.execute(
+                """
+                INSERT INTO assignment_recipients (assignment_id, student_id)
+                VALUES (%s, %s)
+                ON CONFLICT DO NOTHING
+                """,
+                (row[0], student_id),
+            )
+        conn.commit()
 
-    if _has_any(
-        normalized,
-        ("pending check", "pending checks", "unchecked", "to grade", "submissions to check"),
-    ) or (
-        _has_phrase(normalized, "pending")
-        and _has_any(normalized, ("assignment", "assignments", "submission", "submissions", "check"))
-    ):
-        return _answer(
-            _format_assignments(teacher_assignments(teacher_id), pending_only=True),
-            title="Pending checks",
-            kind="faculty_assignments",
-        )
+    invalidate_teacher_cache(teacher_id, user_id)
+    for sid in enrolled_student_ids:
+        invalidate_student_cache(sid)
 
-    if _has_any(normalized, ("my assignment", "my assignments", "assignments i", "created assignment")):
-        return _answer(
-            _format_assignments(teacher_assignments(teacher_id), pending_only=False),
-            title="Your assignments",
-            kind="faculty_assignments",
-        )
-
-    if _has_any(
-        normalized,
-        ("my course", "my courses", "my subject", "my subjects", "what do i teach", "classes i teach"),
-    ) or (
-        _has_any(normalized, ("course", "courses", "subject", "subjects"))
-        and _has_any(normalized, ("my", "teach", "show", "list"))
-    ):
-        return _answer(
-            _format_courses(teacher_courses(teacher_id)),
-            title="Your courses",
-            kind="faculty_courses",
-        )
-
-    return None
-
-
-def faculty_fallback() -> dict[str, Any]:
-    return _answer(
-        "I can help with your courses, assignment checks, leave balance, payslip, "
-        "and where faculty screens are. Try 'my courses', 'pending checks', "
-        "'leave balance', or 'my payslip'. "
-        "The live model is temporarily unavailable; those lookups still work.",
-        title="Faculty assistant",
-    )
+    created_due = row[2]
+    return {
+        "created": True,
+        "status": "created",
+        "assignment": {
+            "id": str(row[0]),
+            "course_code": matched_course["course_code"],
+            "course_name": matched_course["course_name"],
+            "semester": matched_course["semester"],
+            "title": row[1],
+            "due_date_iso": created_due.isoformat() if created_due else due_ist.isoformat(),
+            "due_date_ist": format_ist_datetime(created_due or due_ist),
+            "max_marks": float(row[3]),
+            "students_notified": len(enrolled_student_ids),
+        },
+    }

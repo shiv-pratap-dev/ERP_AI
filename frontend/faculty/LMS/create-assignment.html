@@ -430,7 +430,7 @@
     if (!selectedCourse?.id) {
       window.location.href = "/faculty/LMS/select-course.html";
     } else {
-      const session = selectedCourse.session || "July-Dec 2026-2027 - School of Engineering and Technology";
+      const session = selectedCourse.session || "Jul 2026 - Dec 2026 (3rd Semester)";
       document.getElementById("sessionLine").textContent = `Session ${session}`;
       document.getElementById("courseLine").textContent = `Course Name ${courseLine(selectedCourse)}`;
       document.getElementById("dueDate").value = defaultDue();

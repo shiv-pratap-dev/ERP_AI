@@ -373,7 +373,7 @@
       document.getElementById("dateLine").textContent =
         `Current Date ${pad(today.getDate())}/${pad(today.getMonth() + 1)}/${today.getFullYear()}`;
       document.getElementById("sessionLine").textContent =
-        `Session ${selectedCourse.session || "July-Dec 2026-2027 - School of Engineering and Technology"}`;
+        `Session ${selectedCourse.session || "Jul 2026 - Dec 2026 (3rd Semester)"}`;
       document.getElementById("courseLine").textContent = `Course Name ${courseLine(selectedCourse)}`;
       const requested = new URLSearchParams(location.search).get("assignment");
       loadAssignments().then(() => {

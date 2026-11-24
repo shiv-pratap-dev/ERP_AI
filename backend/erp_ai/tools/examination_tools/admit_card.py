@@ -45,6 +45,11 @@ def get_admit_card(student_id: str) -> dict[str, Any]:
     """Return admit card payload for the student (read-only)."""
     student, courses = _student_and_courses(student_id)
     _id, roll_number, full_name, semester, branch, email = student
+    degree = (
+        "Bachelor of Technology - Computer Science and Engineering"
+        if branch == "CSE"
+        else f"Bachelor of Technology - {branch}"
+    )
 
     return {
         "admit_card": {
@@ -52,7 +57,9 @@ def get_admit_card(student_id: str) -> dict[str, Any]:
             "rrn": roll_number,
             "email": email,
             "semester": semester,
-            "branch": branch,
+            "branch": degree,
+            "admission_batch": "2025-2029",
+            "scheme": f"B.Tech-{branch}-2025-2029-Department of Computer Engineering (New)",
             "exam_name": DEFAULT_EXAM_NAME,
             "session": DEFAULT_SESSION,
             "center": "JECRC University Main Campus",
@@ -65,48 +72,15 @@ def get_admit_card(student_id: str) -> dict[str, Any]:
                 {
                     "code": c[0],
                     "name": c[1],
-                    "date": f"{12 + i:02d}-Dec-2026",
+                    "date": f"{12 + (i % 10):02d}-Dec-2026",
                     "slot": (
                         "09:00 AM - 12:00 PM"
                         if i % 2 == 0
                         else "01:00 PM - 04:00 PM"
                     ),
                 }
-                for i, c in enumerate(courses[:5])
+                for i, c in enumerate(courses)
             ],
         }
     }
 
-
-def format_admit_card(payload: dict[str, Any]) -> str:
-    """Markdown summary for chatbot answers."""
-    card = payload.get("admit_card") or payload
-    lines = [
-        "### Admit card\n",
-        f"- **Name:** {card.get('student_name')}",
-        f"- **RRN:** {card.get('rrn')}",
-        f"- **Branch:** {card.get('branch')}",
-        f"- **Semester:** {card.get('semester')}",
-        f"- **Exam:** {card.get('exam_name')}",
-        f"- **Session:** {card.get('session')}",
-        f"- **Center:** {card.get('center')}",
-        "",
-        "#### Papers",
-    ]
-    papers = card.get("papers") or []
-    if not papers:
-        lines.append("- No papers listed on this admit card.")
-    else:
-        for paper in papers:
-            lines.append(
-                f"- **{paper.get('code')}** {paper.get('name')} — "
-                f"{paper.get('date')}, {paper.get('slot')}"
-            )
-
-    instructions = card.get("instructions") or []
-    if instructions:
-        lines.extend(["", "#### Instructions"])
-        for item in instructions:
-            lines.append(f"- {item}")
-
-    return "\n".join(lines) + "\n"

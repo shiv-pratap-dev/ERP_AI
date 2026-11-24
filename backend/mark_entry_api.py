@@ -12,7 +12,11 @@ from faculty_api import _assert_course_owned, _require_teacher
 
 router = APIRouter(prefix="/api/faculty/mark-entry", tags=["mark-entry"])
 
-SESSIONS = ("July-Dec 2026-2027", "July-Dec 2025-2026")
+SESSIONS = (
+    "Jul 2026 - Dec 2026 (3rd Semester)",
+    "Jan 2026 - Jun 2026 (2nd Semester)",
+    "Jul 2025 - Dec 2025 (1st Semester)",
+)
 SECTIONS = ("S", "A", "B", "C")
 ENROLLED_SECTION = "S"
 STATUS_CODES = ("902", "903", "904")

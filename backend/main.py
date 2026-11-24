@@ -406,7 +406,9 @@ def get_student_courses(
                 c.course_name,
                 c.semester,
                 c.description,
-                t.full_name AS teacher_name
+                t.full_name AS teacher_name,
+                COALESCE(c.subject_type, 'Theory') AS subject_type,
+                COALESCE(c.credits, 4.0) AS credits
             FROM enrollments e
             JOIN courses c ON c.id = e.course_id
             LEFT JOIN teachers t ON t.id = c.teacher_id
@@ -428,6 +430,8 @@ def get_student_courses(
                 "semester": course[3],
                 "description": course[4],
                 "teacher": course[5],
+                "subject_type": course[6],
+                "credits": float(course[7]),
             }
             for course in courses
         ],

@@ -210,7 +210,7 @@
 </div>
 
   <script src="/frontend/shared/navbar.js?v=5"></script>
-  <script src="/frontend/shared/erp-assistant.js?v=7"></script>
+  <script src="/frontend/shared/erp-assistant.js?v=9"></script>
 
 
   <div class="flex flex-1 min-h-0">
@@ -269,13 +269,9 @@
 
           <select id="semester"
                   class="w-full border border-indigo-200 rounded-md px-3 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200">
-            <option value="7">July-Dec 2026-2027 - School of Engineering and Technology (Sem - VII)</option>
-            <option value="6">Jan-June 2025-2026 - School of Engineering and Technology (Sem - VI)</option>
-            <option value="5">July-Dec 2025-2026 - School of Engineering and Technology (Sem - V)</option>
-            <option value="4">Jan-June 2024-2025 - School of Engineering and Technology (Sem - IV)</option>
-            <option value="3">July-Dec 2024-2025 - School of Engineering and Technology (Sem - III)</option>
-            <option value="2">Jan-June 2023-2024 - School of Engineering and Technology (Sem - II)</option>
-            <option value="1">July-Dec 2022-2023 - School of Engineering and Technology (Sem - I)</option>
+            <option value="3" selected>Jul 2026 - Dec 2026 (3rd Semester)</option>
+            <option value="2">Jan 2026 - Jun 2026 (2nd Semester)</option>
+            <option value="1">Jul 2025 - Dec 2025 (1st Semester)</option>
           </select>
         </div>
 
@@ -460,7 +456,7 @@
             </p>
 
             <p class="text-sm mb-1">
-              <strong>Type:</strong> Theory
+              <strong>Type:</strong> ${escapeHTML(course.subject_type || "Theory")}
             </p>
 
             <p class="text-sm mb-2">

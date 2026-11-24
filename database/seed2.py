@@ -13,54 +13,54 @@ Run from the project environment:
     python seed2.py
 """
 
+import os
 import sys
+from pathlib import Path
+
 import psycopg
+from dotenv import load_dotenv
 
-
-DATABASE = "dbname=erp_ai"
+ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT / ".env")
 
 # The expected course codes and course-specific assignment descriptions.
 # Titles are generated as "<course name> - Assignment 1/2".
 COURSE_ASSIGNMENTS = {
-    "CS301": {
+    "BCO002B": {
         1: "Implement and analyze core data structures and sorting/searching algorithms.",
         2: "Solve problems using trees, graphs, and algorithmic complexity analysis.",
     },
-    "CS302": {
-        1: "Design relational tables and write SQL queries using filtering, joins, and aggregation.",
-        2: "Apply normalization, constraints, transactions, and integrity rules to a database.",
-    },
-    "CS303": {
-        1: "Create classes and objects demonstrating encapsulation, constructors, and methods.",
-        2: "Implement inheritance, polymorphism, abstraction, and interfaces in a small program.",
-    },
-    "CS304": {
+    "BCO008B": {
         1: "Explain process states and compare CPU scheduling algorithms with examples.",
         2: "Analyze synchronization, deadlocks, paging, and virtual memory scenarios.",
     },
-    "MA301": {
-        1: "Solve problems involving matrices, eigenvalues, and systems of linear equations.",
-        2: "Apply probability and differential-equation techniques to engineering problems.",
-    },
-    "MA302": {
-        1: "Solve exercises involving propositional logic, predicates, sets, and relations.",
-        2: "Apply graph theory, counting principles, and combinatorics to given problems.",
-    },
-    "EC301": {
-        1: "Simplify Boolean expressions and design combinational logic circuits.",
-        2: "Design and analyze flip-flops, counters, and sequential logic circuits.",
-    },
-    "EC302": {
-        1: "Trace instruction execution and explain CPU datapath and control-unit behavior.",
-        2: "Analyze cache organization, memory hierarchy, and input/output mechanisms.",
-    },
-    "CS305": {
+    "BCO011A": {
         1: "Explain the OSI/TCP-IP models and analyze common application and transport protocols.",
         2: "Work through IP addressing, subnetting, routing, and network troubleshooting problems.",
     },
-    "CS306": {
+    "BCO232A": {
         1: "Produce software requirements and UML models for a small application.",
-        2: "Prepare a testing plan and apply software testing and quality-assurance techniques.",
+        2: "Prepare a project plan covering estimation, risk, and quality assurance.",
+    },
+    "BCO235B": {
+        1: "Build basic probabilistic models and solve reasoning problems in Python.",
+        2: "Apply Bayesian updates and uncertainty estimates to a small dataset.",
+    },
+    "BCO280B": {
+        1: "Load and summarize datasets using core R data structures.",
+        2: "Create exploratory visualizations and a short analysis report in R.",
+    },
+    "BAS007B": {
+        1: "Solve exercises involving propositional logic, predicates, sets, and relations.",
+        2: "Apply graph theory, counting principles, and combinatorics to given problems.",
+    },
+    "DEN003A": {
+        1: "Prepare a short personality-development reflection and communication plan.",
+        2: "Present a teamwork and professional-etiquette case study.",
+    },
+    "DIN003A": {
+        1: "Write a short essay on personal values and ethical decision-making.",
+        2: "Submit a community/value-education activity reflection.",
     },
 }
 
@@ -74,6 +74,20 @@ class SeedSafetyError(RuntimeError):
     """Raised when the current database does not match expected safe-update conditions."""
 
 
+def _connect() -> psycopg.Connection:
+    params: dict[str, str] = {"dbname": os.getenv("PGDATABASE", "erp_ai")}
+    for key, env_name in (
+        ("host", "PGHOST"),
+        ("port", "PGPORT"),
+        ("user", "PGUSER"),
+        ("password", "PGPASSWORD"),
+    ):
+        value = os.getenv(env_name)
+        if value:
+            params[key] = value
+    return psycopg.connect(**params)
+
+
 def main() -> int:
     print("ERP_AI assignment update (seed2.py)")
     print("Database: erp_ai")
@@ -85,7 +99,7 @@ def main() -> int:
     try:
         # The connection context commits if everything succeeds and rolls back
         # automatically if an exception escapes the block.
-        with psycopg.connect(DATABASE) as conn:
+        with _connect() as conn:
             with conn.cursor() as cur:
                 expected_codes = tuple(COURSE_ASSIGNMENTS.keys())
 
@@ -129,14 +143,15 @@ def main() -> int:
                     )
                     rows = cur.fetchall()
 
-                    if len(rows) != 2:
+                    if len(rows) < 2:
                         raise SeedSafetyError(
                             f"{code} ({course_name}) has {len(rows)} assignment(s); "
-                            "expected exactly 2. Nothing was committed."
+                            "expected at least 2. Nothing was committed."
                         )
 
                     # Determine which existing row is Assignment 1 or 2. This
                     # supports both original seed titles and titles from a prior run.
+                    # Extra demo/smoke-test assignments are ignored.
                     number_to_row = {}
                     for row in rows:
                         assignment_id, title = row[0], row[1]
@@ -146,11 +161,16 @@ def main() -> int:
                             number = 1
                         elif title == f"{course_name} - Assignment 2":
                             number = 2
+                        elif title.endswith(" - Assignment 1") or title.endswith(" Assignment 1"):
+                            number = 1
+                        elif title.endswith(" - Assignment 2") or title.endswith(" Assignment 2"):
+                            number = 2
                         else:
-                            raise SeedSafetyError(
-                                f"{code} has an unexpected assignment title {title!r}. "
-                                "To avoid overwriting custom data, nothing was committed."
+                            print(
+                                f"SKIP      {code}: leaving non-seed assignment "
+                                f"{title!r} untouched"
                             )
+                            continue
 
                         if number in number_to_row:
                             raise SeedSafetyError(
@@ -161,7 +181,8 @@ def main() -> int:
 
                     if set(number_to_row) != {1, 2}:
                         raise SeedSafetyError(
-                            f"{code} must have one Assignment 1 and one Assignment 2. "
+                            f"{code} must have one Assignment 1 and one Assignment 2 "
+                            f"among seed rows (found {sorted(number_to_row)}). "
                             "Nothing was committed."
                         )
 
@@ -231,27 +252,7 @@ def main() -> int:
                             f"(submissions preserved: {submission_count})"
                         )
 
-                # Final checks inside the same transaction.
-                cur.execute(
-                    """
-                    SELECT c.course_code, COUNT(a.id)
-                    FROM courses c
-                    LEFT JOIN assignments a ON a.course_id = c.id
-                    WHERE c.course_code = ANY(%s)
-                    GROUP BY c.course_code
-                    ORDER BY c.course_code
-                    """,
-                    (list(expected_codes),),
-                )
-                counts = cur.fetchall()
-                bad_counts = [(code, count) for code, count in counts if count != 2]
-                if bad_counts:
-                    raise SeedSafetyError(
-                        f"Final verification failed: {bad_counts}. "
-                        "Transaction will be rolled back."
-                    )
-
-                # Verify each course now has exactly the intended two titles.
+                # Verify each course now has the intended two seed titles.
                 for code in expected_codes:
                     course_id, _, course_name, _ = courses_by_code[code]
                     cur.execute(
@@ -268,7 +269,7 @@ def main() -> int:
                         f"{course_name} - Assignment 1",
                         f"{course_name} - Assignment 2",
                     }
-                    if actual != expected:
+                    if not expected.issubset(actual):
                         raise SeedSafetyError(
                             f"Final title verification failed for {code}: {actual}. "
                             "Transaction will be rolled back."

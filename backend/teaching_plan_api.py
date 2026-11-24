@@ -18,7 +18,11 @@ from faculty_api import _assert_course_owned, _require_teacher
 
 router = APIRouter(prefix="/api/faculty/teaching-plan", tags=["teaching-plan"])
 
-SESSIONS = ("July-Dec 2026-2027", "July-Dec 2025-2026")
+SESSIONS = (
+    "Jul 2026 - Dec 2026 (3rd Semester)",
+    "Jan 2026 - Jun 2026 (2nd Semester)",
+    "Jul 2025 - Dec 2025 (1st Semester)",
+)
 TEACHING_FOR = ("Theory", "Practical", "Tutorial")
 SECTIONS = ("S", "A", "B", "C")
 PLAN_TYPES = ("core", "elective")
@@ -34,14 +38,21 @@ LECTURE_SLOTS = (
     "03:30 PM - 04:20 PM",
 )
 TIMETABLE_RANGES = {
-    "July-Dec 2026-2027": (
+    "Jul 2026 - Dec 2026 (3rd Semester)": (
         "26/08/2026 - 09/12/2026",
         "02/09/2026 - 09/12/2026",
         "14/09/2026 - 09/12/2026",
         "28/09/2026 - 09/12/2026",
         "12/10/2026 - 09/12/2026",
     ),
-    "July-Dec 2025-2026": (
+    "Jan 2026 - Jun 2026 (2nd Semester)": (
+        "12/01/2026 - 15/05/2026",
+        "26/01/2026 - 15/05/2026",
+        "09/02/2026 - 15/05/2026",
+        "23/02/2026 - 15/05/2026",
+        "09/03/2026 - 15/05/2026",
+    ),
+    "Jul 2025 - Dec 2025 (1st Semester)": (
         "26/08/2025 - 09/12/2025",
         "02/09/2025 - 09/12/2025",
         "14/09/2025 - 09/12/2025",
@@ -55,7 +66,7 @@ _schema_ready = False
 
 
 def _syllabus_for(course_code: str, course_name: str) -> dict[int, list[str]]:
-    if course_code == "CS301":
+    if course_code in {"CS301", "BCO002B"}:
         return {
             1: [
                 "Unit 1 Introduction Time complexity",
@@ -274,7 +285,7 @@ def _seed_demo_plans(conn) -> None:
         SELECT t.id, c.id
         FROM teachers t
         JOIN courses c ON c.teacher_id = t.id
-        WHERE t.employee_id = 'EMP001' AND c.course_code = 'CS301'
+        WHERE t.employee_id = 'EMP001' AND c.course_code IN ('BCO002B', 'CS301')
         """
     ).fetchone()
     if not row:
@@ -853,7 +864,7 @@ def teaching_plan_template(access_token: str | None = Cookie(default=None)):
     )
     writer.writerow(
         [
-            "CS301",
+            "BCO002B",
             "S",
             "1",
             "1",

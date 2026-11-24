@@ -1,6 +1,10 @@
 /**
- * Global ERP AI assistant widget.
- * Mounts on every portal page and persists chat + open state in sessionStorage.
+ * Global ERP AI assistant widget (Stage 4 — Universal Sanitized UI Streaming).
+ *
+ * Mounts on every portal page, persists chat + open state in sessionStorage,
+ * renders every bot message through a single DOMPurify-sanitized `renderMarkdown`
+ * pipeline, and batches streaming SSE tokens via `requestAnimationFrame` so
+ * live LLM token streams never cause O(n^2) per-token DOM thrashing.
  */
 (function () {
   const API =
@@ -15,31 +19,35 @@
   // Separate history so a faculty session does not reuse a student chat.
   const STORAGE_KEY = FACULTY ? "erp_ai_chat_faculty_v1" : "erp_ai_chat_v2";
 
+  const MARKED_CDN = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
+  const DOMPURIFY_CDN =
+    "https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js";
+
   const WELCOME_MD = FACULTY
-    ? "Hi! I can look up **your courses**, **assignment checks**, **leave**, and **payslip**. Try a chip below or type a question."
-    : "Hi! I can help with your **courses**, **assignments**, deadlines, and guided uploads. Try a quick chip below or type a question.";
+    ? "Hi! I can look up **your courses**, **assignment checks**, **leave**, **payslip**, and **screen guides**, and I can **create assignments** from chat. Try a chip below or type a question."
+    : "Hi! I can help with your **courses**, **assignments**, **attendance**, **results**, **fees**, **exam schedule**, and **guided uploads**. Try a quick chip below or type a question.";
 
   const CHIPS = FACULTY
     ? [
         ["my courses", "My courses"],
         ["pending checks", "Pending checks"],
+        ["create an assignment in DSA lab due 27 Nov", "Create DSA lab A1"],
         ["leave balance", "Leave balance"],
-        ["my payslip", "Payslip"],
-        ["where do I enter question wise marks", "Question-wise marks"],
+        ["where is the teaching plan", "Teaching plan"],
       ]
     : [
         ["list my assignments", "List assignments"],
-        ["pending assignments", "Pending"],
-        ["show my courses", "My courses"],
+        ["my attendance", "Attendance"],
+        ["exam schedule", "Exam schedule"],
         ["what is my next assignment deadline", "Next deadline"],
         ["upload assignment 1 for DBMS", "Upload DBMS A1"],
       ];
   const SUBTITLE = FACULTY
-    ? "Courses · Checks · Leave · Payroll"
-    : "Courses · Assignments · Uploads";
+    ? "Courses · Checks · Leave · Payroll · Guides"
+    : "LMS · Academic · Exams · Uploads";
   const PLACEHOLDER = FACULTY
-    ? "Ask about your courses, checks, or leave... (Shift+Enter for new line)"
-    : "Ask about courses or assignments... (Shift+Enter for new line)";
+    ? "Ask about courses, checks, leave, guides, or create an assignment... (Shift+Enter)"
+    : "Ask about courses, attendance, exams, or assignments... (Shift+Enter for new line)";
 
   function loadState() {
     try {
@@ -66,21 +74,51 @@
     return next;
   }
 
-  function ensureMarked(callback) {
-    if (window.marked && typeof window.marked.parse === "function") {
+  function loadScriptOnce(selector, attrName, src) {
+    return new Promise((resolve) => {
+      const existing = document.querySelector(selector);
+      if (existing) {
+        if (existing.dataset.erpLoaded === "1" || existing.dataset.erpFailed === "1") {
+          resolve();
+          return;
+        }
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => resolve(), { once: true });
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = src;
+      script.async = true;
+      script.dataset[attrName] = "1";
+      script.onload = () => {
+        script.dataset.erpLoaded = "1";
+        resolve();
+      };
+      script.onerror = () => {
+        script.dataset.erpFailed = "1";
+        resolve();
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  function ensureMarkdownDeps(callback) {
+    const tasks = [];
+    if (!(window.marked && typeof window.marked.parse === "function")) {
+      tasks.push(
+        loadScriptOnce("script[data-erp-marked]", "erpMarked", MARKED_CDN)
+      );
+    }
+    if (!(window.DOMPurify && typeof window.DOMPurify.sanitize === "function")) {
+      tasks.push(
+        loadScriptOnce("script[data-erp-dompurify]", "erpDompurify", DOMPURIFY_CDN)
+      );
+    }
+    if (!tasks.length) {
       callback();
       return;
     }
-    const existing = document.querySelector("script[data-erp-marked]");
-    if (existing) {
-      existing.addEventListener("load", callback, { once: true });
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
-    script.dataset.erpMarked = "1";
-    script.onload = callback;
-    document.head.appendChild(script);
+    Promise.all(tasks).then(() => callback());
   }
 
   function escapeHtml(text) {
@@ -88,7 +126,8 @@
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   function compactMarkdownText(text) {
@@ -99,18 +138,66 @@
       .trim();
   }
 
+  function sanitizeHtml(dirtyHtml, fallbackPlainText) {
+    if (window.DOMPurify && typeof window.DOMPurify.sanitize === "function") {
+      const clean = window.DOMPurify.sanitize(dirtyHtml, {
+        USE_PROFILES: { html: true },
+        FORBID_TAGS: [
+          "script",
+          "style",
+          "iframe",
+          "object",
+          "embed",
+          "form",
+          "input",
+          "button",
+          "textarea",
+          "select",
+        ],
+        FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "style"],
+      });
+      // Enforce safe external link targets when links appear in markdown.
+      const template = document.createElement("template");
+      template.innerHTML = clean;
+      template.content.querySelectorAll("a[href]").forEach((anchor) => {
+        const href = (anchor.getAttribute("href") || "").trim();
+        if (/^javascript:/i.test(href) || /^data:/i.test(href) || /^vbscript:/i.test(href)) {
+          anchor.removeAttribute("href");
+        } else if (/^https?:\/\//i.test(href)) {
+          anchor.setAttribute("target", "_blank");
+          anchor.setAttribute("rel", "noopener noreferrer");
+        }
+      });
+      return template.innerHTML;
+    }
+    // Strict HTML-escaped offline fallback when DOMPurify CDN cannot load:
+    // never inject unsanitized `marked.parse(...)` output into innerHTML.
+    return escapeHtml(fallbackPlainText).replace(/\n/g, "<br>");
+  }
+
+  /**
+   * Single universal sanitized markdown formatter for every bot message.
+   */
   function renderMarkdown(text) {
     const compact = compactMarkdownText(text);
     if (!compact) return "";
-    if (window.marked && typeof marked.parse === "function") {
-      return `<div class="chat-md">${marked.parse(compact)}</div>`;
+    if (
+      window.marked &&
+      typeof window.marked.parse === "function" &&
+      window.DOMPurify &&
+      typeof window.DOMPurify.sanitize === "function"
+    ) {
+      const rawHtml = window.marked.parse(compact);
+      return `<div class="chat-md">${sanitizeHtml(rawHtml, compact)}</div>`;
     }
     return `<div class="chat-md">${escapeHtml(compact).replace(/\n/g, "<br>")}</div>`;
   }
 
   function formatChatDate(value) {
     try {
-      return new Date(value).toLocaleString();
+      const dt = new Date(value);
+      if (Number.isNaN(dt.getTime())) return value || "-";
+      return dt.toLocaleString();
     } catch (_) {
       return value || "-";
     }
@@ -207,8 +294,8 @@
     let activeController = null;
     let stopRequested = false;
 
-    if (window.marked) {
-      marked.setOptions({ gfm: true, breaks: true });
+    if (window.marked && typeof window.marked.setOptions === "function") {
+      window.marked.setOptions({ gfm: true, breaks: true });
     }
 
     function autosizeInput() {
@@ -287,7 +374,6 @@
             true,
             source
           );
-          // If older v1 plain-text was saved, still keep source for next persist.
           bubble.dataset.mdSource = source;
         }
       });
@@ -301,21 +387,18 @@
       const now = new Date();
       const oneDayMs = 24 * 60 * 60 * 1000;
 
-      if (raw === "submitted") {
-        return { label: "submitted", tone: "submitted" };
+      if (raw === "submitted" || raw === "late") {
+        return { label: raw, tone: "submitted" };
       }
 
-      // Deadline already passed → red expired (includes overdue / late).
       if (
         raw === "overdue" ||
-        raw === "late" ||
         raw === "expired" ||
         (dueValid && due <= now && raw !== "submitted")
       ) {
-        return { label: "expired", tone: "expired" };
+        return { label: "overdue", tone: "expired" };
       }
 
-      // Still open: yellow if <= 1 day left, else green pending.
       if (dueValid && due - now <= oneDayMs) {
         return { label: "pending", tone: "soon" };
       }
@@ -327,10 +410,11 @@
       const items = assignments
         .map((item) => {
           const badge = statusBadge(item);
+          const dueDisplay = item.due_date_ist || formatChatDate(item.due_date);
           return `
         <div class="chat-list-item">
           <div><strong>${escapeHtml(item.course_code || "")}</strong> · ${escapeHtml(item.title || "")}</div>
-          <div class="chat-list-meta">Due: ${escapeHtml(formatChatDate(item.due_date))} · Status: <span class="status-badge status-${badge.tone}">${escapeHtml(badge.label)}</span></div>
+          <div class="chat-list-meta">Due: ${escapeHtml(dueDisplay)} · Status: <span class="status-badge status-${badge.tone}">${escapeHtml(badge.label)}</span></div>
         </div>`;
         })
         .join("");
@@ -353,12 +437,17 @@
 
     function renderUploadAction(action, hostBubble) {
       if (!action || action.type !== "upload_confirmation" || !action.assignment) return;
+      if (hostBubble.querySelector(".chat-upload-box")) return;
       const assignment = action.assignment;
+      const dueText = assignment.due_date_ist
+        ? `<div class="text-xs text-gray-500 mt-0.5">Due: ${escapeHtml(assignment.due_date_ist)}</div>`
+        : "";
       const box = document.createElement("div");
       box.className = "chat-upload-box";
       box.innerHTML = `
         <div><strong>Upload ready</strong></div>
         <div class="text-xs text-gray-600 mt-1">${escapeHtml(assignment.course_code)} · ${escapeHtml(assignment.title)}</div>
+        ${dueText}
         <input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
         <button type="button">Confirm upload</button>
         <div class="chat-status"></div>
@@ -413,6 +502,7 @@
       });
 
       hostBubble.appendChild(box);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     function createStreamingBotBubble() {
@@ -430,6 +520,11 @@
         extraEl: bubble.querySelector(".js-extra"),
         rawText: "",
         started: false,
+        streaming: true,
+        intents: [],
+        kind: "help",
+        rafScheduled: false,
+        rafId: null,
       };
     }
 
@@ -440,14 +535,90 @@
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
+    function flushStreamMarkdown(state) {
+      if (state.rafId !== null && typeof window.cancelAnimationFrame === "function") {
+        window.cancelAnimationFrame(state.rafId);
+      }
+      state.rafId = null;
+      state.rafScheduled = false;
+      if (state.started || state.rawText) {
+        applyStreamMarkdown(state);
+      }
+    }
+
+    function scheduleStreamRender(state) {
+      if (state.rafScheduled) return;
+      state.rafScheduled = true;
+      if (typeof window.requestAnimationFrame === "function") {
+        state.rafId = window.requestAnimationFrame(() => {
+          state.rafScheduled = false;
+          state.rafId = null;
+          applyStreamMarkdown(state);
+        });
+      } else {
+        state.rafScheduled = false;
+        applyStreamMarkdown(state);
+      }
+    }
+
     function appendStreamToken(state, token) {
       if (!token) return;
       if (!state.started) {
         state.started = true;
-        if (state.typingEl) state.typingEl.remove();
+        if (state.typingEl) {
+          state.typingEl.remove();
+          state.typingEl = null;
+        }
       }
       state.rawText += token;
-      applyStreamMarkdown(state);
+      state.bubble.dataset.mdSource = state.rawText;
+      // Non-streamed static replies arrive in a single chunk and can paint immediately;
+      // live token streams coalesce paints via requestAnimationFrame (1 paint per frame).
+      if (state.streaming === false) {
+        flushStreamMarkdown(state);
+      } else {
+        scheduleStreamRender(state);
+      }
+    }
+
+    function handleSseFrame(eventName, rawData, state) {
+      let payload = {};
+      try {
+        payload = rawData ? JSON.parse(rawData) : {};
+      } catch (_) {
+        payload = { text: rawData };
+      }
+
+      if (eventName === "meta") {
+        if (payload.title) state.metaEl.textContent = payload.title;
+        if (payload.kind) {
+          state.kind = payload.kind;
+          state.bubble.dataset.kind = payload.kind;
+        }
+        if (Array.isArray(payload.intents)) {
+          state.intents = payload.intents;
+          state.bubble.dataset.intents = payload.intents.join(",");
+        }
+        if (typeof payload.streaming === "boolean") {
+          state.streaming = payload.streaming;
+        }
+      } else if (eventName === "token") {
+        appendStreamToken(state, payload.text || "");
+      } else if (eventName === "assignments") {
+        state.extraEl.insertAdjacentHTML("beforeend", renderAssignmentList(payload));
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      } else if (eventName === "courses") {
+        state.extraEl.insertAdjacentHTML("beforeend", renderCourseList(payload));
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      } else if (eventName === "action") {
+        flushStreamMarkdown(state);
+        renderUploadAction(payload, state.bubble);
+      } else if (eventName === "error") {
+        appendStreamToken(state, payload.detail || "Assistant stream error.");
+        flushStreamMarkdown(state);
+      } else if (eventName === "done") {
+        flushStreamMarkdown(state);
+      }
     }
 
     async function consumeSseResponse(response, state) {
@@ -457,47 +628,55 @@
       const decoder = new TextDecoder();
       let buffer = "";
       let eventName = "message";
+      let dataLines = [];
+
+      const dispatchPending = () => {
+        if (!dataLines.length && eventName === "message") return;
+        const joined = dataLines.join("\n");
+        if (joined || eventName === "done") {
+          handleSseFrame(eventName, joined, state);
+        }
+        eventName = "message";
+        dataLines = [];
+      };
 
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {
+          buffer += decoder.decode();
+          break;
+        }
         buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n");
-        buffer = parts.pop() || "";
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
-        for (const line of parts) {
+        for (const rawLine of lines) {
+          const line = rawLine.replace(/\r$/, "");
+          if (!line) {
+            dispatchPending();
+            continue;
+          }
+          if (line.startsWith(":")) continue;
           if (line.startsWith("event:")) {
-            eventName = line.slice(6).trim();
+            eventName = line.slice(6).trim() || "message";
             continue;
           }
           if (line.startsWith("data:")) {
-            const raw = line.slice(5).trim();
-            let payload = {};
-            try {
-              payload = raw ? JSON.parse(raw) : {};
-            } catch (_) {
-              payload = { text: raw };
-            }
-
-            if (eventName === "meta") {
-              if (payload.title) state.metaEl.textContent = payload.title;
-            } else if (eventName === "token") {
-              appendStreamToken(state, payload.text || "");
-            } else if (eventName === "assignments") {
-              state.extraEl.insertAdjacentHTML("beforeend", renderAssignmentList(payload));
-            } else if (eventName === "courses") {
-              state.extraEl.insertAdjacentHTML("beforeend", renderCourseList(payload));
-            } else if (eventName === "action") {
-              renderUploadAction(payload, state.bubble);
-            } else if (eventName === "error") {
-              appendStreamToken(state, payload.detail || "Assistant stream error.");
-            }
-            eventName = "message";
-            continue;
+            dataLines.push(line.slice(5).trimStart());
           }
-          if (!line.trim()) eventName = "message";
         }
       }
+
+      if (buffer.trim()) {
+        const trailing = buffer.replace(/\r$/, "");
+        if (trailing.startsWith("event:")) {
+          eventName = trailing.slice(6).trim() || "message";
+        } else if (trailing.startsWith("data:")) {
+          dataLines.push(trailing.slice(5).trimStart());
+        }
+      }
+      dispatchPending();
+      flushStreamMarkdown(state);
     }
 
     async function sendChatMessage(rawText) {
@@ -537,23 +716,34 @@
         await consumeSseResponse(response, state);
 
         if (stopRequested) {
-          if (state.typingEl) state.typingEl.remove();
+          flushStreamMarkdown(state);
+          if (state.typingEl) {
+            state.typingEl.remove();
+            state.typingEl = null;
+          }
           if (!state.started) {
             state.rawText = "Generation stopped.";
-            applyStreamMarkdown(state);
-          } else {
+            flushStreamMarkdown(state);
+          } else if (!state.bubble.querySelector(".chat-stopped")) {
             const note = document.createElement("div");
             note.className = "chat-stopped";
             note.textContent = "Generation stopped.";
             state.bubble.appendChild(note);
           }
         } else if (!state.started) {
-          if (state.typingEl) state.typingEl.remove();
+          if (state.typingEl) {
+            state.typingEl.remove();
+            state.typingEl = null;
+          }
           state.rawText = "No response received. Please try again.";
-          applyStreamMarkdown(state);
+          flushStreamMarkdown(state);
         }
       } catch (error) {
-        if (state.typingEl) state.typingEl.remove();
+        flushStreamMarkdown(state);
+        if (state.typingEl) {
+          state.typingEl.remove();
+          state.typingEl = null;
+        }
         const aborted =
           stopRequested ||
           error.name === "AbortError" ||
@@ -561,7 +751,7 @@
         if (aborted) {
           if (!state.started) {
             state.rawText = "Generation stopped.";
-            applyStreamMarkdown(state);
+            flushStreamMarkdown(state);
           } else if (!state.bubble.querySelector(".chat-stopped")) {
             const note = document.createElement("div");
             note.className = "chat-stopped";
@@ -570,9 +760,10 @@
           }
         } else {
           state.rawText = error.message || "Could not reach the assistant.";
-          applyStreamMarkdown(state);
+          flushStreamMarkdown(state);
         }
       } finally {
+        flushStreamMarkdown(state);
         persistMessagesFromDom();
         chatBusy = false;
         stopRequested = false;
@@ -640,6 +831,7 @@
     window.ERPAssistant = {
       open: openChat,
       close: closeChat,
+      renderMarkdown,
       clear() {
         saveState({ messages: [], open: false });
         restoreMessages([]);
@@ -653,8 +845,10 @@
       // Drop v1 cache (plain innerText) so old broken history is not restored.
       sessionStorage.removeItem("erp_ai_chat_v1");
     } catch (_) {}
-    ensureMarked(() => {
-      if (window.marked) marked.setOptions({ gfm: true, breaks: true });
+    ensureMarkdownDeps(() => {
+      if (window.marked && typeof window.marked.setOptions === "function") {
+        window.marked.setOptions({ gfm: true, breaks: true });
+      }
       init();
     });
   }

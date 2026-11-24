@@ -65,8 +65,13 @@ def get_backlog_courses(
             "rrn": roll_number,
             "email": email,
             "semester": current_sem,
-            "branch": f"B.Tech {branch}",
-            "scheme": f"B.Tech-{branch}-2023-24",
+            "branch": (
+                "Bachelor of Technology - Computer Science and Engineering"
+                if branch == "CSE"
+                else f"Bachelor of Technology - {branch}"
+            ),
+            "scheme": f"B.Tech-{branch}-2025-2029-Department of Computer Engineering (New)",
+            "admission_batch": "2025-2029",
             "session": DEFAULT_SESSION,
         },
         "selected_semester": selected,
@@ -85,39 +90,3 @@ def get_backlog_courses(
         ),
     }
 
-
-def format_backlog(payload: dict[str, Any]) -> str:
-    """Markdown summary for chatbot answers (read-only; no register/pay)."""
-    student = payload.get("student") or {}
-    fee = payload.get("fee_summary") or {}
-    lines = [
-        "### Backlog courses\n",
-        f"- **Student:** {student.get('name')}",
-        f"- **RRN:** {student.get('rrn')}",
-        f"- **Branch:** {student.get('branch')}",
-        f"- **Selected semester:** {payload.get('selected_semester')}",
-        f"- **Subjects fee:** ₹{fee.get('subjects_fee')}",
-        f"- **Total fee:** ₹{fee.get('total_fee')}",
-        "",
-        "#### Courses",
-    ]
-    courses = payload.get("courses") or []
-    if not courses:
-        lines.append("- No backlog courses for the selected semester.")
-    else:
-        for row in courses:
-            lines.append(
-                f"- **{row.get('code')}** {row.get('name')} "
-                f"(Sem {row.get('semester')}, grade {row.get('grade')}, "
-                f"fee ₹{row.get('exam_fees')})"
-            )
-
-    warning = payload.get("warning")
-    if warning:
-        lines.extend(["", f"> {warning}"])
-        lines.append(
-            "> Registration and payment are available only in the "
-            "Examination module UI (read-only here)."
-        )
-
-    return "\n".join(lines) + "\n"

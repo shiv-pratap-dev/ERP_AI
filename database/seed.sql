@@ -63,37 +63,41 @@ VALUES
  'EMP005', 'Dr. Aditi Verma', 'Computer Science');
 
 -- 4. COURSES
--- Two courses per teacher; realistic B.Tech CSE subjects.
+-- Term III (Sem - III) B.Tech CSE registered courses.
 INSERT INTO courses
-    (course_code, course_name, semester, teacher_id, description)
+    (course_code, course_name, semester, teacher_id, subject_type, credits, description)
 SELECT
     v.course_code,
     v.course_name,
     v.semester,
     t.id,
+    v.subject_type,
+    v.credits,
     v.description
 FROM (VALUES
-    ('CS301', 'Data Structures and Algorithms', 3, 1,
-     'Arrays, linked lists, trees, graphs and algorithms.'),
-    ('CS302', 'Database Management Systems', 3, 1,
-     'Relational databases, SQL, normalization and transactions.'),
-    ('CS303', 'Object-Oriented Programming', 3, 2,
-     'Classes, objects, inheritance and polymorphism.'),
-    ('CS304', 'Operating Systems', 3, 2,
-     'Processes, threads, scheduling and memory management.'),
-    ('MA301', 'Engineering Mathematics III', 3, 3,
-     'Linear algebra, probability and differential equations.'),
-    ('MA302', 'Discrete Mathematics', 3, 3,
-     'Logic, sets, relations, graphs and combinatorics.'),
-    ('EC301', 'Digital Logic Design', 3, 4,
-     'Boolean algebra, logic gates and sequential circuits.'),
-    ('EC302', 'Computer Organization', 3, 4,
-     'Processor architecture, memory and instruction execution.'),
-    ('CS305', 'Computer Networks', 3, 5,
+    ('BCO011A', 'Computer Networks', 3, 5, 'Theory', 4.00,
      'Network protocols, routing and communication.'),
-    ('CS306', 'Software Engineering', 3, 5,
-     'Software lifecycle, requirements, testing and design.')
-) AS v(course_code, course_name, semester, teacher_num, description)
+    ('BCO005B', 'Data Structure and Algorithms Lab', 3, 1, 'Practical', 1.00,
+     'Lab exercises for data structures and algorithms.'),
+    ('BCO002B', 'Data Structures and Algorithms', 3, 1, 'Theory', 4.00,
+     'Arrays, linked lists, trees, graphs and algorithms.'),
+    ('BAS007B', 'Discrete Mathematics', 3, 3, 'Theory', 3.00,
+     'Logic, sets, relations, graphs and combinatorics.'),
+    ('DEN003A', 'Life Skills 1 (Personality Development)', 3, 2, 'Project', 2.00,
+     'Personality development and soft skills.'),
+    ('BCO008B', 'Operating Systems', 3, 2, 'Theory', 3.00,
+     'Processes, threads, scheduling and memory management.'),
+    ('BCO014B', 'Operating Systems Lab', 3, 2, 'Practical', 1.00,
+     'Hands-on operating systems laboratory.'),
+    ('BCO235B', 'Probabilistic Modelling and Reasoning with Python', 3, 3, 'Theory', 4.00,
+     'Probability models and reasoning using Python.'),
+    ('BCO280B', 'R Programming for Data Science and Data Analysis', 3, 4, 'Theory', 4.00,
+     'Data analysis with R for data science.'),
+    ('BCO232A', 'Software Engineering and Project Management', 3, 5, 'Theory', 3.00,
+     'Software lifecycle, requirements, testing and project management.'),
+    ('DIN003A', 'Value Education 1', 3, 4, 'Project', 1.00,
+     'Foundational value education.')
+) AS v(course_code, course_name, semester, teacher_num, subject_type, credits, description)
 JOIN teachers t ON t.employee_id = 'EMP' || LPAD(v.teacher_num::text, 3, '0');
 
 -- 5. ENROLLMENTS
@@ -104,7 +108,7 @@ FROM students s
 CROSS JOIN courses c;
 
 -- 6. ASSIGNMENTS
--- Two assignments per course.
+-- Two assignments per non-practical course (labs have no LMS assignments).
 INSERT INTO assignments
     (course_id, created_by, title, description, due_date, max_marks)
 SELECT
@@ -121,6 +125,7 @@ JOIN (VALUES
     (2, 'Assignment 2: Practical Application',
      'Solve the practical problems related to this subject.', 14, 30::NUMERIC)
 ) AS a(assignment_num, title, description, days_ahead, max_marks)
-ON TRUE;
+ON TRUE
+WHERE c.subject_type <> 'Practical';
 
 COMMIT;

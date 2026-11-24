@@ -55,7 +55,9 @@ def get_student_profile(student_id: str) -> dict[str, Any]:
                 c.course_name,
                 c.semester,
                 c.description,
-                t.full_name AS teacher_name
+                t.full_name AS teacher_name,
+                COALESCE(c.subject_type, 'Theory') AS subject_type,
+                COALESCE(c.credits, 4.0) AS credits
             FROM enrollments e
             JOIN courses c ON c.id = e.course_id
             LEFT JOIN teachers t ON t.id = c.teacher_id
@@ -65,7 +67,8 @@ def get_student_profile(student_id: str) -> dict[str, Any]:
             (student_id,),
         ).fetchall()
 
-    session_label = "July-Dec 2026-2027"
+    # Admission batch 2025-2029. Current term is semester 3.
+    session_label = "Jul 2026 - Dec 2026 (3rd Semester)"
     degree = (
         "Bachelor of Technology - Computer Science and Engineering"
         if branch == "CSE"
@@ -81,13 +84,13 @@ def get_student_profile(student_id: str) -> dict[str, Any]:
         "mobile": "9876543210",
         "login_status": "Enabled",
         "admission_status": "Admitted",
-        "admission_batch": "2023-24",
+        "admission_batch": "2025-2029",
         "admission_type": "REGULAR",
         "school": "School of Engineering and Technology",
         "degree_branch": degree,
         "semester": semester,
         "branch": branch,
-        "scheme": f"B.Tech-{branch}-2023-24-Department of Computer Engineering (New)",
+        "scheme": f"B.Tech-{branch}-2025-2029-Department of Computer Engineering (New)",
         "session": session_label,
         "last_login": datetime.now().strftime("%d-%b-%Y %I:%M %p"),
         "created_at": created_at.isoformat() if created_at else None,
@@ -127,8 +130,8 @@ def get_student_profile(student_id: str) -> dict[str, Any]:
                 "year": "First Year",
                 "semester": "I",
                 "receipt_type": "Academic Fees",
-                "receipt_no": "C/TF/23/1001",
-                "receipt_date": "15/07/2023",
+                "receipt_no": "C/TF/25/1001",
+                "receipt_date": "15/07/2025",
                 "applied": 120000.0,
                 "paid": 120000.0,
                 "outstanding": 0.0,
@@ -137,22 +140,17 @@ def get_student_profile(student_id: str) -> dict[str, Any]:
                 "year": "Second Year",
                 "semester": "III",
                 "receipt_type": "Academic Fees",
-                "receipt_no": "C/TF/24/2104",
-                "receipt_date": "12/07/2024",
+                "receipt_no": "C/TF/26/2104",
+                "receipt_date": "12/07/2026",
                 "applied": 110000.0,
                 "paid": 110000.0,
                 "outstanding": 0.0,
             },
-            {
-                "year": "Third Year",
-                "semester": "V",
-                "receipt_type": "Academic Fees",
-                "receipt_no": "C/TF/25/3308",
-                "receipt_date": "10/07/2025",
-                "applied": 110000.0,
-                "paid": 56000.0,
-                "outstanding": 54000.0,
-            },
+        ],
+        "available_sessions": [
+            "Jul 2025 - Dec 2025 (1st Semester)",
+            "Jan 2026 - Jun 2026 (2nd Semester)",
+            "Jul 2026 - Dec 2026 (3rd Semester)",
         ],
         "attendance_summary": build_attendance_summary(
             str(_id),
@@ -162,25 +160,25 @@ def get_student_profile(student_id: str) -> dict[str, Any]:
         "results": [
             {
                 "semester": "I",
-                "session": "July-Dec 2023-2024",
+                "session": "Jul 2025 - Dec 2025 (1st Semester)",
                 "section": "SF",
                 "registered_courses": 8,
                 "failed_courses": 0,
                 "registered_credits": 22.0,
                 "earned_credits": 22.0,
                 "sgpa": 7.80,
-                "result_date": "20 Jan 2024",
+                "result_date": "20 Jan 2026",
             },
             {
                 "semester": "II",
-                "session": "Jan-June 2023-2024",
+                "session": "Jan 2026 - Jun 2026 (2nd Semester)",
                 "section": "SF",
                 "registered_courses": 9,
                 "failed_courses": 0,
                 "registered_credits": 24.0,
                 "earned_credits": 24.0,
                 "sgpa": 7.65,
-                "result_date": "18 Jun 2024",
+                "result_date": "18 Jun 2026",
             },
         ],
         "internal_marks": [
@@ -204,8 +202,8 @@ def get_student_profile(student_id: str) -> dict[str, Any]:
                 "semester": c[2],
                 "description": c[3],
                 "teacher": c[4],
-                "subject_type": "Theory",
-                "credits": 4.0,
+                "subject_type": c[5],
+                "credits": float(c[6]),
                 "course_registered": True,
                 "exam_registered": True,
             }
@@ -213,20 +211,3 @@ def get_student_profile(student_id: str) -> dict[str, Any]:
         ],
     }
 
-
-def format_profile_summary(profile: dict[str, Any]) -> str:
-    """Markdown summary for chatbot fast-path / tool answers."""
-    personal = profile.get("personal") or {}
-    return (
-        f"### Student profile\n\n"
-        f"- **Name:** {profile.get('full_name')}\n"
-        f"- **RRN / Enrollment:** {profile.get('rrn')}\n"
-        f"- **Email:** {profile.get('email')}\n"
-        f"- **Branch:** {profile.get('branch')}\n"
-        f"- **Semester:** {profile.get('semester')}\n"
-        f"- **Degree:** {profile.get('degree_branch')}\n"
-        f"- **Session:** {profile.get('session')}\n"
-        f"- **School:** {profile.get('school')}\n"
-        f"- **DOB:** {personal.get('dob')}\n"
-        f"- **Category:** {personal.get('category')}\n"
-    )

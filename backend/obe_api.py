@@ -19,12 +19,12 @@ from faculty_api import _assert_course_owned, _require_teacher
 router = APIRouter(prefix="/api/faculty/obe", tags=["obe"])
 
 SESSION_KEY = "2026-27-ODD"
-QW_SESSION = "July-Dec 2026-2027 - SET"
-REPORT_SESSION = "July-Dec 2026-2027 - School of Engineering and Technology"
-SESSIONS = {
-    QW_SESSION: SESSION_KEY,
-    REPORT_SESSION: SESSION_KEY,
-}
+STUDENT_SESSIONS = (
+    "Jul 2025 - Dec 2025 (1st Semester)",
+    "Jan 2026 - Jun 2026 (2nd Semester)",
+    "Jul 2026 - Dec 2026 (3rd Semester)",
+)
+SESSIONS = {label: SESSION_KEY for label in STUDENT_SESSIONS}
 ADMISSION_BATCH = "2023-24"
 STATUS_CODES = ("902", "903", "904")
 SEEDED_EXAM = "II-IN TERM-NEW"
@@ -694,8 +694,8 @@ def obe_meta(access_token: str | None = Cookie(default=None)) -> dict[str, Any]:
             }
         )
     return {
-        "question_sessions": [QW_SESSION],
-        "report_sessions": [REPORT_SESSION],
+        "question_sessions": list(STUDENT_SESSIONS),
+        "report_sessions": list(STUDENT_SESSIONS),
         "schemes": [scheme],
         "subject_types": ["Theory", "Practical"],
         "exams": exams,

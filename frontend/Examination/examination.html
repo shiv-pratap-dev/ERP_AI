@@ -33,7 +33,7 @@
 
   <div id="portal-navbar"></div>
   <script src="/frontend/shared/navbar.js?v=5"></script>
-  <script src="/frontend/shared/erp-assistant.js?v=7"></script>
+  <script src="/frontend/shared/erp-assistant.js?v=9"></script>
 
 
   <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
@@ -106,10 +106,12 @@
             <div class="grid md:grid-cols-2 gap-3 text-sm">
               <p><span class="text-gray-500">Student Name:</span> <strong id="admitName"></strong></p>
               <p><span class="text-gray-500">RRN No:</span> <strong id="admitRrn"></strong></p>
-              <p><span class="text-gray-500">Branch:</span> <span id="admitBranch"></span></p>
+              <p class="md:col-span-2"><span class="text-gray-500">Branch:</span> <span id="admitBranch"></span></p>
+              <p><span class="text-gray-500">Admission Batch:</span> <span id="admitBatch"></span></p>
               <p><span class="text-gray-500">Semester:</span> <span id="admitSemester"></span></p>
               <p><span class="text-gray-500">Session:</span> <span id="admitSession"></span></p>
               <p><span class="text-gray-500">Exam:</span> <span id="admitExam"></span></p>
+              <p class="md:col-span-2"><span class="text-gray-500">Scheme:</span> <span id="admitScheme"></span></p>
               <p class="md:col-span-2"><span class="text-gray-500">Center:</span> <span id="admitCenter"></span></p>
             </div>
             <div class="overflow-x-auto">
@@ -143,8 +145,9 @@
               <p><span class="text-gray-500">Student Name:</span> <strong id="backlogName"></strong></p>
               <p><span class="text-gray-500">RRN No:</span> <strong id="backlogRrn"></strong></p>
               <p><span class="text-gray-500">Semester:</span> <span id="backlogSem"></span></p>
-              <p><span class="text-gray-500">Degree/Branch:</span> <span id="backlogBranch"></span></p>
-              <p><span class="text-gray-500">Scheme:</span> <span id="backlogScheme"></span></p>
+              <p><span class="text-gray-500">Admission Batch:</span> <span id="backlogBatch"></span></p>
+              <p class="md:col-span-2"><span class="text-gray-500">Degree/Branch:</span> <span id="backlogBranch"></span></p>
+              <p class="md:col-span-2"><span class="text-gray-500">Scheme:</span> <span id="backlogScheme"></span></p>
               <p><span class="text-gray-500">Session:</span> <span id="backlogSession"></span></p>
             </div>
 
@@ -155,7 +158,6 @@
                   <option value="1">I</option>
                   <option value="2" selected>II</option>
                   <option value="3">III</option>
-                  <option value="4">IV</option>
                 </select>
                 <div id="backlogWarning" class="mt-3 bg-sky-50 border border-sky-200 text-sky-800 text-sm rounded p-3"></div>
                 <div class="mt-4 overflow-x-auto">
@@ -369,9 +371,11 @@
       document.getElementById("admitName").textContent = card.student_name;
       document.getElementById("admitRrn").textContent = card.rrn;
       document.getElementById("admitBranch").textContent = card.branch;
+      document.getElementById("admitBatch").textContent = card.admission_batch || "2025-2029";
       document.getElementById("admitSemester").textContent = card.semester;
       document.getElementById("admitSession").textContent = card.session;
       document.getElementById("admitExam").textContent = card.exam_name;
+      document.getElementById("admitScheme").textContent = card.scheme || "";
       document.getElementById("admitCenter").textContent = card.center;
       document.getElementById("admitPapers").innerHTML = (card.papers || []).map((row) => `
         <tr class="border-b">
@@ -407,6 +411,7 @@
       document.getElementById("backlogName").textContent = student.name;
       document.getElementById("backlogRrn").textContent = student.rrn;
       document.getElementById("backlogSem").textContent = student.semester;
+      document.getElementById("backlogBatch").textContent = student.admission_batch || "2025-2029";
       document.getElementById("backlogBranch").textContent = student.branch;
       document.getElementById("backlogScheme").textContent = student.scheme;
       document.getElementById("backlogSession").textContent = student.session;

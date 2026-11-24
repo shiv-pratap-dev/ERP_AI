@@ -14,7 +14,11 @@ from faculty_api import _require_teacher
 router = APIRouter(prefix="/api/faculty/extra-class", tags=["extra-class"])
 
 PLAN_TYPES = ("Core/Elective", "Open/Global Elective")
-SESSIONS = ("July-Dec 2026-2027", "July-Dec 2025-2026")
+SESSIONS = (
+    "Jul 2026 - Dec 2026 (3rd Semester)",
+    "Jan 2026 - Jun 2026 (2nd Semester)",
+    "Jul 2025 - Dec 2025 (1st Semester)",
+)
 TEACHING_FOR = ("Theory", "Practical", "Tutorial")
 SECTIONS = ("S", "A", "B", "C")
 BATCHES = {"S": ["S1", "S2"], "A": ["A1"], "B": ["B1"], "C": ["C1"]}
@@ -144,19 +148,19 @@ def _seed_extra_classes(conn) -> None:
         if not courses:
             continue
         college = _colleges_for(department)[0]
-        details_2025 = f"July-Dec 2025-2026-{full_name}-{employee_id}"
-        details_2026 = f"July-Dec 2026-2027-{full_name}-{employee_id}"
+        details_2025 = f"{SESSIONS[2]}-{full_name}-{employee_id}"
+        details_2026 = f"{SESSIONS[0]}-{full_name}-{employee_id}"
         first, second = courses[0], courses[min(1, len(courses) - 1)]
         samples = (
-            (details_2025, "July-Dec 2025-2026", first, "S", "", "Morning New Slot",
+            (details_2025, SESSIONS[2], first, "S", "", "Morning New Slot",
              "CSE Lab(12:50 PM-02:00 PM)", date(2025, 12, 6), date(2025, 12, 6)),
-            (details_2025, "July-Dec 2025-2026", first, "S", "", "Morning New Slot",
+            (details_2025, SESSIONS[2], first, "S", "", "Morning New Slot",
              "CSE 001(08:50 AM-09:40 AM)", date(2025, 12, 7), date(2025, 12, 7)),
-            (details_2025, "July-Dec 2025-2026", second, "A", "A1", "Morning New Slot",
+            (details_2025, SESSIONS[2], second, "A", "A1", "Morning New Slot",
              "CSE 002(09:40 AM-10:30 AM)", date(2025, 12, 8), date(2025, 12, 8)),
-            (details_2026, "July-Dec 2026-2027", first, "S", "S1", "Afternoon New Slot",
+            (details_2026, SESSIONS[0], first, "S", "S1", "Afternoon New Slot",
              "CSE 005(01:50 PM-02:40 PM)", date(2026, 11, 10), date(2026, 11, 12)),
-            (details_2026, "July-Dec 2026-2027", second, "S", "S1", "Morning New Slot",
+            (details_2026, SESSIONS[0], second, "S", "S1", "Morning New Slot",
              "CSE 003(02:20 PM-03:00 PM)", date(2026, 11, 17), date(2026, 11, 19)),
         )
         for index, sample in enumerate(samples, start=1):

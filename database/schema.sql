@@ -48,6 +48,10 @@ CREATE TABLE courses (
     semester SMALLINT NOT NULL CHECK (semester BETWEEN 1 AND 8),
     teacher_id UUID NOT NULL
         REFERENCES teachers(id) ON DELETE RESTRICT,
+    subject_type VARCHAR(20) NOT NULL DEFAULT 'Theory'
+        CHECK (subject_type IN ('Theory', 'Practical', 'Project')),
+    credits NUMERIC(4,2) NOT NULL DEFAULT 4.00
+        CHECK (credits > 0),
     description TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

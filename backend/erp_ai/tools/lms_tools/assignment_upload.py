@@ -220,7 +220,15 @@ async def upload_assignment_file(
                 )
                 replaced = True
 
-        # DB transaction committed. Remove old managed file only after commit.
+        # DB transaction committed. Invalidate cached LMS tool reads for student.
+        try:
+            from erp_ai.chat.cache import invalidate_student_cache
+
+            invalidate_student_cache(str(student_id), user.get("id"))
+        except Exception:
+            pass
+
+        # Remove old managed file only after commit.
         if replaced and old_stored_path:
             try:
                 resolved_old = old_stored_path.resolve()

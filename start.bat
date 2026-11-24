@@ -52,7 +52,7 @@ echo   Admin     admin@erp.test
 echo.
 echo Leave this window open. Close it, or press Ctrl+C, to stop the server.
 echo.
-".venv\Scripts\python.exe" -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+".venv\Scripts\python.exe" -m uvicorn --app-dir backend main:app --host 127.0.0.1 --port 8000
 echo.
 echo The server stopped.
 pause

@@ -36,4 +36,4 @@ echo "  Admin     admin@erp.test"
 echo
 echo "Leave this window open. Press Ctrl+C to stop the server."
 echo
-exec .venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+exec .venv/bin/python -m uvicorn --app-dir backend main:app --host 127.0.0.1 --port 8000

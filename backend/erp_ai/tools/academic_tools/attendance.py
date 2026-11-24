@@ -7,20 +7,6 @@ from typing import Any
 from database import get_connection
 
 
-def _roman(num: int) -> str:
-    mapping = {
-        1: "I",
-        2: "II",
-        3: "III",
-        4: "IV",
-        5: "V",
-        6: "VI",
-        7: "VII",
-        8: "VIII",
-    }
-    return mapping.get(int(num), str(num))
-
-
 def _ensure_faculty_attendance_tables() -> None:
     """Make sure faculty attendance tables exist before reading them."""
     try:
@@ -43,7 +29,7 @@ def build_attendance_summary(
     student_id: str,
     *,
     semester: int | None = None,
-    session_label: str = "July-Dec 2026-2027",
+    session_label: str = "Jul 2026 - Dec 2026 (3rd Semester)",
 ) -> dict[str, Any]:
     """
     Aggregate live attendance from faculty_attendance_marks.
@@ -53,15 +39,9 @@ def build_attendance_summary(
     data, so dashboard / profile / chatbot stay in sync after a teacher update.
     """
     _ensure_faculty_attendance_tables()
+    _ = semester
 
     with get_connection() as conn:
-        if semester is None:
-            row = conn.execute(
-                "SELECT semester FROM students WHERE id = %s",
-                (student_id,),
-            ).fetchone()
-            semester = int(row[0]) if row else 0
-
         rows = conn.execute(
             """
             SELECT
@@ -124,7 +104,7 @@ def build_attendance_summary(
         od += od_count
 
     return {
-        "session": f"{session_label} ({_roman(int(semester or 0))})",
+        "session": session_label,
         "total_classes": total_classes,
         "present": present,
         "absent": absent,
@@ -162,28 +142,99 @@ def get_attendance_summary(student_id: str) -> dict[str, Any]:
     }
 
 
-def format_attendance_summary(summary: dict[str, Any]) -> str:
-    """Markdown summary for chatbot answers."""
-    lines = [
-        "### Attendance summary\n",
-        f"- **Student:** {summary.get('full_name')}",
-        f"- **Session:** {summary.get('session')}",
-        f"- **Total classes:** {summary.get('total_classes')}",
-        f"- **Present:** {summary.get('present')}",
-        f"- **Absent:** {summary.get('absent')}",
-        f"- **OD:** {summary.get('od')}",
-        f"- **Overall %:** {summary.get('percent')}",
-        "",
-        "#### Subject-wise",
-    ]
-    subjects = summary.get("subjects") or []
-    if not subjects:
-        lines.append("- No subject attendance rows available.")
+from erp_ai.chat.normalizer import (
+    COURSE_ALIASES,
+    expand_course_aliases,
+    has_phrase,
+    match_course_from_list,
+    normalize_alnum,
+    normalize_chat_text,
+)
+
+
+def filter_attendance_subjects(
+    summary: dict[str, Any],
+    query: str,
+) -> dict[str, Any]:
+    """Keep only subjects that match a course code/name/alias in the query."""
+    normalized = normalize_alnum(normalize_chat_text(query))
+    if not normalized:
+        return summary
+
+    subjects = list(summary.get("subjects") or [])
+    matched: list[dict[str, Any]] = []
+
+    best_match, candidates = match_course_from_list(
+        query,
+        subjects,
+        code_key="code",
+        name_key="name",
+    )
+    if best_match is not None:
+        matched = [best_match]
     else:
+        search_terms = expand_course_aliases(query)
         for item in subjects:
-            lines.append(
-                f"- **{item.get('code')}** {item.get('name')}: "
-                f"{item.get('present')}/{item.get('total')} "
-                f"({item.get('percent')}%)"
+            code = normalize_alnum(str(item.get("code") or ""))
+            name = normalize_alnum(str(item.get("name") or ""))
+            haystack = f"{code} {name}".strip()
+            if code and has_phrase(normalized, code):
+                matched.append(item)
+            elif any(term and term in haystack for term in search_terms[1:]):
+                matched.append(item)
+            elif name and name in normalized:
+                matched.append(item)
+        if not matched and candidates:
+            matched = candidates
+
+    # No subject hint in the query → keep full summary.
+    if not matched:
+        words = set(normalized.split())
+        hinted = any(
+            alias in words or has_phrase(normalized, alias)
+            for alias in COURSE_ALIASES
+        ) or any(
+            token in words or token in normalized
+            for token in (
+                "bco",
+                "bas",
+                "den",
+                "din",
+                "dma",
+                "lab",
+                "networks",
+                "operating",
+                "software",
+                "discrete",
             )
-    return "\n".join(lines) + "\n"
+        )
+        if not hinted:
+            return summary
+        return {
+            **summary,
+            "subjects": [],
+            "total_classes": 0,
+            "present": 0,
+            "absent": 0,
+            "od": 0,
+            "percent": 0.0,
+            "filter_query": query,
+            "filter_matched": False,
+        }
+
+    total_classes = sum(int(item.get("total") or 0) for item in matched)
+    present = sum(int(item.get("present") or 0) for item in matched)
+    absent = sum(int(item.get("absent") or 0) for item in matched)
+    od = sum(int(item.get("od") or 0) for item in matched)
+    return {
+        **summary,
+        "subjects": matched,
+        "total_classes": total_classes,
+        "present": present,
+        "absent": absent,
+        "od": od,
+        "percent": _percent(present, od, total_classes),
+        "filter_query": query,
+        "filter_matched": True,
+    }
+

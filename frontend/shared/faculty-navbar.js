@@ -360,7 +360,7 @@
       document.head.appendChild(link);
     }
     const script = document.createElement("script");
-    script.src = "/frontend/shared/erp-assistant.js?v=8";
+    script.src = "/frontend/shared/erp-assistant.js?v=9";
     script.dataset.erpAssistant = "1";
     document.body.appendChild(script);
   }

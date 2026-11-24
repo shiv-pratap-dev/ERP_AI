@@ -392,6 +392,32 @@
   padding: 0;
 }
 
+.chat-md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.4em 0;
+  font-size: 12px;
+}
+
+.chat-md th,
+.chat-md td {
+  border: 1px solid #cbd5e1;
+  padding: 4px 7px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.chat-md th {
+  background: #f1f5f9;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.chat-md a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
 .typing-indicator {
   display: inline-flex;
   align-items: center;
