@@ -921,6 +921,26 @@ def _resolve_short_slot_followup(
 # Zero-ERP-Data Structured-Output LLM Classifier Fallback
 # ============================================================================
 
+def _parse_json_intents(raw_text: Any) -> list[str]:
+    """Extract an `intents` list from a plain-text or fenced JSON LLM reply."""
+    import json
+    import re
+
+    text = str(raw_text or "").strip()
+    if not text:
+        return []
+    match = re.search(r"\{[\s\S]*\}", text)
+    if not match:
+        return []
+    try:
+        data = json.loads(match.group(0))
+    except json.JSONDecodeError:
+        return []
+    if isinstance(data, dict) and isinstance(data.get("intents"), list):
+        return [str(v) for v in data["intents"]]
+    return []
+
+
 async def _llm_classify_fallback(
     query: str,
     role: Literal["student", "teacher"],
@@ -958,30 +978,42 @@ async def _llm_classify_fallback(
             base_llm = get_llm(
                 model_name,
                 temperature=0.0,
-                max_output_tokens=120,
-                timeout=12,
+                max_output_tokens=2048,
+                timeout=60,
                 max_retries=1,
                 include_thoughts=False,
                 thinking_budget=0,
             )
-            try:
-                structured_llm = base_llm.with_structured_output(
-                    schema_cls,
-                    method="json_schema",
-                )
-            except TypeError:
-                structured_llm = base_llm.with_structured_output(schema_cls)
             if log:
                 log.thinking(
                     f"Lexical probes matched 0 categories — invoking structured LLM classifier "
                     f"(model={model_name}, attempt={attempt_idx})."
                 )
-            parsed = await structured_llm.ainvoke(messages)
             raw_values: list[str] = []
-            if isinstance(parsed, (StudentClassificationOutput, FacultyClassificationOutput)):
-                raw_values = list(parsed.intents or [])
-            elif isinstance(parsed, dict):
-                raw_values = [str(v) for v in (parsed.get("intents") or [])]
+            try:
+                try:
+                    structured_llm = base_llm.with_structured_output(
+                        schema_cls,
+                        method="json_schema",
+                    )
+                except TypeError:
+                    structured_llm = base_llm.with_structured_output(schema_cls)
+                parsed = await structured_llm.ainvoke(messages)
+                if isinstance(parsed, (StudentClassificationOutput, FacultyClassificationOutput)):
+                    raw_values = list(parsed.intents or [])
+                elif isinstance(parsed, dict):
+                    raw_values = [str(v) for v in (parsed.get("intents") or [])]
+            except Exception:
+                # Fallback for local/OpenAI-compatible models that don't populate `parsed`
+                json_messages = [
+                    SystemMessage(
+                        content=system_prompt
+                        + '\n\nRespond ONLY with valid JSON: {"intents": ["..."]}.'
+                    ),
+                    HumanMessage(content=human_text),
+                ]
+                raw_reply = await base_llm.ainvoke(json_messages)
+                raw_values = _parse_json_intents(getattr(raw_reply, "content", ""))
 
             converted: list[IntentCategory] = []
             for val in raw_values:
